@@ -1,0 +1,269 @@
+//! The SQLite API the web UI calls, one command per method of the browser build's worker
+//! (`src/shared/lib/sqlite/worker.ts`). The frontend side is `src/shared/lib/sqlite/desktop.ts`.
+
+use percent_encoding::percent_decode_str;
+use sequill_core::store::SavedQuery;
+use sequill_core::{
+    CellValue, DbInfo, QueryResult, Row, Schema, SqlStatement, StatementResult, Store,
+};
+use serde::Serialize;
+use std::sync::{Arc, Mutex, PoisonError};
+use tauri::State;
+use tauri::ipc::{InvokeBody, Request, Response};
+
+/// Header carrying the imported file's name (percent-encoded), next to its raw bytes.
+const NAME_HEADER: &str = "x-sequill-name";
+
+pub struct AppState {
+    pub store: Arc<Mutex<Store>>,
+}
+
+type CmdResult<T> = Result<T, String>;
+
+/// Runs `work` on a blocking thread with the store locked: one call at a time, like the
+/// browser build's worker, and never on the UI thread.
+async fn with_store<T: Send + 'static>(
+    state: &State<'_, AppState>,
+    work: impl FnOnce(&mut Store) -> sequill_core::Result<T> + Send + 'static,
+) -> CmdResult<T> {
+    let store = Arc::clone(&state.store);
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut store = store.lock().unwrap_or_else(PoisonError::into_inner);
+        work(&mut store).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn sqlite_version() -> String {
+    sequill_core::sqlite_version().to_owned()
+}
+
+#[tauri::command]
+pub async fn list_databases(state: State<'_, AppState>) -> CmdResult<Vec<DbInfo>> {
+    with_store(&state, |s| s.list()).await
+}
+
+#[tauri::command]
+pub async fn create_database(
+    state: State<'_, AppState>,
+    name: String,
+    seed_sql: Option<String>,
+) -> CmdResult<DbInfo> {
+    with_store(&state, move |s| s.create(&name, seed_sql.as_deref())).await
+}
+
+/// The file's bytes arrive as the raw request body (no JSON number arrays for big files).
+#[tauri::command]
+pub async fn import_database(
+    state: State<'_, AppState>,
+    request: Request<'_>,
+) -> CmdResult<DbInfo> {
+    let InvokeBody::Raw(bytes) = request.body() else {
+        return Err("Expected the file's bytes".into());
+    };
+    let bytes = bytes.clone();
+    let name = request
+        .headers()
+        .get(NAME_HEADER)
+        .and_then(|v| v.to_str().ok())
+        .map(|v| percent_decode_str(v).decode_utf8_lossy().into_owned())
+        .filter(|n| !n.trim().is_empty())
+        .unwrap_or_else(|| "Untitled".into());
+    with_store(&state, move |s| s.import(&name, &bytes)).await
+}
+
+/// Returns the file as raw bytes (an ArrayBuffer on the JavaScript side).
+#[tauri::command]
+pub async fn export_database(state: State<'_, AppState>, id: String) -> CmdResult<Response> {
+    with_store(&state, move |s| s.export(&id))
+        .await
+        .map(Response::new)
+}
+
+#[tauri::command]
+pub async fn rename_database(
+    state: State<'_, AppState>,
+    id: String,
+    name: String,
+) -> CmdResult<DbInfo> {
+    with_store(&state, move |s| s.rename(&id, &name)).await
+}
+
+#[tauri::command]
+pub async fn delete_database(state: State<'_, AppState>, id: String) -> CmdResult<()> {
+    with_store(&state, move |s| s.delete(&id)).await
+}
+
+#[derive(Serialize)]
+pub struct Opened {
+    info: DbInfo,
+    schema: Schema,
+}
+
+#[tauri::command]
+pub async fn open_database(state: State<'_, AppState>, id: String) -> CmdResult<Opened> {
+    with_store(&state, move |s| {
+        let schema = s.session(&id)?.schema()?;
+        Ok(Opened {
+            info: s.info(&id)?,
+            schema,
+        })
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn schema(state: State<'_, AppState>, id: String) -> CmdResult<Schema> {
+    with_store(&state, move |s| s.session(&id)?.schema()).await
+}
+
+#[tauri::command]
+pub async fn count(
+    state: State<'_, AppState>,
+    id: String,
+    sql: String,
+    params: Vec<CellValue>,
+) -> CmdResult<i64> {
+    with_store(&state, move |s| s.session(&id)?.count(&sql, &params)).await
+}
+
+#[tauri::command]
+pub async fn query(
+    state: State<'_, AppState>,
+    id: String,
+    sql: String,
+    params: Option<Vec<CellValue>>,
+    limit: Option<usize>,
+) -> CmdResult<QueryResult> {
+    with_store(&state, move |s| {
+        let result = s
+            .session(&id)?
+            .query(&sql, &params.unwrap_or_default(), limit)?;
+        if result.changes > 0 {
+            s.touch()?;
+        }
+        Ok(result)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn exec_script(
+    state: State<'_, AppState>,
+    id: String,
+    sql: String,
+    row_limit: usize,
+) -> CmdResult<Vec<StatementResult>> {
+    with_store(&state, move |s| {
+        let results = s.session(&id)?.exec_script(&sql, row_limit);
+        s.touch()?;
+        Ok(results)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn explain_script(
+    state: State<'_, AppState>,
+    id: String,
+    sql: String,
+) -> CmdResult<Vec<StatementResult>> {
+    with_store(&state, move |s| Ok(s.session(&id)?.explain_script(&sql))).await
+}
+
+#[tauri::command]
+pub async fn transaction(
+    state: State<'_, AppState>,
+    id: String,
+    statements: Vec<SqlStatement>,
+) -> CmdResult<u64> {
+    with_store(&state, move |s| {
+        let changes = s.session(&id)?.transaction(&statements)?;
+        s.touch()?;
+        Ok(changes)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn apply_design(
+    state: State<'_, AppState>,
+    id: String,
+    statements: Vec<String>,
+) -> CmdResult<()> {
+    with_store(&state, move |s| {
+        s.session(&id)?.apply_design(&statements)?;
+        s.touch()
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn insert_many(
+    state: State<'_, AppState>,
+    id: String,
+    sql: String,
+    rows: Vec<Row>,
+) -> CmdResult<u64> {
+    with_store(&state, move |s| {
+        let inserted = s.session(&id)?.insert_many(&sql, &rows)?;
+        s.touch()?;
+        Ok(inserted)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn dump(state: State<'_, AppState>, id: String) -> CmdResult<String> {
+    with_store(&state, move |s| s.session(&id)?.dump()).await
+}
+
+/// Saved queries live in the catalog on desktop, so assistants can read and edit them too.
+#[tauri::command]
+pub async fn list_saved_queries(state: State<'_, AppState>) -> CmdResult<Vec<SavedQuery>> {
+    with_store(&state, |s| s.saved_queries()).await
+}
+
+#[tauri::command]
+pub async fn upsert_saved_query(state: State<'_, AppState>, query: SavedQuery) -> CmdResult<()> {
+    with_store(&state, move |s| s.upsert_saved_query(&query)).await
+}
+
+#[tauri::command]
+pub async fn delete_saved_query(state: State<'_, AppState>, id: String) -> CmdResult<bool> {
+    with_store(&state, move |s| s.delete_saved_query(&id)).await
+}
+
+/// The MCP switch and how an MCP client starts this app's MCP server.
+#[derive(Serialize)]
+pub struct McpStatus {
+    enabled: bool,
+    command: String,
+    args: Vec<String>,
+}
+
+fn mcp_status_of(store: &Store) -> sequill_core::Result<McpStatus> {
+    let exe = std::env::current_exe()?;
+    Ok(McpStatus {
+        enabled: store.mcp_enabled()?,
+        command: exe.to_string_lossy().into_owned(),
+        args: vec!["mcp".into()],
+    })
+}
+
+#[tauri::command]
+pub async fn mcp_status(state: State<'_, AppState>) -> CmdResult<McpStatus> {
+    with_store(&state, |s| mcp_status_of(s)).await
+}
+
+/// Turns MCP access on or off; the MCP server checks it on every call.
+#[tauri::command]
+pub async fn set_mcp_enabled(state: State<'_, AppState>, enabled: bool) -> CmdResult<McpStatus> {
+    with_store(&state, move |s| {
+        s.set_mcp_enabled(enabled)?;
+        mcp_status_of(s)
+    })
+    .await
+}

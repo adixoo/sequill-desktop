@@ -1,0 +1,24 @@
+[package]
+name = "sequill-core"
+description = "SQLite engine shared by the Sequill desktop app and its MCP server"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[features]
+# JSON Schemas for the structured inputs (used by the MCP server).
+schema = ["dep:schemars"]
+
+[dependencies]
+rusqlite.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+schemars = { version = "1", optional = true }
+base64.workspace = true
+uuid.workspace = true
+dirs.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true

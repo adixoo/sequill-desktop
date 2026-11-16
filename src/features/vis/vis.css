@@ -1,0 +1,55 @@
+/* React Flow themed from Pastel Noir tokens (follows light and dark mode). */
+.pn-flow {
+  --xy-background-color: var(--canvas);
+  --xy-background-pattern-dots-color: var(--decor);
+  --xy-edge-stroke: var(--strong);
+  --xy-edge-stroke-selected: var(--sky-ink);
+  --xy-edge-stroke-width: 2;
+  --xy-connectionline-stroke: var(--sky-ink);
+  --xy-connectionline-stroke-width: 2;
+  --xy-handle-background-color: var(--strong);
+  --xy-handle-border-color: var(--surface);
+  --xy-node-boxshadow-selected: none;
+  --xy-node-boxshadow-hover: none;
+  --xy-selection-background-color: var(--sky-wash);
+  --xy-selection-border: 1px dashed var(--sky-ink);
+  --xy-minimap-background-color: var(--surface);
+  --xy-minimap-mask-background-color: color-mix(in srgb, var(--canvas) 70%, transparent);
+  --xy-minimap-mask-stroke-color: var(--hairline);
+  --xy-minimap-node-background-color: var(--strong);
+  --xy-minimap-node-stroke-color: transparent;
+  --xy-controls-button-background-color: var(--raised);
+  --xy-controls-button-background-color-hover: var(--zebra);
+  --xy-controls-button-color: var(--ink-soft);
+  --xy-controls-button-color-hover: var(--ink);
+  --xy-controls-button-border-color: var(--hairline);
+  --xy-controls-box-shadow: none;
+  --xy-edge-label-background-color: var(--raised);
+  --xy-edge-label-color: var(--ink-soft);
+  font-family: var(--font-sans);
+}
+
+.pn-flow .react-flow__controls,
+.pn-flow .react-flow__minimap {
+  overflow: hidden;
+  border: 2px solid var(--hairline);
+  border-radius: var(--radius-sm);
+}
+
+/* Relationship lines stay gray; the selected table's and draft ones carry meaning. */
+.pn-flow .react-flow__edge.is-draft .react-flow__edge-path {
+  stroke: var(--added-ink);
+  stroke-dasharray: 6 5;
+}
+.pn-flow .react-flow__edge.is-active .react-flow__edge-path {
+  stroke: var(--sky-ink);
+}
+/* A pending relationship between columns of different types; saving is blocked. */
+.pn-flow .react-flow__edge.is-invalid .react-flow__edge-path {
+  stroke: var(--rose-ink);
+}
+.pn-flow .react-flow__node:focus-visible {
+  outline: 2px solid var(--sky-ink);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}

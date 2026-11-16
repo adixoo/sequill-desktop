@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en" class="dark h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- The on-screen keyboard shrinks the page instead of covering it, so drawer fields stay in view. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, interactive-widget=resizes-content"
+    />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f7f8" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0b" />
+    <meta name="description" content="Open, browse and edit SQLite databases, offline." />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/logo.svg" type="image/svg+xml" />
+    <title>Sequill</title>
+    <script>
+      // Apply the saved theme before the first paint (same key as src/shared/lib/theme.ts).
+      try {
+        if (localStorage.getItem("theme") === "light") {
+          document.documentElement.classList.replace("dark", "light");
+        }
+      } catch {}
+      document.documentElement.style.colorScheme = document.documentElement.classList.contains(
+        "light",
+      )
+        ? "light"
+        : "dark";
+    </script>
+  </head>
+  <body class="flex min-h-full flex-col">
+    <div id="root" class="contents"></div>
+    <script type="module" src="/src/main/main.tsx"></script>
+  </body>
+</html>

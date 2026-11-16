@@ -1,0 +1,1714 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sequill Code Map</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --canvas: #0a0a0b;
+        --surface: #141416;
+        --raised: #1c1c1f;
+        --line: #2a2a2e;
+        --ink: #ededef;
+        --ink-2: #a8a8ae;
+        --ink-3: #6e6e75;
+        --peach: #f5b99a;
+        --butter: #f2dc8c;
+        --mint: #9fdcbf;
+        --sky: #9cc8f0;
+        --lilac: #c5b3f0;
+        --rose: #f0a3b4;
+        --peach-wash: rgba(245, 185, 154, 0.12);
+        --mint-wash: rgba(159, 220, 191, 0.12);
+        --sky-wash: rgba(156, 200, 240, 0.12);
+        --lilac-wash: rgba(197, 179, 240, 0.12);
+        --butter-wash: rgba(242, 220, 140, 0.12);
+        --rose-wash: rgba(240, 163, 180, 0.12);
+        --r: 10px;
+      }
+      @media (prefers-color-scheme: light) {
+        :root:not([data-theme="dark"]) {
+          --canvas: #f7f7f8;
+          --surface: #ffffff;
+          --raised: #efeff1;
+          --line: #dcdce0;
+          --ink: #141416;
+          --ink-2: #4a4a50;
+          --ink-3: #7a7a82;
+          --peach: #a5502a;
+          --butter: #8a6d00;
+          --mint: #1f7a52;
+          --sky: #1f5f99;
+          --lilac: #5b3fb0;
+          --rose: #a8304b;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--canvas);
+        color: var(--ink);
+        font:
+          15px/1.55 "DM Sans",
+          system-ui,
+          sans-serif;
+      }
+      code,
+      .mono {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 0.86em;
+      }
+      .wrap {
+        max-width: 1120px;
+        margin: 0 auto;
+        padding: 40px 16px 80px;
+      }
+      h1 {
+        font-size: 34px;
+        line-height: 1.15;
+        margin: 0 0 8px;
+        letter-spacing: -0.02em;
+      }
+      h2 {
+        font-size: 22px;
+        margin: 56px 0 6px;
+        letter-spacing: -0.01em;
+      }
+      h3 {
+        font-size: 15px;
+        margin: 0 0 6px;
+      }
+      p.lede {
+        color: var(--ink-2);
+        max-width: 68ch;
+        margin: 0;
+      }
+      .sub {
+        color: var(--ink-2);
+        margin: 0 0 18px;
+        max-width: 72ch;
+      }
+      .chip {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: var(--raised);
+        color: var(--ink-2);
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 10px;
+        margin-top: 24px;
+      }
+      .stat {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 14px 16px;
+      }
+      .stat b {
+        display: block;
+        font-size: 26px;
+        letter-spacing: -0.02em;
+      }
+      .stat span {
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+
+      .stack {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 16px;
+      }
+      .stack .chip {
+        font-weight: 500;
+      }
+
+      /* Flow diagram */
+      .flow {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        counter-reset: s;
+      }
+      .step {
+        position: relative;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 14px 14px 12px;
+      }
+      .step::before {
+        counter-increment: s;
+        content: counter(s);
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 700;
+        background: var(--raised);
+        color: var(--ink-2);
+      }
+      .step h3 {
+        padding-right: 28px;
+      }
+      .step p {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 13.5px;
+      }
+      .step code {
+        color: var(--ink);
+      }
+      .step.sky {
+        border-top: 3px solid var(--sky);
+      }
+      .step.mint {
+        border-top: 3px solid var(--mint);
+      }
+      .step.peach {
+        border-top: 3px solid var(--peach);
+      }
+      .step.lilac {
+        border-top: 3px solid var(--lilac);
+      }
+      .step.butter {
+        border-top: 3px solid var(--butter);
+      }
+      .step.rose {
+        border-top: 3px solid var(--rose);
+      }
+
+      /* Layers */
+      .layers {
+        display: grid;
+        gap: 8px;
+      }
+      .layer {
+        display: grid;
+        grid-template-columns: 170px 1fr;
+        gap: 14px;
+        align-items: start;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 14px 16px;
+      }
+      .layer .name {
+        font-weight: 600;
+      }
+      .layer .name small {
+        display: block;
+        color: var(--ink-3);
+        font-weight: 400;
+        font-size: 12px;
+      }
+      .layer .dirs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 6px;
+      }
+      .layer .dirs code {
+        background: var(--raised);
+        padding: 2px 8px;
+        border-radius: 6px;
+      }
+      .layer p {
+        margin: 0;
+        color: var(--ink-2);
+        font-size: 13.5px;
+      }
+      .arrow {
+        text-align: center;
+        color: var(--ink-3);
+        font-size: 12px;
+        line-height: 1;
+      }
+      @media (max-width: 640px) {
+        .layer {
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+      }
+
+      /* Tree */
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 12px;
+        position: sticky;
+        top: 0;
+        background: var(--canvas);
+        padding: 10px 0;
+        z-index: 2;
+      }
+      .toolbar input {
+        flex: 1 1 240px;
+        min-width: 0;
+        background: var(--surface);
+        color: var(--ink);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 9px 12px;
+        font: inherit;
+      }
+      .toolbar input:focus {
+        outline: 2px solid var(--sky);
+        outline-offset: 1px;
+      }
+      .toolbar button {
+        background: var(--surface);
+        color: var(--ink-2);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 12px;
+        font: inherit;
+        font-size: 13px;
+        cursor: pointer;
+      }
+      .toolbar button:focus-visible,
+      .tree summary:focus-visible {
+        outline: 2px solid var(--sky);
+        outline-offset: 1px;
+      }
+      .toolbar .count {
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+      .tree {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        padding: 8px 6px;
+      }
+      .tree details {
+        margin-left: 14px;
+      }
+      .tree > details {
+        margin-left: 0;
+      }
+      .tree summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 5px 8px;
+        border-radius: 6px;
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        flex-wrap: wrap;
+      }
+      .tree summary::-webkit-details-marker {
+        display: none;
+      }
+      .tree summary .caret {
+        width: 10px;
+        color: var(--ink-3);
+        transition: transform 0.15s ease;
+        display: inline-block;
+        flex: none;
+      }
+      .tree details[open] > summary .caret {
+        transform: rotate(90deg);
+      }
+      .tree .dname {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13.5px;
+        font-weight: 500;
+        color: var(--butter);
+      }
+      .tree .ddesc {
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+      .tree .meta {
+        margin-left: auto;
+        color: var(--ink-3);
+        font-size: 12px;
+        font-family: "JetBrains Mono", monospace;
+        white-space: nowrap;
+      }
+      .file {
+        margin-left: 32px;
+        padding: 5px 8px;
+        border-radius: 6px;
+        display: grid;
+        grid-template-columns: minmax(170px, 260px) 1fr auto;
+        gap: 12px;
+        align-items: baseline;
+      }
+      @media (hover: hover) {
+        .toolbar button:hover {
+          color: var(--ink);
+        }
+        .tree summary:hover,
+        .file:hover {
+          background: var(--raised);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .tree summary .caret {
+          transition: none;
+        }
+      }
+      @media (max-width: 640px) {
+        .toolbar input {
+          font-size: 16px;
+        }
+      }
+      .file .fname {
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        overflow-wrap: anywhere;
+      }
+      .file .fdesc {
+        color: var(--ink-2);
+        font-size: 13.5px;
+      }
+      .file .lines {
+        color: var(--ink-3);
+        font-size: 12px;
+        font-family: "JetBrains Mono", monospace;
+        white-space: nowrap;
+      }
+      .tag {
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        padding: 1px 6px;
+        border-radius: 4px;
+        margin-left: 6px;
+        vertical-align: 1px;
+        font-family: "DM Sans", sans-serif;
+      }
+      .tag.test {
+        background: var(--mint-wash);
+        color: var(--mint);
+      }
+      .tag.css {
+        background: var(--lilac-wash);
+        color: var(--lilac);
+      }
+      .tag.asset {
+        background: var(--peach-wash);
+        color: var(--peach);
+      }
+      .tag.cfg {
+        background: var(--sky-wash);
+        color: var(--sky);
+      }
+      .tag.big {
+        background: var(--rose-wash);
+        color: var(--rose);
+      }
+      mark {
+        background: var(--butter-wash);
+        color: var(--butter);
+        border-radius: 3px;
+      }
+      @media (max-width: 720px) {
+        .file {
+          grid-template-columns: 1fr auto;
+          margin-left: 20px;
+        }
+        .file .fdesc {
+          grid-column: 1 / -1;
+        }
+        .tree details {
+          margin-left: 8px;
+        }
+      }
+
+      /* Bars */
+      .bars {
+        display: grid;
+        gap: 6px;
+      }
+      .bar {
+        display: grid;
+        grid-template-columns: 200px 1fr 70px;
+        gap: 10px;
+        align-items: center;
+        font-size: 13px;
+      }
+      .bar .lbl {
+        font-family: "JetBrains Mono", monospace;
+        overflow-wrap: anywhere;
+      }
+      .bar .track {
+        background: var(--raised);
+        border-radius: 4px;
+        height: 12px;
+        overflow: hidden;
+      }
+      .bar .fill {
+        height: 100%;
+        background: var(--sky);
+        border-radius: 4px;
+      }
+      .bar .n {
+        text-align: right;
+        color: var(--ink-3);
+        font-family: "JetBrains Mono", monospace;
+      }
+      @media (max-width: 640px) {
+        .bar {
+          grid-template-columns: 1fr 60px;
+        }
+        .bar .track {
+          grid-column: 1 / -1;
+          grid-row: 2;
+        }
+      }
+
+      table.scripts {
+        width: 100%;
+        border-collapse: collapse;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--r);
+        overflow: hidden;
+        font-size: 13.5px;
+      }
+      table.scripts th,
+      table.scripts td {
+        text-align: left;
+        padding: 9px 14px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: top;
+      }
+      table.scripts th {
+        color: var(--ink-3);
+        font-weight: 600;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      table.scripts tr:last-child td {
+        border-bottom: 0;
+      }
+      .tablewrap {
+        overflow-x: auto;
+      }
+      footer {
+        margin-top: 64px;
+        color: var(--ink-3);
+        font-size: 13px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <span class="chip">sqlite-browser-editor · code map</span>
+      <h1 style="margin-top: 14px">Sequill: how the code is laid out</h1>
+      <p class="lede">
+        An offline SQLite browser and editor that runs entirely in the browser. SQLite (official
+        WASM build) runs in a Web Worker and keeps databases in the Origin Private File System, so
+        nothing is uploaded. Three routes: a landing page at <code>/</code>, the editor at
+        <code>/app</code>, and a schema visualizer and designer at <code>/vis</code>. The site ships
+        as a static export with an offline service worker.
+      </p>
+
+      <div class="stats" id="stats"></div>
+      <div class="stack">
+        <span class="chip">Next.js 16 · App Router · static export</span
+        ><span class="chip">React 19 + React Compiler</span> <span class="chip">Bun</span
+        ><span class="chip">TypeScript</span><span class="chip">Tailwind CSS 4</span
+        ><span class="chip">shadcn/ui (Radix)</span>
+        <span class="chip">@sqlite.org/sqlite-wasm + Comlink</span
+        ><span class="chip">TanStack Query &amp; Virtual</span><span class="chip">Zustand</span>
+        <span class="chip">CodeMirror 6</span><span class="chip">React Flow + dagre</span
+        ><span class="chip">PapaParse</span><span class="chip">Motion · Lenis</span>
+        <span class="chip">Serwist for Next.js (PWA)</span
+        ><span class="chip">bun test · Playwright (Brave)</span><span class="chip">Changesets</span>
+      </div>
+
+      <h2>How a page reaches SQLite</h2>
+      <p class="sub">
+        The path from opening <code>/app</code> or <code>/vis</code> to a query running on a file in
+        OPFS. The landing page loads none of this.
+      </p>
+      <div class="flow">
+        <div class="step sky">
+          <h3>Route</h3>
+          <p>
+            <code>src/app/app/page.tsx</code> and <code>src/app/vis/page.tsx</code> only render
+            <code>EditorBoot</code> / <code>VisBoot</code>.
+          </p>
+        </div>
+        <div class="step peach">
+          <h3>Boot</h3>
+          <p>
+            <code>components/common/app-boot.tsx</code> starts SQLite and downloads the UI chunk in
+            parallel, showing stages: engine → storage → interface.
+          </p>
+        </div>
+        <div class="step mint">
+          <h3>Shell</h3>
+          <p>
+            <code>components/app/editor-shell.tsx</code> or
+            <code>components/vis/vis-shell.tsx</code>: the lazily loaded page UI (sidebar, tabs,
+            grid, console / diagram, outline).
+          </p>
+        </div>
+        <div class="step lilac">
+          <h3>Hooks &amp; stores</h3>
+          <p>
+            <code>hooks/use-db.ts</code> wraps worker calls in React Query; Zustand stores in
+            <code>lib/store/</code> hold tabs, dialogs and saved queries.
+          </p>
+        </div>
+        <div class="step butter">
+          <h3>Client → worker</h3>
+          <p>
+            <code>lib/sqlite/client.ts</code> creates the worker once and talks to it through
+            Comlink.
+          </p>
+        </div>
+        <div class="step rose">
+          <h3>Worker &amp; session</h3>
+          <p>
+            <code>lib/sqlite/worker.ts</code> loads WASM from <code>public/sqlite/</code>, installs
+            the opfs-sahpool VFS; <code>session.ts</code> runs SQL with bound parameters.
+          </p>
+        </div>
+      </div>
+
+      <h2>Layers</h2>
+      <p class="sub">
+        Arrows point at what each layer imports. Pure logic in <code>lib/</code> has no React and is
+        what the unit tests cover.
+      </p>
+      <div class="layers">
+        <div class="layer">
+          <div class="name">Routes<small>Next.js App Router</small></div>
+          <div>
+            <div class="dirs"><code>src/app/</code></div>
+            <p>
+              Root layout (fonts, metadata, providers), global CSS with the design tokens, the
+              landing page, the two boot pages, web manifest, icons and the share image.
+            </p>
+          </div>
+        </div>
+        <div class="arrow">▼</div>
+        <div class="layer">
+          <div class="name">Feature UI<small>client components</small></div>
+          <div>
+            <div class="dirs">
+              <code>components/landing/</code><code>components/app/</code
+              ><code>components/vis/</code><code>components/common/</code>
+            </div>
+            <p>
+              The landing board, the editor (grid, table view, SQL console, dialogs, palette), the
+              schema designer (React Flow canvas, outline, inspector, save flow), and, in
+              <code>common/</code>, everything two pages share: boot screen, database switcher,
+              dialogs, logo, theme toggle.
+            </p>
+          </div>
+        </div>
+        <div class="arrow">▼</div>
+        <div class="layer">
+          <div class="name">Design system<small>Pastel Noir + shadcn</small></div>
+          <div>
+            <div class="dirs">
+              <code>components/common/pastel/</code><code>components/ui/</code
+              ><code>app/globals.css</code>
+            </div>
+            <p>
+              Branded pieces (chips, hand-drawn marks, loader, code block), shadcn/Radix primitives,
+              and the colour, radius and motion tokens in <code>globals.css</code>.
+            </p>
+          </div>
+        </div>
+        <div class="arrow">▼</div>
+        <div class="layer">
+          <div class="name">State &amp; hooks<small>React Query + Zustand</small></div>
+          <div>
+            <div class="dirs"><code>hooks/</code><code>lib/store/</code></div>
+            <p>
+              Query bindings for the worker, database actions shared by several screens, workspace
+              tabs, dialogs, saved queries.
+            </p>
+          </div>
+        </div>
+        <div class="arrow">▼</div>
+        <div class="layer">
+          <div class="name">Pure logic<small>no React</small></div>
+          <div>
+            <div class="dirs">
+              <code>lib/sqlite/</code><code>lib/data/</code><code>lib/vis/</code
+              ><code>lib/*.ts</code>
+            </div>
+            <p>
+              SQL and DDL builders, schema introspection, dumps, the file-header reader, import type
+              inference, export serialisers, grid layout, the diagram model and draft-to-SQL logic,
+              colours, constants.
+            </p>
+          </div>
+        </div>
+        <div class="arrow">▼</div>
+        <div class="layer">
+          <div class="name">Runtime<small>browser workers</small></div>
+          <div>
+            <div class="dirs">
+              <code>lib/sqlite/worker.ts</code><code>sw/sw.ts</code><code>serwist.config.mjs</code>
+            </div>
+            <p>
+              The SQLite Web Worker (WASM + OPFS + a catalog database of names) and the service
+              worker that precaches the whole export for offline use, built after
+              <code>next build</code> by Serwist's Next.js configurator mode (<code
+                >serwist build</code
+              >).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <h2>Full file tree</h2>
+      <p class="sub">
+        Every file in the repository, with what it does. Click a folder to open it, or search by
+        name or description. Line counts are for text files. Not shown: generated or ignored folders
+        (<code>node_modules/</code>, <code>.next/</code>, <code>out/</code>,
+        <code>test-results/</code>, <code>public/sqlite/</code>).
+      </p>
+      <div class="toolbar">
+        <input
+          id="q"
+          type="search"
+          placeholder="Search files, e.g. worker, filter, test…"
+          aria-label="Search files"
+        />
+        <button id="expand" type="button">Expand all</button>
+        <button id="collapse" type="button">Collapse all</button>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="tree" id="tree"></div>
+
+      <h2>Where the code is</h2>
+      <p class="sub">
+        Lines of TypeScript / TSX / CSS per folder under <code>src/</code> (tests included).
+      </p>
+      <div class="bars" id="bars"></div>
+
+      <h2>Largest files</h2>
+      <p class="sub">The ten biggest source files: the places most logic lives.</p>
+      <div class="bars" id="largest"></div>
+
+      <h2>Scripts</h2>
+      <div class="tablewrap">
+        <table class="scripts">
+          <thead>
+            <tr>
+              <th>Command</th>
+              <th>What it does</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>bun run dev</code></td>
+              <td>
+                Copies the SQLite WASM into <code>public/sqlite/</code>, then starts the Next.js dev
+                server (no service worker in dev).
+              </td>
+            </tr>
+            <tr>
+              <td><code>bun run build</code></td>
+              <td>
+                Static export to <code>out/</code>, then <code>serwist build</code> writes the
+                service worker to <code>out/sw.js</code>.
+              </td>
+            </tr>
+            <tr>
+              <td><code>bun run start</code></td>
+              <td>Serves <code>out/</code> like a static host.</td>
+            </tr>
+            <tr>
+              <td><code>bun run typecheck</code></td>
+              <td><code>tsc</code> for the app and for <code>src/sw</code>.</td>
+            </tr>
+            <tr>
+              <td><code>bun run lint</code> · <code>format</code></td>
+              <td>ESLint (Next rules) · Prettier with Tailwind class sorting.</td>
+            </tr>
+            <tr>
+              <td><code>bun run test</code></td>
+              <td>
+                Unit and integration tests in <code>src/</code> and <code>scripts/</code> with
+                <code>bun test</code> (SQLite in memory).
+              </td>
+            </tr>
+            <tr>
+              <td><code>bun run test:e2e</code></td>
+              <td>Playwright in Brave against the production build (build first).</td>
+            </tr>
+            <tr>
+              <td><code>bun run icons</code></td>
+              <td>Regenerates every icon and the share image from <code>src/lib/logo.ts</code>.</td>
+            </tr>
+            <tr>
+              <td><code>bun run changeset</code> · <code>version-packages</code></td>
+              <td>Records a change · bumps the version and writes the changelog.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <footer>
+        Generated from a scan of the repository on 30 Oct 2026 (branch <code>master</code>, commit
+        <code>ebc7085</code>).
+      </footer>
+    </div>
+
+    <script>
+      // Folder descriptions.
+      const DIRS = {
+        ".changeset": "Changesets: release notes waiting to be applied",
+        ".claude": "Claude Code project config: preview launch configs and an installed skill",
+        ".claude/skills/design-taste-frontend":
+          "Installed design skill (art direction, lint and inspection scripts) — tooling, not app code",
+        e2e: "Playwright end-to-end tests, run in Brave against the static build",
+        "e2e/fixtures": "Files the e2e tests open and import",
+        public: "Static files served as-is",
+        "public/icons": "PWA manifest icons (generated by bun run icons)",
+        "public/landing": "Screenshots and a clip of the real app, used on the landing page",
+        scripts: "Build, asset and capture scripts run with Bun or Node",
+        src: "Application source",
+        "src/app":
+          "Next.js App Router: routes, root layout, global CSS with design tokens, manifest, icons",
+        "src/app/app": "/app — the editor route",
+        "src/app/vis": "/vis — the schema visualizer route",
+        "src/components": "React components, grouped by the page that uses them",
+        "src/components/app":
+          "Editor at /app: shell, sidebar, tabs, grid, table view, SQL console, palette",
+        "src/components/app/grid": "The virtualised data grid",
+        "src/components/app/query": "SQL console (CodeMirror)",
+        "src/components/app/table": "Table tab: toolbar, filters, paging, structure, row inspector",
+        "src/components/common":
+          "Shared by more than one page: boot, providers, database switcher, logo, theme, PWA, change marks",
+        "src/components/common/dialogs":
+          "Dialog host and dialogs used by /app and /vis: import, schema changes, confirmations",
+        "src/components/common/pastel": "Pastel Noir design-system components",
+        "src/components/landing": "Landing page (/) sections",
+        "src/components/ui": "shadcn/ui primitives (Radix) styled with the tokens",
+        "src/components/vis": "Schema visualizer and designer at /vis",
+        "src/hooks": "React hooks",
+        "src/lib": "Pure logic and shared modules",
+        "src/lib/data": "Formatting, import inference, export, grid helpers, saved queries",
+        "src/lib/sqlite": "SQLite worker, session, SQL/DDL builders, introspection, dump",
+        "src/lib/store": "Zustand stores",
+        "src/lib/vis": "Diagram model, draft SQL, auto-layout, colours",
+        "src/sw": "Service worker source",
+      };
+
+      // [path, lines, description]. Lines 0 = binary or not counted.
+      const FILES = [
+        [".changeset/README.md", 0, "Changesets' own readme for the folder"],
+        [".changeset/config.json", 0, "Changesets configuration"],
+        [".changeset/initial-release.md", 0, "Pending changeset describing the first release"],
+        [
+          ".claude/launch.json",
+          0,
+          'Preview server configs: "dev" (bun run dev) and "static" (bun run start), port 3000',
+        ],
+        [".claude/skills/design-taste-frontend/README.md", 0, "Skill readme"],
+        [".claude/skills/design-taste-frontend/SKILL.md", 0, "Skill instructions loaded by Claude"],
+        [
+          ".claude/skills/design-taste-frontend/assets/app.css",
+          0,
+          "Skill base styles for app screens",
+        ],
+        [".claude/skills/design-taste-frontend/assets/base.css", 0, "Skill base styles"],
+        [".claude/skills/design-taste-frontend/assets/base.js", 0, "Skill base script"],
+        [".claude/skills/design-taste-frontend/assets/charts.js", 0, "Skill chart helpers"],
+        [
+          ".claude/skills/design-taste-frontend/assets/scenes/stage.css",
+          0,
+          "Skill scene stage styles",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/assets/scenes/stage.js",
+          0,
+          "Skill scene stage script",
+        ],
+        [".claude/skills/design-taste-frontend/evals/evals.json", 0, "Skill evaluation cases"],
+        [
+          ".claude/skills/design-taste-frontend/library/app.json",
+          0,
+          "Design library: app screen patterns",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/library/directions.json",
+          0,
+          "Design library: art directions",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/library/heroes.json",
+          0,
+          "Design library: hero layouts",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/library/motions.json",
+          0,
+          "Design library: motion presets",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/library/palettes.json",
+          0,
+          "Design library: palettes",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/library/photos.json",
+          0,
+          "Design library: photography",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/library/sections.json",
+          0,
+          "Design library: section blueprints",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/library/sites.json",
+          0,
+          "Design library: reference sites",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/library/type.json",
+          0,
+          "Design library: type pairings",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/references/app-screens.md",
+          0,
+          "Reference: app screens",
+        ],
+        [".claude/skills/design-taste-frontend/references/colour.md", 0, "Reference: colour"],
+        [".claude/skills/design-taste-frontend/references/copy.md", 0, "Reference: copywriting"],
+        [
+          ".claude/skills/design-taste-frontend/references/critique.md",
+          0,
+          "Reference: critique loop",
+        ],
+        [".claude/skills/design-taste-frontend/references/imagery.md", 0, "Reference: imagery"],
+        [".claude/skills/design-taste-frontend/references/layout.md", 0, "Reference: layout"],
+        [".claude/skills/design-taste-frontend/references/motion.md", 0, "Reference: motion"],
+        [".claude/skills/design-taste-frontend/references/research.md", 0, "Reference: research"],
+        [".claude/skills/design-taste-frontend/references/scenes.md", 0, "Reference: scenes"],
+        [
+          ".claude/skills/design-taste-frontend/references/tells.md",
+          0,
+          "Reference: generic-design tells to avoid",
+        ],
+        [".claude/skills/design-taste-frontend/references/type.md", 0, "Reference: typography"],
+        [".claude/skills/design-taste-frontend/scripts/assets.mjs", 0, "Skill script: assets"],
+        [".claude/skills/design-taste-frontend/scripts/draw.mjs", 0, "Skill script: drawing"],
+        [
+          ".claude/skills/design-taste-frontend/scripts/inspect.mjs",
+          0,
+          "Skill script: browser inspector",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/scripts/lib/app-draw.mjs",
+          0,
+          "Skill helper: app drawing",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/scripts/lib/cdp.mjs",
+          0,
+          "Skill helper: Chrome DevTools Protocol",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/scripts/lib/inspection-files.mjs",
+          0,
+          "Skill helper: inspection output files",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/scripts/lib/probe.mjs",
+          0,
+          "Skill helper: page probe",
+        ],
+        [
+          ".claude/skills/design-taste-frontend/scripts/lib/rules.mjs",
+          0,
+          "Skill helper: lint rules",
+        ],
+        [".claude/skills/design-taste-frontend/scripts/lint.mjs", 0, "Skill script: design lint"],
+        [".claude/skills/design-taste-frontend/scripts/scenes.mjs", 0, "Skill script: scenes"],
+        [".gitattributes", 0, "Git line-ending settings"],
+        [".gitignore", 0, "Ignored paths (build output, node_modules, public/sqlite…)"],
+        [".prettierignore", 0, "Paths Prettier skips"],
+        [".prettierrc.json", 0, "Prettier config (with the Tailwind class-sorting plugin)"],
+        ["AGENTS.md", 0, "Agent notes written by next dev: read Next 16 docs before coding"],
+        [
+          "README.md",
+          0,
+          "Features, stack, scripts, architecture, logo, design system, limitations",
+        ],
+        ["bun.lock", 0, "Bun lockfile"],
+        ["code-structure.html", 0, "This page: the code map (not tracked in git)"],
+        ["components.json", 0, "shadcn/ui config (radix-nova style, lucide icons, path aliases)"],
+        [
+          "e2e/editor.spec.ts",
+          222,
+          "Editor flows: sample DB, grid edits, filters, console, import/export",
+        ],
+        ["e2e/fixtures/notes.sqlite", 0, "A small SQLite file to open in tests"],
+        ["e2e/fixtures/people.csv", 0, "CSV used by the import test"],
+        [
+          "e2e/helpers.ts",
+          42,
+          "Shared helpers: openEditor, createSample, openTable, cell, expectRowCount",
+        ],
+        [
+          "e2e/landing.spec.ts",
+          99,
+          "Landing page: sections render, the local file reader inspects a file without sending it",
+        ],
+        ["e2e/mobile.spec.ts", 94, "Phone layout: bottom drawers, drag-to-close, sticky footers"],
+        ["e2e/offline.spec.ts", 25, "Service worker installs and the app loads with no network"],
+        [
+          "e2e/vis.spec.ts",
+          306,
+          "Schema designer: outline, table cards, drafts, Unsaved badge, save and save-as",
+        ],
+        [
+          "e2e/windows.spec.ts",
+          47,
+          "Two windows hand the databases over: the second opens, the first offers Use here",
+        ],
+        ["eslint.config.mjs", 0, "ESLint flat config (Next rules + Prettier compatibility)"],
+        [
+          "next.config.ts",
+          0,
+          'output: "export" (static site), React Compiler on, Tailwind loader for Turbopack',
+        ],
+        ["package.json", 0, "Dependencies and scripts (dev, build, test, e2e, icons, changeset…)"],
+        ["playwright.config.ts", 0, "E2E config: Brave, 1440×900, serves out/ on port 4173"],
+        ["public/icons/icon-192.png", 0, "Manifest icon 192px"],
+        ["public/icons/icon-512.png", 0, "Manifest icon 512px"],
+        ["public/icons/maskable-512.png", 0, "Maskable manifest icon 512px"],
+        ["public/landing/editor-console.webp", 0, "Screenshot: SQL console"],
+        ["public/landing/editor-filter.webp", 0, "Screenshot: filter builder"],
+        ["public/landing/editor-grid.webp", 0, "Screenshot: data grid"],
+        ["public/landing/editor-phone.webp", 0, "Screenshot: phone layout"],
+        ["public/landing/vis-design.webp", 0, "Screenshot: schema designer editing"],
+        ["public/landing/vis-diagram.webp", 0, "Screenshot: ER diagram"],
+        ["public/landing/vis-drag-poster.webp", 0, "Poster frame for the drag clip"],
+        ["public/landing/vis-drag.webm", 0, "Muted loop: dragging a table in the designer"],
+        ["public/logo.svg", 0, "The Sequill mark (generated)"],
+        ["scripts/brave.ts", 6, "Path to the installed Brave browser (override with BRAVE_PATH)"],
+        [
+          "scripts/capture-landing.ts",
+          213,
+          "Captures landing screenshots and the drag clip from the running app (run with Node)",
+        ],
+        [
+          "scripts/copy-sqlite-wasm.ts",
+          18,
+          "Copies the SQLite WASM module into public/sqlite (bundling it breaks)",
+        ],
+        [
+          "scripts/generate-icons.ts",
+          56,
+          "Renders the logo into every icon file and the share image",
+        ],
+        ["scripts/ico.test.ts", 30, "Tests the .ico encoder's byte layout"],
+        ["scripts/ico.ts", 44, "Packs PNGs into one .ico file"],
+        ["scripts/og-image.tsx", 133, "Draws the 1200×630 Open Graph image with next/og"],
+        [
+          "serwist.config.mjs",
+          0,
+          "Serwist for Next.js (configurator mode): serwist build bundles src/sw/sw.ts with the precache list into out/sw.js",
+        ],
+        ["skills-lock.json", 0, "Lock entry for the installed Claude skill"],
+        ["src/app/app/loading.tsx", 9, "Route loading state: the branded CSS loader"],
+        ["src/app/app/page.tsx", 11, "/app page: metadata + <EditorBoot />"],
+        ["src/app/apple-icon.png", 0, "Apple touch icon (generated)"],
+        ["src/app/favicon.ico", 0, "Favicon 16–48px (generated)"],
+        [
+          "src/app/globals.css",
+          468,
+          "Tailwind entry, Pastel Noir design tokens (dark + derived light), shadcn mapping, base styles",
+        ],
+        ["src/app/icon.ico", 0, "App icon 16–256px (generated)"],
+        [
+          "src/app/layout.tsx",
+          60,
+          "Root layout: fonts (only the weights used), metadata, viewport, <Providers>",
+        ],
+        [
+          "src/app/manifest.ts",
+          29,
+          "PWA web manifest, incl. a file handler that opens .sqlite/.db files in /app",
+        ],
+        ["src/app/opengraph-image.alt.txt", 0, "Alt text for the share image"],
+        ["src/app/opengraph-image.png", 0, "Share preview image (generated)"],
+        [
+          "src/app/page.tsx",
+          59,
+          "Landing page: composes the hero, intro, editor board and every section",
+        ],
+        ["src/app/vis/loading.tsx", 9, "Route loading state: the branded CSS loader"],
+        ["src/app/vis/page.tsx", 12, "/vis page: metadata + <VisBoot />"],
+        [
+          "src/components/app/command-palette.tsx",
+          192,
+          "Ctrl/Cmd+K palette: tables, saved queries, database actions",
+        ],
+        ["src/components/app/editor-boot.tsx", 9, "Wires AppBoot to lazily load editor-shell"],
+        [
+          "src/components/app/editor-shell.tsx",
+          204,
+          "Editor layout: sidebar, tab bar, active tab, drop zone, ?table= links",
+        ],
+        ["src/components/app/export-menu.tsx", 86, "Export rows as CSV, JSON or SQL INSERTs"],
+        [
+          "src/components/app/grid/cell-value.tsx",
+          44,
+          "How one value looks in a cell (NULL, BLOB, JSON, numbers…)",
+        ],
+        [
+          "src/components/app/grid/data-grid.tsx",
+          592,
+          "Virtualised grid: selection, inline editing, paste, resize/reorder/pin columns",
+        ],
+        [
+          "src/components/app/grid/grid-header.tsx",
+          212,
+          "Column header cell: sort, menu, resize and drag handles",
+        ],
+        ["src/components/app/grid/types.ts", 17, "GridColumn and CellEdit types"],
+        [
+          "src/components/app/query/editor-theme.ts",
+          54,
+          "CodeMirror theme from the Pastel Noir tokens",
+        ],
+        [
+          "src/components/app/query/query-console.tsx",
+          326,
+          "SQL console: run script/selection, EXPLAIN mode, per-statement results, history, save",
+        ],
+        [
+          "src/components/app/sidebar.tsx",
+          408,
+          "Left panel: databases, tables, views, saved queries",
+        ],
+        ["src/components/app/tab-bar.tsx", 134, "Open tabs strip (tables and queries)"],
+        ["src/components/app/table/columns-menu.tsx", 66, "Show/hide columns"],
+        [
+          "src/components/app/table/filter-builder.tsx",
+          200,
+          "Filter popover: 15 conditions, AND/OR, applies on Apply",
+        ],
+        ["src/components/app/table/pagination.tsx", 95, "Page size and paging controls"],
+        [
+          "src/components/app/table/row-inspector.tsx",
+          345,
+          "Full-row form: edit fields, BLOB upload/download, JSON formatting",
+        ],
+        [
+          "src/components/app/table/structure-view.tsx",
+          315,
+          "Table structure: columns, keys, indexes; rename/drop actions",
+        ],
+        [
+          "src/components/app/table/table-view.tsx",
+          530,
+          "A table tab: toolbar, search, filters, sort, grid, add/duplicate/delete rows",
+        ],
+        ["src/components/app/welcome.tsx", 95, "Screens for no database / no tab open"],
+        [
+          "src/components/common/app-boot.tsx",
+          105,
+          "Boots SQLite and downloads the page UI in parallel, showing each stage",
+        ],
+        [
+          "src/components/common/app-providers.tsx",
+          26,
+          "Providers for SQLite pages (React Query, tooltips, toasts)",
+        ],
+        [
+          "src/components/common/change-marks.tsx",
+          72,
+          "Added/edited/deleted styling for columns and tables",
+        ],
+        [
+          "src/components/common/database-switcher.tsx",
+          193,
+          "Database menu shared by editor and designer (open, new, sample, rename, delete, download)",
+        ],
+        [
+          "src/components/common/dialogs/column-fields.tsx",
+          376,
+          "Column definition editor shared by schema dialogs and the visualizer",
+        ],
+        [
+          "src/components/common/dialogs/dialog-host.tsx",
+          164,
+          "Renders the one open dialog; heavy dialogs load on first use",
+        ],
+        [
+          "src/components/common/dialogs/import-dialog.tsx",
+          417,
+          "CSV/TSV/JSON import: parse, preview, type detection, column mapping",
+        ],
+        [
+          "src/components/common/dialogs/schema-dialogs.tsx",
+          366,
+          "Create table, add column, create index",
+        ],
+        [
+          "src/components/common/dialogs/simple-dialogs.tsx",
+          257,
+          "SQL preview, confirm-SQL, name, DDL and delete-database dialogs",
+        ],
+        ["src/components/common/logo.tsx", 25, "The Sequill mark as a React component"],
+        ["src/components/common/pastel/accent.ts", 32, "Static class maps per accent colour"],
+        [
+          "src/components/common/pastel/annotation.tsx",
+          72,
+          "Hand-drawn strokes and notes that draw on in view",
+        ],
+        ["src/components/common/pastel/chip.tsx", 33, "Pill label"],
+        [
+          "src/components/common/pastel/code-block.tsx",
+          69,
+          "Static SQL code window with a highlighted line",
+        ],
+        ["src/components/common/pastel/highlight.tsx", 46, "Marker-wash highlight behind a phrase"],
+        ["src/components/common/pastel/loader.tsx", 79, "Branded pure-CSS loader with stage line"],
+        ["src/components/common/pastel/marks.ts", 34, "Hand-drawn mark paths"],
+        ["src/components/common/pastel/reveal.tsx", 31, "Rise-and-fade on scroll"],
+        [
+          "src/components/common/pastel/rise.tsx",
+          22,
+          "CSS-only enter animation for above-the-fold content",
+        ],
+        ["src/components/common/pastel/stat-callout.tsx", 46, "One big number per panel"],
+        ["src/components/common/pastel/step-flow.tsx", 40, "2–4 numbered steps with chevrons"],
+        ["src/components/common/pwa.tsx", 67, "Install prompt hook and Install button"],
+        [
+          "src/components/common/storage-handoff.tsx",
+          91,
+          "Releases the databases in the background, takes them back when shown, Use here notice",
+        ],
+        ["src/components/common/theme-toggle.tsx", 51, "Dark/light toggle"],
+        [
+          "src/components/landing/capability-shelf.tsx",
+          94,
+          "Grid of feature tiles keyed by product colour",
+        ],
+        [
+          "src/components/landing/close-ups.tsx",
+          209,
+          "Board of screenshot close-ups (desktop and phone placements)",
+        ],
+        [
+          "src/components/landing/closing.tsx",
+          198,
+          "Marquee tagline, closing call to action and site footer",
+        ],
+        [
+          "src/components/landing/design-strip.tsx",
+          133,
+          "The designer workflow shown as one table across steps",
+        ],
+        ["src/components/landing/faq.tsx", 71, "FAQ tiles, one answer open at a time"],
+        [
+          "src/components/landing/file-inspector.tsx",
+          199,
+          "Reads a visitor's SQLite file locally (header + schema) with no engine",
+        ],
+        [
+          "src/components/landing/hero.tsx",
+          140,
+          "First screen: name, links to both products, file reader, install",
+        ],
+        [
+          "src/components/landing/install-tile.tsx",
+          36,
+          "Install-the-app tile (or a hint for browsers without a prompt)",
+        ],
+        [
+          "src/components/landing/intro.tsx",
+          61,
+          "Privacy slogan board and how it works, beside the file reader",
+        ],
+        [
+          "src/components/landing/landing.css",
+          260,
+          "Landing board geometry, type steps and reveal moves",
+        ],
+        [
+          "src/components/landing/loop-video.tsx",
+          43,
+          "Muted looping clip; holds on the poster for reduced motion",
+        ],
+        [
+          "src/components/landing/orders-board.tsx",
+          102,
+          "Sample shop orders as clickable rows with their items",
+        ],
+        [
+          "src/components/landing/sample-data.test.ts",
+          21,
+          "Keeps landing sample values in step with the sample DB SQL",
+        ],
+        [
+          "src/components/landing/sample-data.ts",
+          153,
+          "Real sample-shop values for the landing page, without loading SQLite",
+        ],
+        [
+          "src/components/landing/scroll-reveal.tsx",
+          32,
+          "Adds .is-in to [data-reveal] elements as they scroll into view",
+        ],
+        [
+          "src/components/landing/smooth-scroll.tsx",
+          42,
+          "Lenis smooth scrolling, landing page only, off for reduced motion",
+        ],
+        [
+          "src/components/landing/tile.tsx",
+          90,
+          "Tile and Shot: filled board tiles and cropped screenshots",
+        ],
+        [
+          "src/components/landing/warm-editor.tsx",
+          32,
+          "Prefetches the editor route and SQLite runtime when idle",
+        ],
+        [
+          "src/components/providers.tsx",
+          40,
+          "App-wide providers: SerwistProvider (registers /sw.js), theme, lazy Motion",
+        ],
+        ["src/components/ui/alert-dialog.tsx", 183, "shadcn AlertDialog (confirmations)"],
+        ["src/components/ui/badge.tsx", 44, "shadcn Badge"],
+        ["src/components/ui/button.tsx", 66, "shadcn Button with variants"],
+        ["src/components/ui/checkbox.tsx", 28, "shadcn Checkbox"],
+        ["src/components/ui/command.tsx", 180, "shadcn Command (cmdk) for the palette"],
+        ["src/components/ui/context-menu.tsx", 246, "shadcn ContextMenu"],
+        ["src/components/ui/dialog.tsx", 145, "shadcn Dialog"],
+        ["src/components/ui/dropdown-menu.tsx", 249, "shadcn DropdownMenu"],
+        ["src/components/ui/input-group.tsx", 144, "shadcn InputGroup (inputs with addons)"],
+        ["src/components/ui/input.tsx", 18, "shadcn Input"],
+        ["src/components/ui/kbd.tsx", 26, "Keyboard key label"],
+        ["src/components/ui/label.tsx", 20, "shadcn Label"],
+        ["src/components/ui/popover.tsx", 73, "shadcn Popover"],
+        ["src/components/ui/progress.tsx", 30, "shadcn Progress"],
+        [
+          "src/components/ui/responsive-dialog.tsx",
+          117,
+          "Dialog on desktop, drag-to-close bottom drawer on phones",
+        ],
+        ["src/components/ui/scroll-area.tsx", 54, "shadcn ScrollArea"],
+        [
+          "src/components/ui/scroll-strip.tsx",
+          100,
+          "Sideways strip with wheel/drag scroll and fade arrows",
+        ],
+        ["src/components/ui/select.tsx", 184, "shadcn Select"],
+        ["src/components/ui/separator.tsx", 27, "shadcn Separator"],
+        ["src/components/ui/sheet.tsx", 130, "shadcn Sheet (side panel)"],
+        ["src/components/ui/skeleton.tsx", 13, "shadcn Skeleton"],
+        ["src/components/ui/sonner.tsx", 45, "Toasts (sonner) themed"],
+        ["src/components/ui/switch.tsx", 32, "shadcn Switch"],
+        ["src/components/ui/tabs.tsx", 79, "shadcn Tabs"],
+        ["src/components/ui/textarea.tsx", 17, "shadcn Textarea"],
+        ["src/components/ui/toggle-group.tsx", 86, "shadcn ToggleGroup"],
+        ["src/components/ui/toggle.tsx", 45, "shadcn Toggle"],
+        ["src/components/ui/tooltip.tsx", 52, "shadcn Tooltip"],
+        [
+          "src/components/vis/color-picker.tsx",
+          130,
+          "Table colour swatches: presets, none, custom",
+        ],
+        [
+          "src/components/vis/column-editor.tsx",
+          211,
+          "SchemaEditor contract and the column edit popover",
+        ],
+        [
+          "src/components/vis/designer.tsx",
+          665,
+          "React Flow canvas: table cards, FK lines, drag to connect, focus, auto-arrange, minimap",
+        ],
+        [
+          "src/components/vis/inspector.tsx",
+          297,
+          "Details panel for the selected table or relationship",
+        ],
+        [
+          "src/components/vis/save-as-dialog.tsx",
+          111,
+          "Save the design as a new database (optionally with rows)",
+        ],
+        [
+          "src/components/vis/save-menu.tsx",
+          102,
+          "Other save choices: review SQL, save as, download SQL, discard",
+        ],
+        [
+          "src/components/vis/schema-outline.tsx",
+          442,
+          "Searchable outline of tables and columns; also the editor for them",
+        ],
+        [
+          "src/components/vis/table-node.tsx",
+          166,
+          "One table card on the canvas with per-row connection points",
+        ],
+        [
+          "src/components/vis/unsaved-badge.tsx",
+          69,
+          "Header badge for unsaved design; click saves",
+        ],
+        ["src/components/vis/vis-boot.tsx", 9, "Wires AppBoot to lazily load vis-shell"],
+        [
+          "src/components/vis/vis-shell.tsx",
+          172,
+          "Visualizer layout: header, switcher, outline, canvas, leave-with-unsaved guard",
+        ],
+        ["src/components/vis/vis.css", 55, "React Flow theme overrides"],
+        [
+          "src/hooks/use-db-actions.ts",
+          182,
+          "Database actions shared by sidebar, welcome, drop zone and palette",
+        ],
+        [
+          "src/hooks/use-db.ts",
+          150,
+          "React Query bindings for the worker: databases, schema, rows, counts, run",
+        ],
+        [
+          "src/hooks/use-horizontal-scroll.ts",
+          100,
+          "Wheel/drag sideways scrolling and arrow state",
+        ],
+        ["src/hooks/use-mobile.ts", 20, "Phone-width check via useSyncExternalStore"],
+        [
+          "src/hooks/use-saved-queries.ts",
+          65,
+          "Save, rename, delete saved queries and keep tabs in step",
+        ],
+        [
+          "src/lib/constants.ts",
+          79,
+          "App-wide constants: names, service worker URL, SQLite URLs, VFS settings, page sizes",
+        ],
+        ["src/lib/data/data.test.ts", 96, "Tests for format, import and export helpers"],
+        ["src/lib/data/export.ts", 83, "Serialise results to CSV, JSON or SQL INSERTs; download"],
+        [
+          "src/lib/data/format.ts",
+          102,
+          "Display helpers: value kinds, bytes, counts, durations, previews",
+        ],
+        ["src/lib/data/grid.test.ts", 59, "Tests for grid layout and TSV clipboard helpers"],
+        ["src/lib/data/grid.ts", 107, "Column layout (order, pin, widths) and TSV copy/paste"],
+        [
+          "src/lib/data/import.ts",
+          101,
+          "Infer column types from CSV/JSON and coerce cells for INSERT",
+        ],
+        [
+          "src/lib/data/saved-queries.test.ts",
+          55,
+          "Tests for saved-query normalisation and naming",
+        ],
+        [
+          "src/lib/data/saved-queries.ts",
+          44,
+          "Saved query shape, migration of old data, name suggestion",
+        ],
+        ["src/lib/logo.test.ts", 34, "Tests the logo SVG output"],
+        ["src/lib/logo.ts", 77, "The logo's shapes and colours, one source for every icon"],
+        ["src/lib/motion-features.ts", 2, "Motion features loaded on demand by LazyMotion"],
+        [
+          "src/lib/motion.ts",
+          36,
+          "Motion tokens (durations, easings) mirroring the tokens in globals.css",
+        ],
+        ["src/lib/site-url.test.ts", 42, "Tests site URL resolution"],
+        [
+          "src/lib/site-url.ts",
+          26,
+          "Works out the site origin at build time (env, Vercel, localhost)",
+        ],
+        ["src/lib/sqlite/client.ts", 33, "Lazily creates the worker; bootSqlite reports stages"],
+        ["src/lib/sqlite/ddl.ts", 159, "Builders for CREATE/ALTER/DROP TABLE, columns and indexes"],
+        ["src/lib/sqlite/dump.ts", 57, "SQL dump like the sqlite3 shell's .dump"],
+        ["src/lib/sqlite/errors.ts", 6, "Readable error text"],
+        [
+          "src/lib/sqlite/file-header.test.ts",
+          108,
+          "Tests the header and schema reader against real files",
+        ],
+        [
+          "src/lib/sqlite/file-header.ts",
+          203,
+          "Reads a SQLite file's 100-byte header and sqlite_schema without the engine",
+        ],
+        ["src/lib/sqlite/highlight.ts", 40, "Tiny SQL tokenizer for static previews"],
+        ["src/lib/sqlite/introspect.ts", 140, "Reads the schema via PRAGMA table-valued functions"],
+        ["src/lib/sqlite/sample.test.ts", 24, "Tests the sample database script"],
+        ["src/lib/sqlite/sample.ts", 101, "Seed SQL for the built-in sample shop"],
+        [
+          "src/lib/sqlite/session.test.ts",
+          236,
+          "Integration tests for the session on in-memory SQLite",
+        ],
+        [
+          "src/lib/sqlite/session.ts",
+          196,
+          "Runs SQL against one open database; shared by worker and tests",
+        ],
+        ["src/lib/sqlite/split.ts", 27, "Splits a script into statements using sqlite3_complete"],
+        ["src/lib/sqlite/sql.test.ts", 176, "Tests SQL builders and quoting"],
+        [
+          "src/lib/sqlite/sql.ts",
+          301,
+          "Pure SQL builders: select, count, where/filters, insert, update, delete; quoteIdent",
+        ],
+        ["src/lib/sqlite/test-utils.ts", 32, "Test helpers: memory sessions and database files"],
+        [
+          "src/lib/sqlite/types.ts",
+          110,
+          "Types shared by worker and UI (rows, results, schema, boot stages)",
+        ],
+        [
+          "src/lib/sqlite/worker.ts",
+          434,
+          "The SQLite Web Worker: WASM, OPFS SAHPool VFS, catalog, handing files between windows, Comlink API",
+        ],
+        ["src/lib/storage.ts", 30, "Guarded localStorage read/write/remove"],
+        ["src/lib/store/dialogs.ts", 40, "Zustand: which editor dialog is open"],
+        ["src/lib/store/saved-queries.ts", 59, "Zustand: saved queries in this browser"],
+        [
+          "src/lib/store/workspace.ts",
+          218,
+          "Zustand: active database, open tabs, per-table view state and layouts",
+        ],
+        ["src/lib/utils.ts", 4, "newId: short random ids"],
+        ["src/lib/vis/colors.test.ts", 56, "Tests colour validation and helpers"],
+        ["src/lib/vis/colors.ts", 76, "Table colours: presets or validated custom hex"],
+        ["src/lib/vis/drafts.ts", 30, "Unsaved designs per database, kept in localStorage"],
+        ["src/lib/vis/layout.ts", 69, "dagre auto-layout, card sizes, handle ids and edge sides"],
+        ["src/lib/vis/model.test.ts", 648, "Tests for the diagram model and draft-to-SQL"],
+        [
+          "src/lib/vis/model.ts",
+          949,
+          "Schema + draft → diagram tables and edges, and draft → SQL (incl. table rebuilds)",
+        ],
+        [
+          "src/sw/sw.ts",
+          48,
+          "Service worker source: precaches the static export for offline use (built by serwist build)",
+        ],
+        ["src/sw/tsconfig.json", 0, "TypeScript config for the service worker (webworker lib)"],
+        ["tsconfig.json", 0, "TypeScript config and @/ path alias"],
+      ];
+
+      const esc = (s) =>
+        s.replace(
+          /[&<>"']/g,
+          (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
+        );
+
+      function tagsFor(path, lines) {
+        const t = [];
+        if (/\.(test|spec)\.tsx?$/.test(path)) t.push(["test", "test"]);
+        else if (/\.css$/.test(path)) t.push(["css", "css"]);
+        else if (/\.(png|ico|webp|webm|svg|sqlite|csv)$/.test(path)) t.push(["asset", "asset"]);
+        else if (
+          /(\.json|\.mjs|rc\.json|\.gitignore|\.gitattributes|\.prettierignore|config\.ts|bun\.lock)$/.test(
+            path,
+          ) &&
+          !path.startsWith(".claude/skills")
+        )
+          t.push(["cfg", "config"]);
+        if (lines >= 400) t.push(["big", "large"]);
+        return t;
+      }
+
+      function buildTree() {
+        const root = { name: "", path: "", dirs: new Map(), files: [] };
+        for (const [path, lines, desc] of FILES) {
+          const parts = path.split("/");
+          let node = root;
+          for (let i = 0; i < parts.length - 1; i++) {
+            const p = parts.slice(0, i + 1).join("/");
+            if (!node.dirs.has(parts[i]))
+              node.dirs.set(parts[i], { name: parts[i], path: p, dirs: new Map(), files: [] });
+            node = node.dirs.get(parts[i]);
+          }
+          node.files.push({ name: parts.at(-1), path, lines, desc });
+        }
+        return root;
+      }
+
+      function totals(node) {
+        let files = node.files.length,
+          lines = node.files.reduce((a, f) => a + f.lines, 0);
+        for (const d of node.dirs.values()) {
+          const t = totals(d);
+          files += t.files;
+          lines += t.lines;
+        }
+        node.total = { files, lines };
+        return node.total;
+      }
+
+      function hl(text, q) {
+        const e = esc(text);
+        if (!q) return e;
+        const i = text.toLowerCase().indexOf(q);
+        if (i < 0) return e;
+        return (
+          esc(text.slice(0, i)) +
+          "<mark>" +
+          esc(text.slice(i, i + q.length)) +
+          "</mark>" +
+          esc(text.slice(i + q.length))
+        );
+      }
+
+      function render(node, q, open) {
+        let html = "";
+        const dirs = [...node.dirs.values()].sort((a, b) => a.name.localeCompare(b.name));
+        for (const d of dirs) {
+          const inner = render(d, q, open);
+          if (q && !inner && !d.path.toLowerCase().includes(q)) continue;
+          const desc = DIRS[d.path] || "";
+          const isOpen = q ? true : open.has(d.path);
+          html += `<details data-path="${esc(d.path)}"${isOpen ? " open" : ""}><summary><span class="caret">▸</span><span class="dname">${hl(d.name, q)}/</span><span class="ddesc">${hl(desc, q)}</span><span class="meta">${d.total.files} files${d.total.lines ? " · " + d.total.lines.toLocaleString() + " lines" : ""}</span></summary>${inner}</details>`;
+        }
+        const files = [...node.files].sort((a, b) => a.name.localeCompare(b.name));
+        for (const f of files) {
+          if (q && !f.path.toLowerCase().includes(q) && !f.desc.toLowerCase().includes(q)) continue;
+          const tags = tagsFor(f.path, f.lines)
+            .map(([c, l]) => `<span class="tag ${c}">${l}</span>`)
+            .join("");
+          html += `<div class="file"><span class="fname">${hl(f.name, q)}${tags}</span><span class="fdesc">${hl(f.desc, q)}</span><span class="lines">${f.lines ? f.lines + " ln" : ""}</span></div>`;
+        }
+        return html;
+      }
+
+      const tree = buildTree();
+      totals(tree);
+      const treeEl = document.getElementById("tree");
+      const qEl = document.getElementById("q");
+      const countEl = document.getElementById("count");
+      const DEFAULT_OPEN = new Set(["src", "src/app", "src/components", "src/lib"]);
+      let openSet = new Set(DEFAULT_OPEN);
+
+      function draw() {
+        const q = qEl.value.trim().toLowerCase();
+        treeEl.innerHTML =
+          render(tree, q, openSet) ||
+          `<p style="padding:12px;color:var(--ink-3)">No files match.</p>`;
+        const n = q
+          ? FILES.filter(([p, , d]) => p.toLowerCase().includes(q) || d.toLowerCase().includes(q))
+              .length
+          : FILES.length;
+        countEl.textContent = q ? `${n} of ${FILES.length} files` : `${FILES.length} files`;
+      }
+      treeEl.addEventListener(
+        "toggle",
+        (e) => {
+          if (qEl.value.trim()) return;
+          const p = e.target.dataset && e.target.dataset.path;
+          if (!p) return;
+          e.target.open ? openSet.add(p) : openSet.delete(p);
+        },
+        true,
+      );
+      qEl.addEventListener("input", draw);
+      document.getElementById("expand").addEventListener("click", () => {
+        qEl.value = "";
+        openSet = new Set(
+          FILES.flatMap(([p]) =>
+            p
+              .split("/")
+              .slice(0, -1)
+              .map((_, i, a) => a.slice(0, i + 1).join("/")),
+          ),
+        );
+        draw();
+      });
+      document.getElementById("collapse").addEventListener("click", () => {
+        qEl.value = "";
+        openSet = new Set();
+        draw();
+      });
+      draw();
+
+      // Stats
+      const src = FILES.filter(([p]) => p.startsWith("src/"));
+      const srcLines = src.reduce((a, [, l]) => a + l, 0);
+      const tests = FILES.filter(([p]) => /\.(test|spec)\.tsx?$/.test(p));
+      const comps = FILES.filter(([p]) => /^src\/components\/.*\.tsx$/.test(p));
+      document.getElementById("stats").innerHTML = [
+        [FILES.length, "files"],
+        [src.length, "files in src/"],
+        [srcLines.toLocaleString(), "lines in src/"],
+        [comps.length, "React components (.tsx)"],
+        [tests.length, "test files (unit + e2e)"],
+        [3, "routes: / · /app · /vis"],
+      ]
+        .map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`)
+        .join("");
+
+      // Folder bars
+      function barRows(rows, color) {
+        const max = Math.max(...rows.map((r) => r[1]));
+        return rows
+          .map(
+            ([l, n]) =>
+              `<div class="bar"><span class="lbl">${esc(l)}</span><span class="track"><span class="fill" style="width:${((n / max) * 100).toFixed(1)}%;background:${color}"></span></span><span class="n">${n.toLocaleString()}</span></div>`,
+          )
+          .join("");
+      }
+      const byDir = new Map();
+      for (const [p, l] of src) {
+        const parts = p.split("/");
+        const key =
+          parts.length > 3 ? parts.slice(0, 3).join("/") + "/" : parts.slice(0, 2).join("/") + "/";
+        byDir.set(key, (byDir.get(key) || 0) + l);
+      }
+      document.getElementById("bars").innerHTML = barRows(
+        [...byDir].filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]),
+        "var(--sky)",
+      );
+      document.getElementById("largest").innerHTML = barRows(
+        [...FILES]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 10)
+          .map(([p, l]) => [p.replace(/^src\//, ""), l]),
+        "var(--peach)",
+      );
+    </script>
+  </body>
+</html>

@@ -1,0 +1,11 @@
+dist
+node_modules
+bun.lock
+playwright-report
+test-results
+CHANGELOG.md
+public/sqlite
+.claude/skills
+.taste-skill
+target
+src-tauri/gen

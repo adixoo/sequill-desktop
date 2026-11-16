@@ -1,0 +1,468 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/*
+ * Pastel Noir tokens for the web.
+ * Dark values are the design system as specified. Light values are derived:
+ * an inverted gray ladder, the same pastels for fills and washes, and a deep
+ * "-ink" shade of each pastel for text (pastel text fails contrast on white).
+ * Components use roles (canvas, surface, ink, mint-ink…), never raw hexes.
+ */
+:root {
+  /* Raw gray ladder (dark system) */
+  --gray-950: #0a0a0b;
+  --gray-900: #111113;
+  --gray-850: #18181b;
+  --gray-800: #212125;
+  --gray-700: #2e2e33;
+  --gray-600: #45454c;
+  --gray-500: #6b6b73;
+  --gray-400: #93939b;
+  --gray-300: #bdbdc4;
+  --gray-100: #ededf0;
+
+  /* Pastels: fills, washes, strokes. Same in both themes. */
+  --peach: #ffb3a1;
+  --butter: #f5e1a4;
+  --mint: #a6e3c4;
+  --sky: #a9c9ff;
+  --lilac: #cbb6ff;
+  --rose: #f6a8c6;
+
+  /*
+   * Change marks for unsaved schema edits: added is green, edited is blue.
+   * Brighter than mint and sky so they read apart from the pastels (sky also
+   * marks selection).
+   */
+  --added: #6ee7a1;
+  --edited: #7cacff;
+
+  /*
+   * Radii, scaled for UI like the type scale (the video system's 6/12/20/32px
+   * are sized for a 1920x1080 frame). Tailwind's rounded-* and shadcn read these.
+   */
+  --radius-xs: 4px; /* code-line highlights, keys, checkboxes, menu items */
+  --radius-sm: 6px; /* table frames, small cards, tags */
+  --radius-md: 8px; /* cards, code windows, stat panels, inputs */
+  --radius-lg: 10px; /* buttons, menus, popovers, hero panels */
+  --radius-xl: 14px; /* dialogs and sheets */
+  --radius-pill: 999px; /* chips, step badges */
+
+  --dur-instant: 100ms;
+  --dur-quick: 200ms;
+  --dur-base: 400ms;
+  --dur-slow: 700ms;
+  --dur-draw: 600ms;
+  --dur-write: 800ms;
+  --dur-scene: 1200ms;
+  --dur-hold: 2500ms;
+  --stagger-row: 70ms;
+  --stagger-char: 28ms;
+
+  --ease-enter: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-move: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-exit: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-draw: cubic-bezier(0.45, 0, 0.2, 1);
+
+  --on-accent: var(--gray-950);
+}
+
+/* Light (default) */
+:root {
+  --canvas: #f7f7f8;
+  --surface: #ffffff;
+  --raised: #f1f1f3;
+  --zebra: #eaeaed;
+  --hairline: #dedee3;
+  --strong: #c4c4cb;
+  --decor: #a1a1a9;
+  --ink: #18181b;
+  --ink-soft: #45454c;
+  --ink-muted: #63636b;
+
+  --peach-ink: #a8432b;
+  --butter-ink: #7d6200;
+  --mint-ink: #1d7550;
+  --sky-ink: #2d5cad;
+  --lilac-ink: #6646c2;
+  --rose-ink: #a83866;
+  --added-ink: #146c36;
+  --edited-ink: #1d4fc4;
+
+  --peach-wash: #ffb3a147;
+  --butter-wash: #f5e1a466;
+  --mint-wash: #a6e3c44d;
+  --sky-wash: #a9c9ff4d;
+  --lilac-wash: #cbb6ff4d;
+  --rose-wash: #f6a8c64d;
+  --added-wash: #6ee7a140;
+  --edited-wash: #7cacff40;
+
+  --row-selected: #e4edfd;
+  /* Scrollbar thumb: gray structure, 3:1 against every surface it can sit on. */
+  --scrollbar-thumb: #7e7e86;
+  --scrollbar-thumb-hover: var(--ink-muted);
+  --annotate: var(--butter-ink);
+  --annotate-stroke: #96750a;
+  --shadow-lift: 0 24px 60px #18181b1f;
+  --shadow-ring: 0 0 0 2px #18181b1f;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: var(--gray-950);
+  --surface: var(--gray-900);
+  --raised: var(--gray-850);
+  --zebra: var(--gray-800);
+  --hairline: var(--gray-700);
+  --strong: var(--gray-600);
+  --decor: var(--gray-500);
+  --ink: var(--gray-100);
+  --ink-soft: var(--gray-300);
+  --ink-muted: var(--gray-400);
+
+  --peach-ink: var(--peach);
+  --butter-ink: var(--butter);
+  --mint-ink: var(--mint);
+  --sky-ink: var(--sky);
+  --lilac-ink: var(--lilac);
+  --rose-ink: var(--rose);
+  --added-ink: var(--added);
+  --edited-ink: var(--edited);
+
+  --peach-wash: #ffb3a124;
+  --butter-wash: #f5e1a424;
+  --mint-wash: #a6e3c424;
+  --sky-wash: #a9c9ff24;
+  --lilac-wash: #cbb6ff24;
+  --rose-wash: #f6a8c624;
+  --added-wash: #6ee7a124;
+  --edited-wash: #7cacff24;
+
+  --row-selected: #1b2230;
+  --scrollbar-thumb: var(--gray-500);
+  --scrollbar-thumb-hover: var(--gray-400);
+  --annotate: var(--butter);
+  --annotate-stroke: var(--butter);
+  --shadow-lift: 0 32px 80px #000000a6;
+  --shadow-ring: 0 0 0 2px #ededf01f;
+  color-scheme: dark;
+}
+
+/* Meaning aliases */
+:root,
+.dark {
+  --positive: var(--mint-ink);
+  --negative: var(--rose-ink);
+  --caution: var(--butter-ink);
+  --code-keyword: var(--lilac-ink);
+  --code-string: var(--mint-ink);
+  --code-number: var(--peach-ink);
+  --code-fn: var(--sky-ink);
+  --code-comment: var(--ink-muted);
+  --code-punct: var(--ink-soft);
+}
+
+@custom-variant dark (&:is(.dark *));
+
+/* shadcn/ui variables mapped onto Pastel Noir roles */
+:root,
+.dark {
+  --background: var(--canvas);
+  --foreground: var(--ink);
+  --card: var(--surface);
+  --card-foreground: var(--ink);
+  --popover: var(--raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--ink);
+  --primary-foreground: var(--canvas);
+  --secondary: var(--raised);
+  --secondary-foreground: var(--ink);
+  --muted: var(--raised);
+  --muted-foreground: var(--ink-muted);
+  --accent: var(--zebra);
+  --accent-foreground: var(--ink);
+  --destructive: var(--rose-ink);
+  --border: var(--hairline);
+  --input: var(--hairline);
+  --ring: var(--sky-ink);
+  --chart-1: var(--peach);
+  --chart-2: var(--sky);
+  --chart-3: var(--mint);
+  --chart-4: var(--lilac);
+  --chart-5: var(--rose);
+  --radius: var(--radius-lg);
+  --sidebar: var(--surface);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--ink);
+  --sidebar-primary-foreground: var(--canvas);
+  --sidebar-accent: var(--zebra);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--sky-ink);
+}
+
+@theme inline {
+  --font-sans: "DM Sans", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --font-hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
+  --font-heading: var(--font-sans);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Pastel Noir roles as Tailwind colours: bg-surface, text-ink-soft, bg-mint-wash… */
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-raised: var(--raised);
+  --color-zebra: var(--zebra);
+  --color-hairline: var(--hairline);
+  --color-strong: var(--strong);
+  --color-decor: var(--decor);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-muted: var(--ink-muted);
+  --color-on-accent: var(--on-accent);
+  --color-row-selected: var(--row-selected);
+  --color-annotate: var(--annotate);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-caution: var(--caution);
+  --color-peach: var(--peach);
+  --color-butter: var(--butter);
+  --color-mint: var(--mint);
+  --color-sky: var(--sky);
+  --color-lilac: var(--lilac);
+  --color-rose: var(--rose);
+  --color-added: var(--added);
+  --color-edited: var(--edited);
+  --color-peach-ink: var(--peach-ink);
+  --color-butter-ink: var(--butter-ink);
+  --color-mint-ink: var(--mint-ink);
+  --color-sky-ink: var(--sky-ink);
+  --color-lilac-ink: var(--lilac-ink);
+  --color-rose-ink: var(--rose-ink);
+  --color-added-ink: var(--added-ink);
+  --color-edited-ink: var(--edited-ink);
+  --color-peach-wash: var(--peach-wash);
+  --color-butter-wash: var(--butter-wash);
+  --color-mint-wash: var(--mint-wash);
+  --color-sky-wash: var(--sky-wash);
+  --color-lilac-wash: var(--lilac-wash);
+  --color-rose-wash: var(--rose-wash);
+  --color-added-wash: var(--added-wash);
+  --color-edited-wash: var(--edited-wash);
+
+  /* rounded-xs…xl come from the radius tokens above (unlayered, so they win). */
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  --shadow-lift: var(--shadow-lift);
+  --shadow-ring: var(--shadow-ring);
+
+  --ease-enter: var(--ease-enter);
+  --ease-move: var(--ease-move);
+  --ease-exit: var(--ease-exit);
+  --ease-pop: var(--ease-pop);
+  --ease-draw: var(--ease-draw);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  ::selection {
+    background: var(--sky-wash);
+  }
+
+  /*
+   * Scrollbars: thin, pill thumb in the gray ladder, transparent track. On
+   * pointer devices a scrollbar only shows while its own scroll area is hovered
+   * or holds keyboard focus. Touch devices keep the browser's overlay bars.
+   */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+  @media (hover: hover) {
+    * {
+      scrollbar-color: transparent transparent;
+      transition: scrollbar-color var(--dur-quick) var(--ease-enter);
+    }
+    *:hover,
+    *:focus-within {
+      scrollbar-color: var(--scrollbar-thumb) transparent;
+    }
+  }
+  /* Browsers without scrollbar-color (older Safari) use the WebKit pseudo-elements. */
+  @supports not (scrollbar-color: auto) {
+    ::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+    }
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      border: 2px solid transparent;
+      border-radius: var(--radius-pill);
+      background-clip: padding-box;
+      background-color: var(--scrollbar-thumb);
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: var(--scrollbar-thumb-hover);
+    }
+    @media (hover: hover) {
+      ::-webkit-scrollbar-thumb {
+        background-color: transparent;
+      }
+      :hover::-webkit-scrollbar-thumb,
+      :focus-within::-webkit-scrollbar-thumb {
+        background-color: var(--scrollbar-thumb);
+      }
+    }
+  }
+}
+
+@layer components {
+  /* Uppercase kicker labels (eyebrow / table-head roles) */
+  .pn-eyebrow {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  .pn-table-head {
+    font-size: 0.6875rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .pn-tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .pn-hand {
+    font-family: var(--font-hand);
+    color: var(--annotate);
+  }
+  .pn-stroke {
+    fill: none;
+    stroke: var(--annotate-stroke);
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+}
+
+/* Choreography helpers (landing). Final state is the resting state, so reduced motion just skips them. */
+@keyframes pn-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes pn-write {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes pn-wash {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes pn-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+.pn-rise {
+  animation: pn-rise var(--dur-base) var(--ease-enter) both;
+  animation-delay: calc(var(--i, 0) * var(--stagger-row) + 80ms);
+}
+@keyframes pn-loader-draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  55%,
+  80% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+.pn-loader-path {
+  animation: pn-loader-draw 1.6s var(--ease-draw) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pn-loader-path {
+    animation: none !important;
+    stroke-dasharray: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 1ms !important;
+  }
+}
