@@ -1,4 +1,4 @@
-import { KeyRound, Link2, Minus } from "lucide-react";
+import { KeyRound, Link, Minus } from "@/shared/ui/icons";
 import type { DiagramColumn, DiagramTable } from "@/features/vis/lib/model";
 import { cn } from "@/shared/lib/utils";
 
@@ -14,7 +14,7 @@ export function ColumnIcon({ column }: { column: DiagramColumn }) {
   }
   if (column.pk) return <KeyRound className="size-3 text-butter-ink" aria-label="Primary key" />;
   if (column.fk) {
-    return <Link2 className="size-3 text-sky-ink" aria-label={`References ${column.fk.table}`} />;
+    return <Link className="size-3 text-sky-ink" aria-label={`References ${column.fk.table}`} />;
   }
   return null;
 }

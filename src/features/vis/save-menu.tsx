@@ -1,4 +1,4 @@
-import { ChevronDown, DatabaseZap, Download, FilePlus2, Undo2 } from "lucide-react";
+import { ChevronDown, DatabaseZap, Download, FilePlus, Undo } from "@/shared/ui/icons";
 import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
@@ -72,7 +72,7 @@ export function SaveMenu({
           </DropdownMenuItem>
         )}
         <DropdownMenuItem disabled={blocked} onSelect={onSaveAsNew} className="items-start py-2">
-          <FilePlus2 className="mt-0.5" />
+          <FilePlus className="mt-0.5" />
           <span className="flex flex-col">
             <span className="font-medium">
               {dbName ? "Save as a new database" : "Save as database"}
@@ -92,7 +92,7 @@ export function SaveMenu({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem variant="destructive" onSelect={onDiscard}>
-          <Undo2 /> Discard changes
+          <Undo /> Discard changes
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

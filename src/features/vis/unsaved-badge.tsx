@@ -1,4 +1,4 @@
-import { AlertCircle, Check, Loader2 } from "lucide-react";
+import { AlertCircle, Check, Loader } from "@/shared/ui/icons";
 import { cn } from "@/shared/lib/utils";
 
 export type SaveState =
@@ -29,7 +29,7 @@ export function UnsavedBadge({ state, dbName, onClick }: UnsavedBadgeProps) {
   if (state.kind === "saving") {
     return (
       <span role="status" className={cn(pill, "bg-raised text-ink-soft")}>
-        <Loader2 className="size-3.5 animate-spin" aria-hidden /> Saving…
+        <Loader className="size-3.5 animate-spin" aria-hidden /> Saving…
       </span>
     );
   }

@@ -1,6 +1,6 @@
 import * as React from "react";
 import { cn } from "cn";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from "@/shared/ui/icons";
 
 import { Button } from "@/shared/ui/button";
 import { useHorizontalScroll } from "@/shared/hooks/use-horizontal-scroll";

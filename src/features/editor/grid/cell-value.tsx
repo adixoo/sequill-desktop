@@ -1,4 +1,4 @@
-import { Braces, Image as ImageIcon } from "lucide-react";
+import { Braces, Image as ImageIcon } from "@/shared/ui/icons";
 import { memo } from "react";
 import { blobImageType, cellPreview, valueKind } from "@/shared/lib/data/format";
 import type { CellValue } from "@/shared/lib/sqlite/types";

@@ -1,4 +1,4 @@
-import { ArrowRight, ExternalLink, Plus, Trash2, Unlink } from "lucide-react";
+import { ArrowRight, ExternalLink, Plus, Trash, Unlink } from "@/shared/ui/icons";
 import { Link } from "@/shared/components/link";
 import { editorHref } from "@/shared/lib/router";
 import type { ReactNode } from "react";
@@ -74,7 +74,7 @@ function ColumnList({
               aria-label={`Remove ${col.name || "column"}`}
               onClick={() => onChange(columns.filter((_, j) => j !== i))}
             >
-              <Trash2 />
+              <Trash />
             </Button>
           }
         />
@@ -225,7 +225,7 @@ export function Inspector(props: InspectorProps) {
           title="New table"
           action={
             <Button variant="ghost" size="sm" onClick={() => props.onRemoveDraftTable(def.id)}>
-              <Trash2 /> Remove
+              <Trash /> Remove
             </Button>
           }
         >

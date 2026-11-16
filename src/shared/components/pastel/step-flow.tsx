@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight } from "@/shared/ui/icons";
 import { Fragment } from "react";
 import { cn } from "@/shared/lib/utils";
 import { ACCENT_CLASSES, STEP_ACCENTS } from "./accent";

@@ -1,4 +1,4 @@
-import { KeyRound, Link2, ListPlus, Pencil, Plus, Trash2 } from "lucide-react";
+import { KeyRound, Link, ListPlus, Pencil, Plus, Trash } from "@/shared/ui/icons";
 import type { ReactNode } from "react";
 import { CodeBlock } from "@/shared/components/pastel/code-block";
 import { Button } from "@/shared/ui/button";
@@ -81,7 +81,7 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
                 )
               }
             >
-              <Trash2 /> Drop {kindLabel}
+              <Trash /> Drop {kindLabel}
             </Button>
           )}
         </div>
@@ -148,7 +148,7 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
                           {c.hidden >= 2 && <span className="pn-table-head">generated</span>}
                           {fk && (
                             <span className="flex items-center gap-1 text-xs text-sky-ink">
-                              <Link2 className="size-3" /> {fk.table}
+                              <Link className="size-3" /> {fk.table}
                               {fk.to ? `.${fk.to}` : ""}
                               {fk.onDelete !== "NO ACTION" && (
                                 <span className="text-ink-muted">
@@ -196,7 +196,7 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
                                 })
                               }
                             >
-                              <Trash2 />
+                              <Trash />
                             </Button>
                           </span>
                         </td>
@@ -263,7 +263,7 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
                           )
                         }
                       >
-                        <Trash2 />
+                        <Trash />
                       </Button>
                     )}
                   </li>
@@ -292,7 +292,7 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
                         )
                       }
                     >
-                      <Trash2 />
+                      <Trash />
                     </Button>
                   </div>
                   {t.sql && <CodeBlock fileName={`${t.name}.sql`} code={t.sql} />}

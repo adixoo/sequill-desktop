@@ -2,19 +2,19 @@ import {
   Bookmark,
   ChevronDown,
   Eye,
-  FileCode2,
+  FileCode,
   ListTree,
   MoreHorizontal,
   Pencil,
   Plus,
   SquareTerminal,
-  Table2,
+  Table,
   TableProperties,
-  Trash2,
+  Trash,
   Upload,
   Network,
   Zap,
-} from "lucide-react";
+} from "@/shared/ui/icons";
 import { useState, type ReactNode } from "react";
 import { DatabaseSwitcher } from "@/shared/components/database-switcher";
 import { Link } from "@/shared/components/link";
@@ -93,7 +93,7 @@ function RelationItem({
   });
   const openDialog = useDialogs((s) => s.open);
   const count = useTableCount(dbId, relation.name, relation.kind !== "virtual");
-  const Icon = relation.kind === "view" ? Eye : Table2;
+  const Icon = relation.kind === "view" ? Eye : Table;
   return (
     <li className="group/item relative">
       <button
@@ -130,7 +130,7 @@ function RelationItem({
               onNavigate?.();
             }}
           >
-            <Table2 /> Browse data
+            <Table /> Browse data
           </DropdownMenuItem>
           <DropdownMenuItem
             onSelect={() => {
@@ -168,7 +168,7 @@ function RelationItem({
             <DropdownMenuItem
               onSelect={() => openDialog({ kind: "ddl", title: relation.name, sql: relation.sql! })}
             >
-              <FileCode2 /> Show SQL
+              <FileCode /> Show SQL
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>
@@ -225,7 +225,7 @@ function SavedQueryItem({ query, onNavigate }: { query: SavedQuery; onNavigate?(
             <Pencil /> Rename
           </DropdownMenuItem>
           <DropdownMenuItem variant="destructive" onSelect={() => actions.remove(query.id)}>
-            <Trash2 /> Delete
+            <Trash /> Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -292,7 +292,7 @@ export function Sidebar({ dbId, schema, onNavigate, className }: SidebarProps) {
             <Group
               title="Tables"
               count={schema.tables.length}
-              icon={<Table2 className="size-3.5" />}
+              icon={<Table className="size-3.5" />}
               action={
                 <Button
                   variant="ghost"

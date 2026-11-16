@@ -2,14 +2,14 @@ import {
   ChevronsUpDown,
   Database,
   Download,
-  FileCode2,
+  FileCode,
   FolderOpen,
   PencilRuler,
   Pencil,
   Plus,
   Sparkles,
-  Trash2,
-} from "lucide-react";
+  Trash,
+} from "@/shared/ui/icons";
 import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
@@ -171,7 +171,7 @@ export function DatabaseSwitcher({
               <Download /> Download .sqlite
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => void actions.downloadDump(current)}>
-              <FileCode2 /> Download SQL dump
+              <FileCode /> Download SQL dump
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() =>
@@ -184,7 +184,7 @@ export function DatabaseSwitcher({
               variant="destructive"
               onSelect={() => openDialog({ kind: "deleteDatabase", db: current })}
             >
-              <Trash2 /> {isDesktop() ? "Delete" : "Delete from browser"}
+              <Trash /> {isDesktop() ? "Delete" : "Delete from browser"}
             </DropdownMenuItem>
           </>
         )}

@@ -10,10 +10,10 @@ import {
   Plus,
   RotateCcw,
   Search,
-  Table2,
-  Trash2,
-  Undo2,
-} from "lucide-react";
+  Table,
+  Trash,
+  Undo,
+} from "@/shared/ui/icons";
 import { Link } from "@/shared/components/link";
 import { editorHref } from "@/shared/lib/router";
 import { useRef, useState } from "react";
@@ -158,7 +158,7 @@ export function SchemaOutline({
         {visible.map(({ table, columns }) => {
           const open = !!q || expanded.has(table.id);
           const selected = table.id === selectedId;
-          const Icon = table.kind === "view" ? Eye : Table2;
+          const Icon = table.kind === "view" ? Eye : Table;
           return (
             <li key={table.id}>
               <div
@@ -406,7 +406,7 @@ function TableMenu({
               editor.onChange(renameTable(editor.draft, table, table.originalName ?? table.name))
             }
           >
-            <Undo2 /> Undo rename
+            <Undo /> Undo rename
           </DropdownMenuItem>
         )}
         {canOpen && existing && (
@@ -430,7 +430,7 @@ function TableMenu({
                 variant="destructive"
                 onSelect={() => editor.onChange(dropTable(editor.draft, table))}
               >
-                <Trash2 /> Delete table
+                <Trash /> Delete table
               </DropdownMenuItem>
             )}
           </>

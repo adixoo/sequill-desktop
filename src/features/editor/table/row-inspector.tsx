@@ -1,4 +1,4 @@
-import { Braces, CornerDownRight, Download, KeyRound, Trash2, Upload } from "lucide-react";
+import { Braces, CornerDownRight, Download, KeyRound, Trash, Upload } from "@/shared/ui/icons";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";
@@ -318,7 +318,7 @@ function InspectorForm({
         <SheetFooter className="flex-row items-center border-t-2 border-hairline">
           {!isNew && onDelete && (
             <Button type="button" variant="destructive" onClick={onDelete}>
-              <Trash2 /> Delete
+              <Trash /> Delete
             </Button>
           )}
           <span className="ml-auto text-xs text-ink-muted">

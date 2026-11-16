@@ -8,8 +8,8 @@ import {
   Filter,
   PanelRightOpen,
   SquareSlash,
-  Trash2,
-} from "lucide-react";
+  Trash,
+} from "@/shared/ui/icons";
 import {
   useMemo,
   useRef,
@@ -583,7 +583,7 @@ export function DataGrid({
               variant="destructive"
               onSelect={() => onDeleteRows(selected.size > 0 ? [...selected] : [cursor.row])}
             >
-              <Trash2 /> {selected.size > 1 ? `Delete ${selected.size} rows` : "Delete row"}
+              <Trash /> {selected.size > 1 ? `Delete ${selected.size} rows` : "Delete row"}
               <ContextMenuShortcut>Del</ContextMenuShortcut>
             </ContextMenuItem>
           </>

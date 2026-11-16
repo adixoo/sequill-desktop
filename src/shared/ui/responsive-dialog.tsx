@@ -1,7 +1,7 @@
 import * as React from "react";
 import { cn } from "cn";
 import { Dialog as DialogPrimitive } from "radix-ui";
-import { XIcon } from "lucide-react";
+import { X } from "@/shared/ui/icons";
 
 import { Button } from "@/shared/ui/button";
 import { Dialog, DialogContent, DialogOverlay, DialogPortal } from "@/shared/ui/dialog";
@@ -102,7 +102,7 @@ function DrawerContent({
         {showCloseButton && (
           <DialogPrimitive.Close data-slot="dialog-close" asChild>
             <Button variant="ghost" className="absolute top-3 right-3" size="icon-sm">
-              <XIcon />
+              <X />
               <span className="sr-only">Close</span>
             </Button>
           </DialogPrimitive.Close>

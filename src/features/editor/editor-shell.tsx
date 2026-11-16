@@ -1,4 +1,4 @@
-import { FileDown } from "lucide-react";
+import { FileDown } from "@/shared/ui/icons";
 import { AnimatePresence, m } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";

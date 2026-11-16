@@ -1,4 +1,4 @@
-import { Filter as FilterIcon, Plus, X } from "lucide-react";
+import { Filter as FilterIcon, Plus, X } from "@/shared/ui/icons";
 import { useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";

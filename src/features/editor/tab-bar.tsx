@@ -1,4 +1,4 @@
-import { Eye, Menu, Plus, Search, SquareTerminal, Table2, X } from "lucide-react";
+import { Eye, Menu, Plus, Search, SquareTerminal, Table, X } from "@/shared/ui/icons";
 import { useEffect, useRef } from "react";
 import { Button } from "@/shared/ui/button";
 import { Kbd } from "@/shared/ui/kbd";
@@ -50,7 +50,7 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
       >
         {tabs.map((tab) => {
           const active = tab.id === activeTabId;
-          const Icon = tab.kind === "query" ? SquareTerminal : views.has(tab.table) ? Eye : Table2;
+          const Icon = tab.kind === "query" ? SquareTerminal : views.has(tab.table) ? Eye : Table;
           const title = tab.kind === "query" ? tab.title : tab.table;
           return (
             <div

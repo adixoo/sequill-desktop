@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash } from "@/shared/ui/icons";
 import { useState, type ReactNode } from "react";
 import { Button } from "@/shared/ui/button";
 import { Checkbox } from "@/shared/ui/checkbox";
@@ -205,7 +205,7 @@ export function CreateTableDialog({ onClose }: { onClose(): void }) {
                   disabled={columns.length === 1}
                   onClick={() => setColumns((cols) => cols.filter((_, j) => j !== i))}
                 >
-                  <Trash2 />
+                  <Trash />
                 </Button>
               </span>
             }

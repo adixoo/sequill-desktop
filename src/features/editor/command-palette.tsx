@@ -2,7 +2,7 @@ import {
   Database,
   Download,
   Eye,
-  FileCode2,
+  FileCode,
   FolderOpen,
   Moon,
   Network,
@@ -10,10 +10,10 @@ import {
   Sparkles,
   SquareTerminal,
   Sun,
-  Table2,
+  Table,
   TableProperties,
   Upload,
-} from "lucide-react";
+} from "@/shared/ui/icons";
 import { navigate, ROUTES } from "@/shared/lib/router";
 import { useTheme } from "@/shared/lib/theme";
 import { useRef } from "react";
@@ -89,7 +89,7 @@ export default function CommandPalette({ open, onOpenChange, schema }: CommandPa
                     value={`open ${r.name}`}
                     onSelect={runAndClose(() => openTable(r.name, { mode: "data" }))}
                   >
-                    {r.kind === "view" ? <Eye /> : <Table2 />}
+                    {r.kind === "view" ? <Eye /> : <Table />}
                     {r.name}
                   </CommandItem>
                 ))}
@@ -138,7 +138,7 @@ export default function CommandPalette({ open, onOpenChange, schema }: CommandPa
                       <Download /> Download {current.name}
                     </CommandItem>
                     <CommandItem onSelect={runAndClose(() => void actions.downloadDump(current))}>
-                      <FileCode2 /> Download SQL dump
+                      <FileCode /> Download SQL dump
                     </CommandItem>
                   </>
                 )}

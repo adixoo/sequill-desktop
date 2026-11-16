@@ -1,4 +1,4 @@
-import { Ban, Check, Pipette } from "lucide-react";
+import { Ban, Check, Pipette } from "@/shared/ui/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/shared/ui/popover";
 import { cn } from "@/shared/lib/utils";
 import {

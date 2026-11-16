@@ -1,4 +1,4 @@
-import { FolderOpen, Plus, Sparkles, SquareTerminal, Table2 } from "lucide-react";
+import { FolderOpen, Plus, Sparkles, SquareTerminal, Table } from "@/shared/ui/icons";
 import { m } from "motion/react";
 import { Mark, Note } from "@/shared/components/pastel/annotation";
 import { Button } from "@/shared/ui/button";
@@ -79,7 +79,7 @@ export function NoTab({ schema }: { schema: Schema | undefined }) {
         <div className="flex flex-wrap gap-2">
           {first && (
             <Button onClick={() => openTable(first.name)}>
-              <Table2 /> Open {first.name}
+              <Table /> Open {first.name}
             </Button>
           )}
           <Button variant="outline" onClick={() => openQuery()}>

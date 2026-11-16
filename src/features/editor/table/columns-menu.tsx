@@ -1,4 +1,4 @@
-import { Columns3 } from "lucide-react";
+import { Columns3 } from "@/shared/ui/icons";
 import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,

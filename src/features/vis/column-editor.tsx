@@ -1,4 +1,4 @@
-import { Pencil, RotateCcw, Trash2, Undo2 } from "lucide-react";
+import { Pencil, RotateCcw, Trash, Undo } from "@/shared/ui/icons";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ColumnFields } from "@/shared/components/dialogs/column-fields";
 import { Button } from "@/shared/ui/button";
@@ -175,7 +175,7 @@ function ColumnEditor({
             if (!existing) onClose();
           }}
         >
-          <Trash2 />
+          <Trash />
         </Button>
       </div>
       <ColumnFields
@@ -199,7 +199,7 @@ function ColumnEditor({
               className="ml-auto shrink-0"
               onClick={() => editor.onChange(revertColumn(draft, table, column.key))}
             >
-              <Undo2 /> Undo
+              <Undo /> Undo
             </Button>
           )}
         </div>

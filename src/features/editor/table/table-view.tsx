@@ -1,4 +1,4 @@
-import { Plus, RefreshCw, Rows2, Rows3, Search, Trash2, Upload } from "lucide-react";
+import { Plus, RefreshCw, Rows2, Rows3, Search, Trash, Upload } from "@/shared/ui/icons";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Button } from "@/shared/ui/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-group";
@@ -309,7 +309,7 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
                     size="sm"
                     onClick={() => confirmDelete([...selection])}
                   >
-                    <Trash2 /> Delete {formatCount(selectedCount)}
+                    <Trash /> Delete {formatCount(selectedCount)}
                   </Button>
                 )}
                 {relation.editable && (

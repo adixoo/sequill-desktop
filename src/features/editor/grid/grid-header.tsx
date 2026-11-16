@@ -5,12 +5,12 @@ import {
   EyeOff,
   Filter,
   KeyRound,
-  Link2,
+  Link,
   Pencil,
   Pin,
   PinOff,
-  Trash2,
-} from "lucide-react";
+  Trash,
+} from "@/shared/ui/icons";
 import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import {
   DropdownMenu,
@@ -125,7 +125,7 @@ export function GridHeaderCell({
           <KeyRound className="size-3 shrink-0 text-butter-ink" aria-label="Primary key" />
         )}
         {info.fk && (
-          <Link2
+          <Link
             className="size-3 shrink-0 text-sky-ink"
             aria-label={`References ${info.fk.table}`}
           />
@@ -189,7 +189,7 @@ export function GridHeaderCell({
                 variant="destructive"
                 onSelect={() => onColumnAction("drop", col.name)}
               >
-                <Trash2 /> Drop column
+                <Trash /> Drop column
               </DropdownMenuItem>
             </>
           )}

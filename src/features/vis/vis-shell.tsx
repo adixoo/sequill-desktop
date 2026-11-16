@@ -1,4 +1,4 @@
-import { Table2 } from "lucide-react";
+import { Table } from "@/shared/ui/icons";
 import { Link } from "@/shared/components/link";
 import { navigate, ROUTES } from "@/shared/lib/router";
 import { useState } from "react";
@@ -92,7 +92,7 @@ function Visualizer() {
         <div ref={setBadgeSlot} className="flex items-center" />
         <div className="ml-auto flex items-center gap-1">
           <Button variant="ghost" size="sm" onClick={() => leave({ kind: "editor" })}>
-            <Table2 /> <span className="max-sm:sr-only">Editor</span>
+            <Table /> <span className="max-sm:sr-only">Editor</span>
           </Button>
           <ThemeToggle />
         </div>

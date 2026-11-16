@@ -1,5 +1,5 @@
 import Papa from "papaparse";
-import { FileUp } from "lucide-react";
+import { FileUp } from "@/shared/ui/icons";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { Loader } from "@/shared/components/pastel/loader";

@@ -1,4 +1,4 @@
-import { Copy } from "lucide-react";
+import { Copy } from "@/shared/ui/icons";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CodeBlock } from "@/shared/components/pastel/code-block";

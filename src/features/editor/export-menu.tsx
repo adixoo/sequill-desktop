@@ -1,4 +1,4 @@
-import { Download } from "lucide-react";
+import { Download } from "@/shared/ui/icons";
 import { toast } from "sonner";
 import { Button } from "@/shared/ui/button";
 import {

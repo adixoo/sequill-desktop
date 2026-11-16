@@ -1,5 +1,5 @@
 import { Handle, Position, useUpdateNodeInternals, type Node, type NodeProps } from "@xyflow/react";
-import { Eye, Table2 } from "lucide-react";
+import { Eye, Table } from "@/shared/ui/icons";
 import { memo, useEffect, useState } from "react";
 import { colorInk, colorWash, type TableColor } from "@/features/vis/lib/colors";
 import {
@@ -70,7 +70,7 @@ export const TableNode = memo(function TableNode({ id, data, selected }: NodePro
   const handleKey = table.columns.map((c) => c.name).join("\n");
   useEffect(() => updateNodeInternals(id), [id, handleKey, updateNodeInternals]);
   const dropped = table.change === "dropped";
-  const Icon = table.kind === "view" ? Eye : Table2;
+  const Icon = table.kind === "view" ? Eye : Table;
   return (
     <div
       className={cn(

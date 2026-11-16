@@ -4,13 +4,13 @@ import CodeMirror from "@uiw/react-codemirror";
 import {
   AlertCircle,
   Check,
-  CheckCircle2,
+  CheckCircle,
   History,
   Lightbulb,
   Play,
   Save,
-  Trash2,
-} from "lucide-react";
+  Trash,
+} from "@/shared/ui/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Loader } from "@/shared/components/pastel/loader";
@@ -64,7 +64,7 @@ function ResultView({ result }: { result: StatementResult }) {
   if (result.columns.length === 0) {
     return (
       <div className="flex items-center gap-2 p-4 text-sm text-ink-soft">
-        <CheckCircle2 className="size-4 text-mint-ink" aria-hidden />
+        <CheckCircle className="size-4 text-mint-ink" aria-hidden />
         Done. {formatCount(result.changes)} {result.changes === 1 ? "row" : "rows"} changed in{" "}
         {formatDuration(result.durationMs)}.
       </div>
@@ -208,7 +208,7 @@ export default function QueryConsole({
                 writeJson(STORAGE_KEYS.queryHistory, []);
               }}
             >
-              <Trash2 /> Clear history
+              <Trash /> Clear history
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -298,7 +298,7 @@ export default function QueryConsole({
                     {r.error ? (
                       <AlertCircle className="size-3 text-rose-ink" aria-label="failed" />
                     ) : (
-                      <CheckCircle2 className="size-3 text-mint-ink" aria-label="ok" />
+                      <CheckCircle className="size-3 text-mint-ink" aria-label="ok" />
                     )}
                     <span className="max-w-48 truncate">{r.sql.replace(/\s+/g, " ")}</span>
                   </button>

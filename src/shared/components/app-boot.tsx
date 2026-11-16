@@ -1,4 +1,4 @@
-import { RotateCcw } from "lucide-react";
+import { RotateCcw } from "@/shared/ui/icons";
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Loader, type LoaderStage } from "@/shared/components/pastel/loader";
 import { Button } from "@/shared/ui/button";
