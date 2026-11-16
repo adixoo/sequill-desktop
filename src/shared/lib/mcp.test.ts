@@ -1,5 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { claudeCodeCommand, mcpConfig, showTableView } from "./mcp";
+import {
+  claudeCodeCommand,
+  codexConfig,
+  MCP_CLIENTS,
+  mcpConfig,
+  showTableView,
+  vsCodeConfig,
+  zedConfig,
+} from "./mcp";
 
 const command = { command: "C:\\Program Files\\Sequill\\sequill.exe", args: ["mcp"] };
 
@@ -32,6 +40,44 @@ describe("claudeCodeCommand", () => {
     expect(claudeCodeCommand(simple, false)).toBe(
       "claude mcp add sequill -- /Applications/Sequill.app/Contents/MacOS/sequill mcp",
     );
+  });
+});
+
+describe("other clients' configs", () => {
+  test("VS Code uses a stdio entry under servers", () => {
+    expect(JSON.parse(vsCodeConfig(command, true))).toEqual({
+      servers: {
+        sequill: { type: "stdio", command: command.command, args: ["mcp", "--allow-writes"] },
+      },
+    });
+  });
+
+  test("Zed uses context_servers", () => {
+    expect(JSON.parse(zedConfig(command, false))).toEqual({
+      context_servers: { sequill: { command: command.command, args: ["mcp"], env: {} } },
+    });
+  });
+
+  test("Codex gets a TOML table with the Windows path as a literal string", () => {
+    expect(codexConfig(command, true)).toBe(
+      "[mcp_servers.sequill]\n" +
+        "command = 'C:\\Program Files\\Sequill\\sequill.exe'\n" +
+        "args = ['mcp', '--allow-writes']",
+    );
+  });
+
+  test("Codex falls back to an escaped string when the path has a quote", () => {
+    const quoted = { command: "/Users/o'neil/sequill", args: ["mcp"] };
+    expect(codexConfig(quoted, false)).toContain(`command = "/Users/o'neil/sequill"`);
+  });
+
+  test("every client has a unique id, steps and parsable JSON", () => {
+    expect(new Set(MCP_CLIENTS.map((c) => c.id)).size).toBe(MCP_CLIENTS.length);
+    for (const client of MCP_CLIENTS) {
+      expect(client.steps.length).toBeGreaterThan(0);
+      const code = client.config(command, false);
+      if (client.language === "json") expect(() => JSON.parse(code)).not.toThrow();
+    }
   });
 });
 

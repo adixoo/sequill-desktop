@@ -81,7 +81,8 @@ the open database or the list, and refreshes what's on screen.
 ## MCP server
 
 Click **MCP** in the editor's top bar (next to **Jump to…**). It turns access on or off and shows how
-to connect Claude Desktop, Claude Code or another client, with settings to copy. Access is **off**
+to connect Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, Zed, JetBrains, Codex, Gemini CLI
+or another client, with settings to copy. Access is **off**
 until you turn it on, and the server checks the switch on every call, so turning it off stops an
 assistant at once.
 
