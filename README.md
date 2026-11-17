@@ -4,6 +4,8 @@ A SQLite browser and editor for the desktop, with a built-in MCP server so AI as
 the same databases. It is a [Tauri](https://tauri.app) app on a native SQLite engine written in Rust.
 Databases are real files on your computer; nothing is uploaded and everything works offline.
 
+Contributions are welcome; see [Contributing](#contributing) to get started.
+
 ## Features
 
 - **Databases**: open `.sqlite` / `.db` files (picker or drag and drop), create empty ones or a sample
@@ -145,3 +147,47 @@ refused until the app switches to another one. `show_in_app` says so if Sequill 
 ## Limitations
 
 - Grid paging uses `LIMIT/OFFSET`, which slows down deep into very large tables.
+
+## Contributing
+
+Contributions are welcome: bug reports, ideas, documentation fixes and pull requests all help.
+
+### Reporting bugs and suggesting features
+
+[Open an issue](https://github.com/adixoo/sequill-desktop/issues). For a bug, include your operating
+system, the Sequill version, the steps that cause it, what you expected and what happened instead. A
+small database or SQL script that shows the problem makes it much faster to fix. For a bigger change
+or a new feature, open an issue to talk it through before you start on the code.
+
+### Making a change
+
+1. Fork the repository, clone your fork and set it up as in [Getting started](#getting-started).
+2. Create a branch off `master`, for example `fix/grid-paste-nulls`.
+3. Make your change, and keep each pull request to one change. Follow the
+   [project layout](#project-layout) and the conventions already in the code you touch. In particular,
+   the frontend reaches SQLite only through `getSqlite()`, values are always bound parameters, names
+   are quoted, and destructive actions show their SQL first.
+4. Add or update tests:
+   - Rust: unit tests sit next to the code in `crates/` and `src-tauri/` (`bun run test:rust`).
+   - Frontend: `*.test.ts` files beside the code in `src/` (`bun run test`).
+   - User flows: Playwright specs in `e2e/` (`bun run test:e2e`).
+5. Run the same checks CI runs before you push:
+
+   ```bash
+   bun run typecheck
+   bun run lint
+   bun run format:check
+   bun run test
+   bun run test:rust
+   ```
+
+6. If the change is user-facing, run `bun run changeset`, pick patch, minor or major, describe the
+   change, and commit the new `.changeset/*.md` file with it (see [Releasing](#releasing)).
+7. Write commit messages in the [Conventional Commits](https://www.conventionalcommits.org) style the
+   history uses: `type(scope): subject`, for example `fix(editor): keep the sort after a refresh` or
+   `feat(mcp): add a tool for views`. Types are `feat`, `fix`, `refactor`, `perf`, `test`, `docs`,
+   `chore`, `build` and `ci`.
+8. Open a pull request against `master`. Say what changed, why, and how you tested it, link the issue
+   it closes, and add a screenshot or short clip for UI changes. CI must pass before it is merged.
+
+Not sure where to start? Look for open issues, or pick something from [Limitations](#limitations).
