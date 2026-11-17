@@ -23,8 +23,6 @@ interface CodeBlockProps {
   highlightLine?: number;
   /** Shows a Copy button in the title bar. */
   copyable?: boolean;
-  /** Wraps long lines instead of scrolling sideways. */
-  wrap?: boolean;
   className?: string;
 }
 
@@ -35,16 +33,12 @@ export function CodeBlock({
   language = "sql",
   highlightLine,
   copyable,
-  wrap,
   className,
 }: CodeBlockProps) {
   const lines = highlightLines(code, language);
   return (
     <figure
-      className={cn(
-        "overflow-hidden rounded-md bg-surface ring-2 ring-hairline ring-inset",
-        className,
-      )}
+      className={cn("overflow-hidden rounded-md border-2 border-hairline bg-surface", className)}
     >
       <figcaption className="flex h-11 items-center gap-2 border-b-2 border-hairline bg-raised pr-1.5 pl-4">
         <span aria-hidden className="flex gap-1.5">
@@ -57,25 +51,18 @@ export function CodeBlock({
         </span>
         {copyable && <CopyCodeButton code={code} fileName={fileName} />}
       </figcaption>
-      <pre
-        className={cn(
-          "py-4 font-mono text-[0.8125rem] leading-[1.7] md:text-sm",
-          wrap ? "whitespace-pre-wrap" : "overflow-x-auto",
-        )}
-      >
-        <code>
+      {/* Long lines scroll sideways; `w-max` lets each line's wash span the widest line. */}
+      <pre className="overflow-x-auto py-4 font-mono text-[0.8125rem] leading-[1.7] md:text-sm">
+        <code className="block w-max min-w-full px-2">
           {lines.map((line, i) => (
             <span
               key={i}
-              className={cn(
-                "mx-2 flex rounded-xs pr-4",
-                highlightLine === i + 1 && "bg-lilac-wash",
-              )}
+              className={cn("flex rounded-xs pr-4", highlightLine === i + 1 && "bg-lilac-wash")}
             >
               <span aria-hidden className="w-10 shrink-0 pr-4 text-right text-decor select-none">
                 {i + 1}
               </span>
-              <span className={cn(wrap && "min-w-0 wrap-anywhere")}>
+              <span>
                 {line.map((t, j) => (
                   <span key={j} className={TOKEN_CLASS[t.type]}>
                     {t.text}

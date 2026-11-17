@@ -61,7 +61,6 @@ function Setup({ client, code }: { client: McpClient; code: string }) {
         code={code}
         language={client.language}
         copyable
-        wrap
         className="min-w-0"
       />
     </div>
