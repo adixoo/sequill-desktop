@@ -119,7 +119,7 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
       </ScrollStrip>
       <McpButton className="my-2 ml-2" />
       <Button
-        variant="ghost"
+        variant="outline"
         size="sm"
         className="m-2 gap-2 text-ink-muted"
         onClick={onOpenPalette}
