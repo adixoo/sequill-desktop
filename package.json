@@ -1,6 +1,6 @@
 {
   "name": "sqlite-browser-editor",
-  "version": "0.2.2",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "postinstall": "bun scripts/copy-sqlite-wasm.ts",
