@@ -21,7 +21,8 @@
     "desktop:build": "tauri build",
     "mcp": "cargo run -q -p sequill-mcp --",
     "changeset": "changeset",
-    "version-packages": "changeset version",
+    "version-packages": "changeset version && bun scripts/sync-cargo-version.ts",
+    "version:check": "bun scripts/sync-cargo-version.ts --check",
     "icons": "bun scripts/generate-icons.ts"
   },
   "dependencies": {
