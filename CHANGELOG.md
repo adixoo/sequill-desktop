@@ -1,5 +1,18 @@
 # sqlite-browser-editor
 
+## 1.1.1
+
+### Patch Changes
+
+- df15d06: Queries an AI assistant shows you open in one reused "Assistant" tab instead of a new tab each time.
+- a4b58db: Opened database files are now edited where they are instead of being copied into the app's data folder. Removing one from the list never deletes the file. The schema designer checks each edit on a structure-only copy of the database and always asks before saving to the database itself.
+- f392708: The Windows installer and uninstaller show the Sequill icon.
+- 10ffaf4: Everything an AI assistant does over MCP is kept in a history: open it with History, next to MCP in the top bar, or from "Assistant (MCP)" in the editor sidebar. The history stays on your computer and is deleted after a week by default; you can choose 1 day, 1 month, 3 months or never.
+- e10a200: The MCP guide is now three plain steps with one-line install commands for Claude Code, Codex and Gemini CLI. "Allow changes" is a switch in the app that the MCP server checks on every call, so turning edits on or off no longer means setting the assistant up again.
+- 3850003: An open table no longer goes blank when its columns change while it is on screen, for example when an AI assistant adds a column over MCP. The new column appears in place.
+- fc7ad18: Removing or deleting the open database moves to another one instead of showing an empty error, and errors from the desktop app always show their reason.
+- 49f7c5b: The window title shows the version of Sequill that is running.
+
 ## 1.1.0
 
 ### Minor Changes
