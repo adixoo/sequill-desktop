@@ -159,6 +159,9 @@ system, the Sequill version, the steps that cause it, what you expected and what
 small database or SQL script that shows the problem makes it much faster to fix. For a bigger change
 or a new feature, open an issue to talk it through before you start on the code.
 
+Found a security problem? Please don't open a public issue; report it privately as described in the
+[security policy](.github/SECURITY.md).
+
 ### Making a change
 
 1. Fork the repository, clone your fork and set it up as in [Getting started](#getting-started).
