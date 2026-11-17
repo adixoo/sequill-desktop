@@ -6,7 +6,7 @@
 import { invoke as tauriInvoke, type InvokeArgs, type InvokeOptions } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { SavedQuery } from "@/shared/lib/data/saved-queries";
-import type { McpStatus, ShowRequest } from "@/shared/lib/mcp";
+import type { McpActivity, McpStatus, ShowRequest } from "@/shared/lib/mcp";
 import type { SqliteApi } from "./client";
 import { decodeRows, encodeCell, encodeRow, type WireCell } from "./cell-codec";
 import type { DbInfo, QueryResult, StatementResult } from "./types";
@@ -106,6 +106,20 @@ export function setMcpEnabled(enabled: boolean): Promise<McpStatus> {
 /** Lets assistants change things over MCP, or only read; returns the new status. */
 export function setMcpAllowChanges(allowed: boolean): Promise<McpStatus> {
   return invoke("set_mcp_allow_changes", { allowed });
+}
+
+/** What assistants did over MCP, newest first. */
+export function mcpActivity(limit: number): Promise<McpActivity[]> {
+  return invoke("mcp_activity", { limit });
+}
+
+export function clearMcpActivity(): Promise<void> {
+  return invoke("clear_mcp_activity");
+}
+
+/** How long the MCP history is kept (null: forever); returns the new status. */
+export function setMcpHistoryDays(days: number | null): Promise<McpStatus> {
+  return invoke("set_mcp_history_days", { days });
 }
 
 /** Saved queries, kept in the catalog on desktop so assistants can use them too. */

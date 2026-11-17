@@ -14,7 +14,7 @@ import type { Schema } from "@/shared/lib/sqlite/types";
 import { useSavedQueries } from "@/shared/lib/store/saved-queries";
 import { useWorkspace } from "@/shared/lib/store/workspace";
 import { cn } from "@/shared/lib/utils";
-import { McpButton } from "@/shared/components/mcp-button";
+import { McpButton, McpHistoryButton } from "@/shared/components/mcp-button";
 
 interface TabBarProps {
   schema: Schema | undefined;
@@ -169,6 +169,7 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
         )}
       </ScrollStrip>
       <McpButton className="my-2 ml-2" />
+      <McpHistoryButton className="my-2" />
       <Button
         variant="outline"
         size="sm"

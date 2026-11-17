@@ -14,8 +14,9 @@ export function ExternalChanges() {
     () =>
       watchExternalChanges(({ catalog, database }) => {
         if (catalog) {
-          // The catalog holds the database list and the saved queries.
+          // The catalog holds the database list, the saved queries and the MCP history.
           void queryClient.invalidateQueries({ queryKey: queryKeys.dbs });
+          void queryClient.invalidateQueries({ queryKey: queryKeys.mcpActivity });
           void useSavedQueries.getState().reload();
         }
         if (database) {

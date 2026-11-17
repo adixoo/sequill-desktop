@@ -2,9 +2,13 @@
 
 use crate::tools::{self, app, data, schema};
 use rmcp::handler::server::router::tool::ToolRouter;
+use rmcp::handler::server::tool::ToolCallContext;
 use rmcp::handler::server::wrapper::Parameters;
-use rmcp::model::{Implementation, ServerCapabilities, ServerConfig};
-use rmcp::{ServerHandler, tool, tool_handler, tool_router};
+use rmcp::model::{
+    CallToolRequestParams, CallToolResponse, Implementation, ServerCapabilities, ServerConfig,
+};
+use rmcp::service::RequestContext;
+use rmcp::{ErrorData, RoleServer, ServerHandler, tool, tool_handler, tool_router};
 use schemars::JsonSchema;
 use sequill_core::CellValue;
 use sequill_core::ddl::{ColumnSpec, IndexSpec, ObjectKind, TableSpec, TriggerSpec};
@@ -600,8 +604,50 @@ impl SequillServer {
 
 // The default router is rebuilt per call (`Self::tool_router()`), which would bring back
 // the write tools on a read-only server; route through the field instead.
+/// Whether a call worked, and why not if it didn't.
+fn outcome(response: &Result<CallToolResponse, ErrorData>) -> (bool, Option<String>) {
+    match response {
+        Ok(CallToolResponse::Complete(result)) if result.is_error == Some(true) => (
+            false,
+            result
+                .content
+                .iter()
+                .find_map(|c| c.as_text().map(|t| t.text.clone())),
+        ),
+        Ok(_) => (true, None),
+        Err(error) => (false, Some(error.message.to_string())),
+    }
+}
+
 #[tool_handler(router = self.tool_router)]
 impl ServerHandler for SequillServer {
+    /// Runs the tool, then adds the call to the history the app shows ("Assistant" in the
+    /// editor's sidebar). A history that can't be written never fails the call.
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResponse, ErrorData> {
+        let tool = request.name.to_string();
+        let args = request.arguments.clone().unwrap_or_default();
+        let response = self
+            .tool_router
+            .call(ToolCallContext::new(self, request, context))
+            .await;
+        let (ok, message) = outcome(&response);
+        let dir = Arc::clone(&self.data_dir);
+        let recorded = tokio::task::spawn_blocking(move || {
+            tools::record_call(&dir, &tool, &args, ok, message)
+        })
+        .await;
+        match recorded {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => eprintln!("sequill mcp: could not record the call: {error}"),
+            Err(error) => eprintln!("sequill mcp: could not record the call: {error}"),
+        }
+        response
+    }
+
     fn get_info(&self) -> ServerConfig {
         ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
             .with_server_info(

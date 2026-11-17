@@ -3,10 +3,11 @@ import { CodeBlock } from "@/shared/components/pastel/code-block";
 import { useMcpStatus, useSetMcpAllowChanges, useSetMcpEnabled } from "@/shared/hooks/use-mcp";
 import { MCP_CLIENTS, type McpClient, type McpStatus } from "@/shared/lib/mcp";
 import { errorMessage } from "@/shared/lib/sqlite/errors";
+import { useDialogs } from "@/shared/lib/store/dialogs";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
 import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/shared/ui/dialog";
-import { TriangleAlert } from "@/shared/ui/icons";
+import { History, TriangleAlert } from "@/shared/ui/icons";
 import { Label } from "@/shared/ui/label";
 import { ResponsiveDialog, ResponsiveDialogContent } from "@/shared/ui/responsive-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
@@ -255,6 +256,16 @@ export function McpDialog({ onClose }: { onClose(): void }) {
                   the databases you see here. If it doesn&apos;t know Sequill, check step 1 and
                   restart the assistant.
                 </p>
+                <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
+                  Everything they do is listed under History, next to MCP in the top bar.
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => useDialogs.getState().open({ kind: "mcpActivity" })}
+                  >
+                    <History /> Open history
+                  </Button>
+                </div>
                 <p className="text-xs text-ink-muted">
                   The setup points at this copy of Sequill. If you move or reinstall it, do step 2
                   again.

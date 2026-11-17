@@ -12,7 +12,7 @@ pub mod schema;
 
 use rusqlite::limits::Limit;
 use sequill_core::schema::{RelationInfo, SchemaObject};
-use sequill_core::{CellValue, DbInfo, Error, Result, Session, Store};
+use sequill_core::{CellValue, DbInfo, Error, NewMcpActivity, Result, Session, Store};
 use serde_json::{Value, json};
 use std::path::Path;
 
@@ -89,6 +89,34 @@ fn open_db(dir: &Path, database: &str, writable: bool) -> Result<Opened> {
         store,
         info,
         session,
+    })
+}
+
+/// Adds one call to the history the app lists, whatever the switches say: refused calls are
+/// worth seeing too. The database is named as the user knows it when it can be found.
+pub fn record_call(
+    dir: &Path,
+    tool: &str,
+    args: &serde_json::Map<String, Value>,
+    ok: bool,
+    message: Option<String>,
+) -> Result<()> {
+    let store = Store::open_shared(dir)?;
+    let named = args.get("database").and_then(Value::as_str);
+    let found = named.and_then(|name| store.resolve(name).ok());
+    let mut rest = args.clone();
+    rest.remove("database");
+    let sql = rest
+        .remove("sql")
+        .and_then(|v| v.as_str().map(str::to_owned));
+    store.record_mcp_activity(&NewMcpActivity {
+        tool: tool.to_owned(),
+        database_id: found.as_ref().map(|d| d.id.clone()),
+        database_name: found.map(|d| d.name).or_else(|| named.map(str::to_owned)),
+        sql,
+        details: (!rest.is_empty()).then(|| Value::Object(rest).to_string()),
+        ok,
+        message,
     })
 }
 
@@ -369,6 +397,56 @@ mod tests {
 
         store.set_mcp_changes_allowed(true).unwrap();
         execute(dir.path(), &id, "DELETE FROM customer WHERE name = 'Ravi'").unwrap();
+    }
+
+    #[test]
+    fn records_each_call_for_the_app_even_when_refused() {
+        let (dir, id) = store_with_shop();
+        let args = |v: Value| v.as_object().unwrap().clone();
+        record_call(
+            dir.path(),
+            "query",
+            &args(json!({ "database": "shop", "sql": "SELECT 1", "max_rows": 5 })),
+            true,
+            None,
+        )
+        .unwrap();
+        record_call(
+            dir.path(),
+            "list_databases",
+            &args(json!({})),
+            false,
+            Some(MCP_OFF_MESSAGE.into()),
+        )
+        .unwrap();
+
+        let store = Store::open_shared(dir.path()).unwrap();
+        let history = store.mcp_activity(10).unwrap();
+        assert_eq!(history[0].tool, "list_databases");
+        assert!(!history[0].ok);
+        assert_eq!(history[0].message.as_deref(), Some(MCP_OFF_MESSAGE));
+        assert_eq!(history[0].details, None);
+        let query = &history[1];
+        assert_eq!(query.database_id.as_deref(), Some(id.as_str()));
+        assert_eq!(
+            query.database_name.as_deref(),
+            Some("Shop"),
+            "named as the app shows it"
+        );
+        assert_eq!(query.sql.as_deref(), Some("SELECT 1"));
+        assert_eq!(query.details.as_deref(), Some(r#"{"max_rows":5}"#));
+
+        record_call(
+            dir.path(),
+            "get_schema",
+            &args(json!({ "database": "Missing" })),
+            false,
+            None,
+        )
+        .unwrap();
+        let missing = store.mcp_activity(1).unwrap().remove(0);
+        assert_eq!(missing.database_id, None);
+        assert_eq!(missing.database_name.as_deref(), Some("Missing"));
     }
 
     #[test]

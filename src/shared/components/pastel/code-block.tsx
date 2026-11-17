@@ -25,6 +25,8 @@ interface CodeBlockProps {
   copyable?: boolean;
   /** Wraps long lines instead of scrolling sideways, so a one-line command reads whole. */
   wrap?: boolean;
+  /** Just the code: no title bar or line numbers, and Copy as an icon in the corner. */
+  bare?: boolean;
   className?: string;
 }
 
@@ -36,35 +38,53 @@ export function CodeBlock({
   highlightLine,
   copyable,
   wrap,
+  bare,
   className,
 }: CodeBlockProps) {
   const lines = highlightLines(code, language);
   return (
     <figure
-      className={cn("overflow-hidden rounded-md border-2 border-hairline bg-surface", className)}
+      className={cn(
+        "relative overflow-hidden rounded-md border-2 border-hairline bg-surface",
+        className,
+      )}
     >
-      <figcaption className="flex h-11 items-center gap-2 border-b-2 border-hairline bg-raised pr-1.5 pl-4">
-        <span aria-hidden className="flex gap-1.5">
-          {[0, 1, 2].map((i) => (
-            <span key={i} className="size-2.5 rounded-full bg-strong" />
-          ))}
-        </span>
-        <span className="ml-2 min-w-0 flex-1 truncate font-mono text-xs font-medium tracking-[0.04em] text-ink-soft">
-          {fileName}
-        </span>
-        {copyable && <CopyCodeButton code={code} fileName={fileName} />}
-      </figcaption>
+      {bare && copyable && (
+        <div className="absolute top-1 right-1">
+          <CopyCodeButton code={code} fileName={fileName} compact />
+        </div>
+      )}
+      {!bare && (
+        <figcaption className="flex h-11 items-center gap-2 border-b-2 border-hairline bg-raised pr-1.5 pl-4">
+          <span aria-hidden className="flex gap-1.5">
+            {[0, 1, 2].map((i) => (
+              <span key={i} className="size-2.5 rounded-full bg-strong" />
+            ))}
+          </span>
+          <span className="ml-2 min-w-0 flex-1 truncate font-mono text-xs font-medium tracking-[0.04em] text-ink-soft">
+            {fileName}
+          </span>
+          {copyable && <CopyCodeButton code={code} fileName={fileName} />}
+        </figcaption>
+      )}
       {/* Long lines scroll sideways; `w-max` lets each line's wash span the widest line. */}
-      <pre className="overflow-x-auto py-4 font-mono text-[0.8125rem] leading-[1.7] md:text-sm">
-        <code className={cn("block min-w-full px-2", !wrap && "w-max")}>
+      <pre
+        className={cn(
+          "overflow-x-auto font-mono text-[0.8125rem] leading-[1.7]",
+          bare ? "py-2 pr-9" : "py-4 md:text-sm",
+        )}
+      >
+        <code className={cn("block min-w-full", bare ? "px-3" : "px-2", !wrap && "w-max")}>
           {lines.map((line, i) => (
             <span
               key={i}
               className={cn("flex rounded-xs pr-4", highlightLine === i + 1 && "bg-lilac-wash")}
             >
-              <span aria-hidden className="w-10 shrink-0 pr-4 text-right text-decor select-none">
-                {i + 1}
-              </span>
+              {!bare && (
+                <span aria-hidden className="w-10 shrink-0 pr-4 text-right text-decor select-none">
+                  {i + 1}
+                </span>
+              )}
               <span className={cn(wrap && "min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap")}>
                 {line.map((t, j) => (
                   <span key={j} className={TOKEN_CLASS[t.type]}>
@@ -81,15 +101,26 @@ export function CodeBlock({
 }
 
 /** Copy button that turns into a tick for a moment once the code is on the clipboard. */
-function CopyCodeButton({ code, fileName }: { code: string; fileName: string }) {
+function CopyCodeButton({
+  code,
+  fileName,
+  compact,
+}: {
+  code: string;
+  fileName: string;
+  /** Icon only (the label stays for screen readers). */
+  compact?: boolean;
+}) {
   const { copied, copy } = useCopy();
   return (
     <button
       type="button"
       onClick={() => void copy(code)}
       title={`Copy ${fileName}`}
+      aria-label={compact ? `Copy ${fileName}` : undefined}
       className={cn(
-        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium",
+        "inline-flex shrink-0 items-center gap-1.5 rounded-sm text-xs font-medium",
+        compact ? "size-7 justify-center" : "h-8 px-2.5",
         "transition-[background-color,color] duration-150 outline-none",
         "focus-visible:ring-2 focus-visible:ring-ring",
         copied ? "bg-mint-wash text-mint-ink" : "text-ink-soft hover:bg-surface hover:text-ink",
@@ -110,7 +141,9 @@ function CopyCodeButton({ code, fileName }: { code: string; fileName: string }) 
           )}
         />
       </span>
-      <span aria-live="polite">{copied ? "Copied" : "Copy"}</span>
+      <span aria-live="polite" className={cn(compact && "sr-only")}>
+        {copied ? "Copied" : "Copy"}
+      </span>
     </button>
   );
 }

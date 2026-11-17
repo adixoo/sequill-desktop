@@ -116,6 +116,13 @@ MCP lets AI assistants (Claude, Cursor, VS Code Copilot and others) use your Seq
    another client.
 3. **Try it.** Ask the assistant to list your Sequill databases.
 
+Everything an assistant does is listed under **History** (next to **MCP** in the top bar) and
+under **Assistant (MCP)** in the editor's sidebar; the
+full history opens as a panel with each call's database, SQL and result, and links to open a query
+in the **Assistant** tab or show a table. A query an assistant shows you always goes to that one
+tab instead of opening a new one each time. The history stays on your computer and is deleted
+after a week, or after 1 day, 1 month, 3 months or never, as you choose in the panel.
+
 Claude Code, Codex and Gemini CLI take one command, for example:
 
 ```bash

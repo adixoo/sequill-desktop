@@ -15,7 +15,9 @@ pub mod value;
 pub use error::{Error, Result};
 pub use schema::Schema;
 pub use session::{QueryResult, Session, SqlStatement, StatementResult};
-pub use store::{DbInfo, DesignPreview, ExternalChanges, Store, default_data_dir};
+pub use store::{
+    DbInfo, DesignPreview, ExternalChanges, McpActivity, NewMcpActivity, Store, default_data_dir,
+};
 pub use value::{CellValue, Row};
 
 /// The bundled SQLite library's version, such as "3.50.4".

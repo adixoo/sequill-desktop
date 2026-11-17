@@ -6,6 +6,7 @@ import { useSavedQueryActions } from "@/shared/hooks/use-saved-queries";
 import { storagePlace } from "@/shared/lib/platform";
 import { buildRenameColumn, buildRenameTable } from "@/shared/lib/sqlite/ddl";
 import { useDialogs } from "@/shared/lib/store/dialogs";
+import { McpActivitySheet } from "@/shared/components/mcp-activity";
 import { McpDialog } from "./mcp-dialog";
 import { ConfirmSqlDialog, DdlDialog, DeleteDatabaseDialog, NameDialog } from "./simple-dialogs";
 
@@ -48,6 +49,8 @@ export function DialogHost() {
       return <DdlDialog title={dialog.title} sql={dialog.sql} onClose={close} />;
     case "mcp":
       return <McpDialog onClose={close} />;
+    case "mcpActivity":
+      return <McpActivitySheet onClose={close} />;
     case "deleteDatabase":
       return <DeleteDatabaseDialog db={dialog.db} onClose={close} />;
     case "createTable":

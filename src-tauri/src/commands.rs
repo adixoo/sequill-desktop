@@ -4,8 +4,8 @@
 use percent_encoding::percent_decode_str;
 use sequill_core::store::SavedQuery;
 use sequill_core::{
-    CellValue, DbInfo, DesignPreview, QueryResult, Row, Schema, SqlStatement, StatementResult,
-    Store,
+    CellValue, DbInfo, DesignPreview, McpActivity, QueryResult, Row, Schema, SqlStatement,
+    StatementResult, Store,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -285,6 +285,8 @@ pub struct McpStatus {
     /// A development build: assistants would start a copy that opens a console window and
     /// goes away with the next rebuild, so the app suggests the installed one instead.
     dev_build: bool,
+    /// Days the record of what assistants did is kept; None keeps it forever.
+    history_days: Option<u32>,
 }
 
 fn mcp_status_of(store: &Store) -> sequill_core::Result<McpStatus> {
@@ -295,6 +297,7 @@ fn mcp_status_of(store: &Store) -> sequill_core::Result<McpStatus> {
         command: exe.to_string_lossy().into_owned(),
         args: vec!["mcp".into()],
         dev_build: cfg!(debug_assertions),
+        history_days: store.mcp_history_days()?,
     })
 }
 
@@ -308,6 +311,30 @@ pub async fn mcp_status(state: State<'_, AppState>) -> CmdResult<McpStatus> {
 pub async fn set_mcp_enabled(state: State<'_, AppState>, enabled: bool) -> CmdResult<McpStatus> {
     with_store(&state, move |s| {
         s.set_mcp_enabled(enabled)?;
+        mcp_status_of(s)
+    })
+    .await
+}
+
+/// What assistants did over MCP, newest first.
+#[tauri::command]
+pub async fn mcp_activity(state: State<'_, AppState>, limit: usize) -> CmdResult<Vec<McpActivity>> {
+    with_store(&state, move |s| s.mcp_activity(limit)).await
+}
+
+#[tauri::command]
+pub async fn clear_mcp_activity(state: State<'_, AppState>) -> CmdResult<()> {
+    with_store(&state, |s| s.clear_mcp_activity()).await
+}
+
+/// How long the MCP history is kept (None: forever); forgets what is now too old.
+#[tauri::command]
+pub async fn set_mcp_history_days(
+    state: State<'_, AppState>,
+    days: Option<u32>,
+) -> CmdResult<McpStatus> {
+    with_store(&state, move |s| {
+        s.set_mcp_history_days(days)?;
         mcp_status_of(s)
     })
     .await

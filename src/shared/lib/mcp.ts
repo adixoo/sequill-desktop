@@ -20,6 +20,115 @@ export interface McpStatus extends McpCommand {
   allowChanges: boolean;
   /** A development build: assistants should use the installed app instead. */
   devBuild: boolean;
+  /** Days the record of what assistants did is kept; null keeps it forever. */
+  historyDays: number | null;
+}
+
+/** One call an assistant made over MCP, as the server recorded it. */
+export interface McpActivity {
+  id: number;
+  /** When it was called (ms since the Unix epoch). */
+  at: number;
+  tool: string;
+  databaseId: string | null;
+  databaseName: string | null;
+  /** The SQL it ran or showed, if any. */
+  sql: string | null;
+  /** Its other arguments as JSON (table, filters, rows…), if any. */
+  details: string | null;
+  /** False when the call failed or was refused. */
+  ok: boolean;
+  /** Why it failed, if it did. */
+  message: string | null;
+}
+
+/** How long the history can be kept; null is forever. The first is the default. */
+export const MCP_HISTORY_CHOICES: { days: number | null; label: string }[] = [
+  { days: 7, label: "1 week" },
+  { days: 1, label: "1 day" },
+  { days: 30, label: "1 month" },
+  { days: 90, label: "3 months" },
+  { days: null, label: "Forever" },
+];
+
+/** What each MCP tool does, in a word or two, and whether it changes anything. */
+const TOOL_LABELS: Record<string, { label: string; changes?: true }> = {
+  list_databases: { label: "List databases" },
+  get_schema: { label: "Read schema" },
+  describe_table: { label: "Describe table" },
+  find_rows: { label: "Find rows" },
+  query: { label: "Query" },
+  explain_query: { label: "Explain" },
+  list_saved_queries: { label: "List saved queries" },
+  show_in_app: { label: "Show" },
+  insert_rows: { label: "Insert rows", changes: true },
+  update_rows: { label: "Update rows", changes: true },
+  delete_rows: { label: "Delete rows", changes: true },
+  create_table: { label: "Create table", changes: true },
+  alter_table: { label: "Alter table", changes: true },
+  drop_object: { label: "Drop", changes: true },
+  create_index: { label: "Create index", changes: true },
+  create_trigger: { label: "Create trigger", changes: true },
+  create_view: { label: "Create view", changes: true },
+  create_database: { label: "Create database", changes: true },
+  rename_database: { label: "Rename database", changes: true },
+  delete_database: { label: "Delete database", changes: true },
+  save_query: { label: "Save query", changes: true },
+  delete_saved_query: { label: "Delete saved query", changes: true },
+  execute: { label: "Execute SQL", changes: true },
+};
+
+/** A tool's short label ("Query"), and whether it changes data. Unknown tools keep their name. */
+export function describeTool(tool: string): { label: string; changes: boolean } {
+  const known = TOOL_LABELS[tool];
+  return known
+    ? { label: known.label, changes: known.changes ?? false }
+    : { label: tool, changes: false };
+}
+
+/** A call's short label: "Show query" for show_in_app's views, otherwise the tool's label. */
+export function activityLabel(activity: McpActivity): string {
+  const { label } = describeTool(activity.tool);
+  const view = activityDetails(activity).view;
+  return activity.tool === "show_in_app" && typeof view === "string" ? `${label} ${view}` : label;
+}
+
+/** A call's other arguments, or {} when there are none or they can't be read. */
+export function activityDetails(activity: McpActivity): Record<string, unknown> {
+  if (!activity.details) return {};
+  try {
+    const parsed: unknown = JSON.parse(activity.details);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  } catch {
+    return {}; // clipped by the server's size limit
+  }
+}
+
+const MINUTE_MS = 60_000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+
+/** "now", "5m", "3h", or the time of day for anything older than a day. */
+export function timeAgo(at: number, now: number): string {
+  const minutes = Math.floor((now - at) / MINUTE_MS);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)}h`;
+  return new Date(at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+}
+
+/** The heading for a call's day: "Today", "Yesterday", or the date. */
+export function dayLabel(at: number, now: number): string {
+  const startOf = (ms: number) => new Date(ms).setHours(0, 0, 0, 0);
+  const days = Math.round((startOf(now) - startOf(at)) / DAY_MS);
+  if (days === 0) return "Today";
+  if (days === 1) return "Yesterday";
+  return new Date(at).toLocaleDateString(undefined, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  });
 }
 
 /** The `mcpServers` entry for Claude Desktop and other clients configured with JSON. */

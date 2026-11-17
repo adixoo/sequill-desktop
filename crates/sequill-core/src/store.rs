@@ -26,6 +26,12 @@ const MCP_ENABLED_KEY: &str = "mcp_enabled";
 const MCP_CHANGES_KEY: &str = "mcp_allow_changes";
 /// Requests to show something older than this are dropped unseen.
 const UI_REQUEST_MAX_AGE_MS: i64 = 10_000;
+/// How many days the record of what assistants did over MCP is kept; "0" keeps it forever.
+const MCP_HISTORY_DAYS_KEY: &str = "mcp_history_days";
+pub const DEFAULT_MCP_HISTORY_DAYS: u32 = 7;
+/// Longest SQL or details text kept for one call, so a huge insert can't bloat the catalog.
+const MCP_ACTIVITY_TEXT_LIMIT: usize = 20_000;
+const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
 const STRUCTURE_CHANGED: &str = "The database's structure changed since your design was checked (another app or an assistant changed it). Nothing was saved; review the changes and save again.";
 
@@ -209,6 +215,7 @@ impl Store {
     pub fn open(dir: &Path) -> Result<Self> {
         let store = Self::open_shared(dir)?;
         store.reconcile()?;
+        store.prune_mcp_activity()?;
         Ok(store)
     }
 
@@ -226,7 +233,12 @@ impl Store {
              CREATE TABLE IF NOT EXISTS saved_queries (
                id TEXT PRIMARY KEY, name TEXT NOT NULL, sql TEXT NOT NULL, updated_at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS ui_requests (
-               id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT NOT NULL, created_at INTEGER NOT NULL);",
+               id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT NOT NULL, created_at INTEGER NOT NULL);
+             CREATE TABLE IF NOT EXISTS mcp_activity (
+               id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, tool TEXT NOT NULL,
+               database_id TEXT, database_name TEXT, sql TEXT, details TEXT,
+               ok INTEGER NOT NULL, message TEXT);
+             CREATE INDEX IF NOT EXISTS mcp_activity_at ON mcp_activity (at);",
         )?;
         migrate_catalog(&mut catalog)?;
         let catalog_version = data_version(&catalog)?;
@@ -637,6 +649,97 @@ impl Store {
             > 0)
     }
 
+    /// Records one call an assistant made over MCP, then forgets calls older than the
+    /// history setting.
+    pub fn record_mcp_activity(&self, entry: &NewMcpActivity) -> Result<()> {
+        let clip = |text: &Option<String>| text.as_deref().map(clip_text);
+        self.catalog.execute(
+            "INSERT INTO mcp_activity (at, tool, database_id, database_name, sql, details, ok, message)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            params![
+                now_ms(),
+                entry.tool,
+                entry.database_id,
+                entry.database_name,
+                clip(&entry.sql),
+                clip(&entry.details),
+                entry.ok,
+                clip(&entry.message),
+            ],
+        )?;
+        self.prune_mcp_activity()
+    }
+
+    /// What assistants did over MCP, newest first, at most `limit` calls.
+    pub fn mcp_activity(&self, limit: usize) -> Result<Vec<McpActivity>> {
+        self.prune_mcp_activity()?;
+        Ok(self
+            .catalog
+            .prepare(
+                "SELECT id, at, tool, database_id, database_name, sql, details, ok, message
+                 FROM mcp_activity ORDER BY at DESC, id DESC LIMIT ?",
+            )?
+            .query_map([i64::try_from(limit).unwrap_or(i64::MAX)], |r| {
+                Ok(McpActivity {
+                    id: r.get(0)?,
+                    at: r.get(1)?,
+                    tool: r.get(2)?,
+                    database_id: r.get(3)?,
+                    database_name: r.get(4)?,
+                    sql: r.get(5)?,
+                    details: r.get(6)?,
+                    ok: r.get(7)?,
+                    message: r.get(8)?,
+                })
+            })?
+            .collect::<rusqlite::Result<_>>()?)
+    }
+
+    pub fn clear_mcp_activity(&self) -> Result<()> {
+        self.catalog.execute("DELETE FROM mcp_activity", [])?;
+        Ok(())
+    }
+
+    /// Days the MCP history is kept; None keeps it forever. A week unless the user changed it.
+    pub fn mcp_history_days(&self) -> Result<Option<u32>> {
+        let value: Option<String> = self
+            .catalog
+            .query_row(
+                "SELECT value FROM settings WHERE key = ?",
+                [MCP_HISTORY_DAYS_KEY],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(match value.and_then(|v| v.parse::<u32>().ok()) {
+            None => Some(DEFAULT_MCP_HISTORY_DAYS),
+            Some(0) => None,
+            Some(days) => Some(days),
+        })
+    }
+
+    /// Sets how long the MCP history is kept (None: forever) and forgets what is now too old.
+    pub fn set_mcp_history_days(&self, days: Option<u32>) -> Result<()> {
+        if days == Some(0) {
+            return Err(Error::msg("Keep the history for at least one day"));
+        }
+        self.catalog.execute(
+            "INSERT INTO settings (key, value) VALUES (?, ?)
+             ON CONFLICT (key) DO UPDATE SET value = excluded.value",
+            params![MCP_HISTORY_DAYS_KEY, days.unwrap_or(0).to_string()],
+        )?;
+        self.prune_mcp_activity()
+    }
+
+    /// Deletes MCP history older than the setting allows.
+    fn prune_mcp_activity(&self) -> Result<()> {
+        if let Some(days) = self.mcp_history_days()? {
+            let cutoff = now_ms() - i64::from(days) * DAY_MS;
+            self.catalog
+                .execute("DELETE FROM mcp_activity WHERE at < ?", [cutoff])?;
+        }
+        Ok(())
+    }
+
     /// Asks the app to show something (another process, the MCP server, calls this).
     pub fn push_ui_request(&self, payload: &str) -> Result<i64> {
         self.catalog.execute(
@@ -730,6 +833,47 @@ impl Store {
             None => None,
         };
         Ok(ExternalChanges { catalog, database })
+    }
+}
+
+/// One call an assistant made over MCP, as the app lists it.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct McpActivity {
+    pub id: i64,
+    /// When it was called (ms since the Unix epoch).
+    pub at: i64,
+    /// The tool's name, such as `query` or `insert_rows`.
+    pub tool: String,
+    pub database_id: Option<String>,
+    pub database_name: Option<String>,
+    /// The SQL it ran or showed, if any.
+    pub sql: Option<String>,
+    /// Its other arguments as JSON (table, filters, rows…), if any.
+    pub details: Option<String>,
+    /// False when the call failed or was refused.
+    pub ok: bool,
+    /// Why it failed, if it did.
+    pub message: Option<String>,
+}
+
+/// One call to record; see [`McpActivity`].
+#[derive(Debug, Clone, Default)]
+pub struct NewMcpActivity {
+    pub tool: String,
+    pub database_id: Option<String>,
+    pub database_name: Option<String>,
+    pub sql: Option<String>,
+    pub details: Option<String>,
+    pub ok: bool,
+    pub message: Option<String>,
+}
+
+/// Cuts text to the history's limit on a character boundary, marking the cut.
+fn clip_text(text: &str) -> String {
+    match text.char_indices().nth(MCP_ACTIVITY_TEXT_LIMIT) {
+        Some((at, _)) => format!("{}…", &text[..at]),
+        None => text.to_owned(),
     }
 }
 
@@ -1198,5 +1342,105 @@ mod tests {
                 error: None
             }
         );
+    }
+
+    fn call(tool: &str, ok: bool) -> NewMcpActivity {
+        NewMcpActivity {
+            tool: tool.into(),
+            database_name: Some("Shop".into()),
+            sql: Some("SELECT 1".into()),
+            ok,
+            message: (!ok).then(|| "no such table: nope".into()),
+            ..Default::default()
+        }
+    }
+
+    /// Moves every recorded call `days` into the past.
+    fn age_activity(store: &Store, days: i64) {
+        store
+            .catalog
+            .execute("UPDATE mcp_activity SET at = at - ?", [days * DAY_MS])
+            .unwrap();
+    }
+
+    #[test]
+    fn records_mcp_activity_newest_first_and_shares_it_between_processes() {
+        let (dir, store) = store();
+        let mcp = Store::open_shared(dir.path()).unwrap();
+        mcp.record_mcp_activity(&call("query", true)).unwrap();
+        mcp.record_mcp_activity(&call("execute", false)).unwrap();
+
+        let listed = store.mcp_activity(10).unwrap();
+        let tools: Vec<&str> = listed.iter().map(|a| a.tool.as_str()).collect();
+        assert_eq!(tools, ["execute", "query"]);
+        assert!(!listed[0].ok);
+        assert_eq!(listed[0].message.as_deref(), Some("no such table: nope"));
+        assert_eq!(listed[1].database_name.as_deref(), Some("Shop"));
+        assert_eq!(store.mcp_activity(1).unwrap().len(), 1, "the limit holds");
+
+        store.clear_mcp_activity().unwrap();
+        assert!(mcp.mcp_activity(10).unwrap().is_empty());
+    }
+
+    #[test]
+    fn forgets_mcp_activity_after_a_week_unless_told_otherwise() {
+        let (_dir, store) = store();
+        assert_eq!(
+            store.mcp_history_days().unwrap(),
+            Some(DEFAULT_MCP_HISTORY_DAYS)
+        );
+        store.record_mcp_activity(&call("query", true)).unwrap();
+        age_activity(&store, 6);
+        assert_eq!(
+            store.mcp_activity(10).unwrap().len(),
+            1,
+            "six days old is kept"
+        );
+        age_activity(&store, 2);
+        assert!(
+            store.mcp_activity(10).unwrap().is_empty(),
+            "eight days old is gone"
+        );
+
+        store.set_mcp_history_days(None).unwrap();
+        store.record_mcp_activity(&call("query", true)).unwrap();
+        age_activity(&store, 400);
+        assert_eq!(store.mcp_activity(10).unwrap().len(), 1, "forever keeps it");
+
+        store.set_mcp_history_days(Some(30)).unwrap();
+        assert!(
+            store.mcp_activity(10).unwrap().is_empty(),
+            "a shorter setting prunes at once"
+        );
+        assert_eq!(store.mcp_history_days().unwrap(), Some(30));
+        assert!(store.set_mcp_history_days(Some(0)).is_err());
+    }
+
+    #[test]
+    fn opening_the_store_prunes_old_mcp_activity() {
+        let dir = tempfile::tempdir().unwrap();
+        {
+            let store = Store::open(dir.path()).unwrap();
+            store.record_mcp_activity(&call("query", true)).unwrap();
+            age_activity(&store, 8);
+        }
+        let reopened = Store::open(dir.path()).unwrap();
+        let count: i64 = reopened
+            .catalog
+            .query_row("SELECT count(*) FROM mcp_activity", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn clips_huge_mcp_activity_text() {
+        let (_dir, store) = store();
+        let huge = "é".repeat(MCP_ACTIVITY_TEXT_LIMIT + 50);
+        let mut entry = call("insert_rows", true);
+        entry.details = Some(huge);
+        store.record_mcp_activity(&entry).unwrap();
+        let details = store.mcp_activity(1).unwrap().remove(0).details.unwrap();
+        assert_eq!(details.chars().count(), MCP_ACTIVITY_TEXT_LIMIT + 1);
+        assert!(details.ends_with('…'));
     }
 }

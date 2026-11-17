@@ -24,6 +24,7 @@ export const queryKeys = {
       ? (["data", dbId, "design-check", statements] as const)
       : (["design-check", statements] as const),
   mcp: ["mcp"] as const,
+  mcpActivity: ["mcp", "activity"] as const,
 };
 
 export function useDatabases() {
