@@ -336,6 +336,11 @@
     *:focus-within {
       scrollbar-color: var(--scrollbar-thumb) transparent;
     }
+    /* Dialogs take focus when they open, so they show scrollbars on hover only. */
+    :is([role="dialog"], [role="alertdialog"]):not(:hover),
+    :is([role="dialog"], [role="alertdialog"]):not(:hover) * {
+      scrollbar-color: transparent transparent;
+    }
   }
   /* Browsers without scrollbar-color (older Safari) use the WebKit pseudo-elements. */
   @supports not (scrollbar-color: auto) {
@@ -363,6 +368,10 @@
       :hover::-webkit-scrollbar-thumb,
       :focus-within::-webkit-scrollbar-thumb {
         background-color: var(--scrollbar-thumb);
+      }
+      :is([role="dialog"], [role="alertdialog"]):not(:hover)::-webkit-scrollbar-thumb,
+      :is([role="dialog"], [role="alertdialog"]):not(:hover) ::-webkit-scrollbar-thumb {
+        background-color: transparent;
       }
     }
   }
