@@ -5,7 +5,7 @@ use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::tool::ToolCallContext;
 use rmcp::handler::server::wrapper::Parameters;
 use rmcp::model::{
-    CallToolRequestParams, CallToolResponse, Implementation, ServerCapabilities, ServerConfig,
+    CallToolRequestParams, CallToolResponse, Implementation, ServerCapabilities, ServerConfig, Tool,
 };
 use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler, tool, tool_handler, tool_router};
@@ -20,9 +20,9 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 const INSTRUCTIONS: &str = "Sequill keeps the user's SQLite databases; these tools do what its \
-editor does. Start with list_databases, then get_schema or describe_table. Read rows with \
-find_rows (filters, search, sort, paging) or query (one read-only SELECT; use ? and params). \
-Use show_in_app to put a table (with filters), a query or the schema diagram on the user's \
+editor does, and run in the Sequill app, so it must be open. Start with list_databases, then \
+get_schema or describe_table. Read rows with find_rows (filters, search, sort, paging) or \
+query (one read-only SELECT; use ? and params). Use show_in_app to put a table (with filters), a query or the schema diagram on the user's \
 screen. Tools that change things (rows, tables, indexes, triggers, views, databases, saved \
 queries) work only while the user allows changes in Sequill: say what you will change before \
 calling them. If a tool says MCP access or changes are off, ask the user to turn them on with \
@@ -262,6 +262,11 @@ impl SequillServer {
             data_dir: Arc::new(data_dir),
             tool_router: Self::tool_router(),
         }
+    }
+
+    /// Every tool with its description and input schema.
+    pub fn tools() -> Vec<Tool> {
+        Self::tool_router().list_all()
     }
 
     /// Runs a tool off the async runtime (SQLite calls block) and returns its JSON as text.
@@ -649,12 +654,17 @@ impl ServerHandler for SequillServer {
     }
 
     fn get_info(&self) -> ServerConfig {
-        ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
-            .with_server_info(
-                Implementation::new("sequill", env!("CARGO_PKG_VERSION")).with_title("Sequill"),
-            )
-            .with_instructions(INSTRUCTIONS)
+        info()
     }
+}
+
+/// How the server introduces itself, the same in the app and in the relay that reaches it.
+pub fn info() -> ServerConfig {
+    ServerConfig::new(ServerCapabilities::builder().enable_tools().build())
+        .with_server_info(
+            Implementation::new("sequill", env!("CARGO_PKG_VERSION")).with_title("Sequill"),
+        )
+        .with_instructions(INSTRUCTIONS)
 }
 
 #[cfg(test)]

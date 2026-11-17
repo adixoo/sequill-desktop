@@ -1,15 +1,16 @@
 //! Command line for the MCP server, shared by the `sequill-mcp` binary and `sequill mcp`.
 
-use crate::server::SequillServer;
+use crate::relay::Relay;
 use rmcp::ServiceExt;
 use std::path::PathBuf;
 
 pub const USAGE: &str = "Usage: sequill mcp [--data-dir <path>]
 
-Serves Sequill's databases to an AI assistant over MCP (stdio). Whether assistants may use
-them, and whether they may also change them, is set with the MCP button in the app.
+Connects an AI assistant (over MCP on stdio) to the Sequill app, which runs every tool on the
+databases it has, so Sequill must be open. Whether assistants may use them, and whether they
+may also change them, is set with the MCP button in the app.
 
-  --data-dir <path>   Where Sequill keeps its databases (default: the app's data folder).";
+  --data-dir <path>   The data folder of the app to reach (default: the app's own).";
 
 #[derive(Debug, PartialEq)]
 pub struct Options {
@@ -45,7 +46,7 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
     Ok(Command::Serve(Options { data_dir }))
 }
 
-/// Runs the server until the client disconnects. Logs go to stderr; stdout is the protocol.
+/// Relays the assistant's calls until it disconnects. Logs go to stderr; stdout is the protocol.
 pub fn main(args: &[String]) -> i32 {
     let options = match parse(args) {
         Ok(Command::Serve(options)) => options,
@@ -78,8 +79,9 @@ pub fn main(args: &[String]) -> i32 {
 }
 
 pub async fn serve(options: Options) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let server = SequillServer::new(options.data_dir);
-    let service = server.serve(rmcp::transport::stdio()).await?;
+    let service = Relay::new(options.data_dir)
+        .serve(rmcp::transport::stdio())
+        .await?;
     service.waiting().await?;
     Ok(())
 }

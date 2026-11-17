@@ -11,9 +11,9 @@ sequill-core = { workspace = true, features = ["schema"] }
 rusqlite.workspace = true
 serde.workspace = true
 serde_json.workspace = true
-rmcp = { version = "3.10", features = ["server", "macros", "schemars", "transport-io"] }
+rmcp = { version = "3.10", features = ["server", "client", "macros", "schemars", "transport-io"] }
 schemars = "1"
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "io-util", "net", "sync", "time"] }
 
 [dev-dependencies]
 tempfile.workspace = true

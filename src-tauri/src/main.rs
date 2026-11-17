@@ -39,6 +39,12 @@ fn run() {
                 sequill_core::default_data_dir().ok_or("Could not find the app's data folder")?;
             let store = Arc::new(Mutex::new(Store::open(&dir)?));
             watch::spawn(app.handle().clone(), Arc::clone(&store));
+            // Assistants reach the databases only through the app (`sequill mcp` relays).
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) = sequill_mcp::host::serve(dir).await {
+                    eprintln!("sequill: assistants can't connect over MCP: {error}");
+                }
+            });
             app.manage(AppState { store });
             Ok(())
         })

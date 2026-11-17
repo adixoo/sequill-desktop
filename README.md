@@ -116,6 +116,14 @@ MCP lets AI assistants (Claude, Cursor, VS Code Copilot and others) use your Seq
    another client.
 3. **Try it.** Ask the assistant to list your Sequill databases.
 
+Sequill must be open while an assistant works: the app runs every tool on the databases it has, and
+`sequill mcp` (what the assistant starts) only passes the calls on to it over a local pipe (a named
+pipe on Windows, a socket in the data folder elsewhere). It never opens a database or the data
+folder itself, so an assistant always sees the same list and files as the window, even one that
+Windows runs in a package with its own copy of `%APPDATA%`, such as Claude Desktop. While Sequill is
+closed, each call answers that it isn't open; once you open it, the next call works, without
+restarting the assistant.
+
 Everything an assistant does is listed under **History** (next to **MCP** in the top bar) and
 under **Assistant (MCP)** in the editor's sidebar; the
 full history opens as a panel with each call's database, SQL and result, and links to open a query
@@ -167,8 +175,8 @@ asking the user to turn it on:
 Reads always run on a read-only connection. `--allow-writes`, which older versions needed, is still
 accepted and does nothing. ATTACH is turned off, so a call can only reach the databases in Sequill's list, including files you
 opened in place. Deleting a database the app has open is refused until the app switches to another
-one; for a file you opened, `delete_database` only removes it from the list and the file stays. `show_in_app` says so if Sequill isn't open.
-`--data-dir <path>` points the server at another data folder. A database is named by its id or name.
+one; for a file you opened, `delete_database` only removes it from the list and the file stays.
+`--data-dir <path>` points `sequill mcp` at the app serving another data folder. A database is named by its id or name.
 
 ## Limitations
 
