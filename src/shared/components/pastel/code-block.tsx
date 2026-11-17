@@ -65,7 +65,7 @@ export function CodeBlock({
               <span aria-hidden className="w-10 shrink-0 pr-4 text-right text-decor select-none">
                 {i + 1}
               </span>
-              <span className={cn(wrap && "min-w-0 break-all whitespace-pre-wrap")}>
+              <span className={cn(wrap && "min-w-0 [overflow-wrap:anywhere] whitespace-pre-wrap")}>
                 {line.map((t, j) => (
                   <span key={j} className={TOKEN_CLASS[t.type]}>
                     {t.text}
