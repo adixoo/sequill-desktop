@@ -29,7 +29,7 @@ import {
 } from "@/shared/ui/command";
 import { useDbActions } from "@/shared/hooks/use-db-actions";
 import { useDatabases } from "@/shared/hooks/use-db";
-import { DB_FILE_ACCEPT } from "@/shared/lib/constants";
+import { DbFileInput } from "@/shared/components/db-file-input";
 import type { Schema } from "@/shared/lib/sqlite/types";
 import { useDialogs } from "@/shared/lib/store/dialogs";
 import { useSavedQueries } from "@/shared/lib/store/saved-queries";
@@ -58,19 +58,7 @@ export default function CommandPalette({ open, onOpenChange, schema }: CommandPa
 
   return (
     <>
-      <input
-        ref={fileInput}
-        type="file"
-        accept={DB_FILE_ACCEPT}
-        className="sr-only"
-        tabIndex={-1}
-        aria-hidden
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void actions.openFile(file);
-          e.target.value = "";
-        }}
-      />
+      <DbFileInput ref={fileInput} />
       <CommandDialog
         open={open}
         onOpenChange={onOpenChange}

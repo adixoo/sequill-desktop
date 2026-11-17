@@ -218,3 +218,17 @@ test("saves a query, keeps it across reloads, and renames and deletes it", async
   await page.getByRole("button", { name: "Undo" }).click();
   await expect(sidebar.getByRole("button", { name: "Best sellers", exact: true })).toBeVisible();
 });
+
+test("opens a database file from the database switcher", async ({ page }) => {
+  await createSample(page);
+  await page.getByRole("button", { name: /^Database: / }).click();
+  const chooser = page.waitForEvent("filechooser");
+  await page.getByRole("menuitem", { name: "Open a file…" }).click();
+  // A person picks the file after the menu has closed, not while it's still on screen.
+  await expect(page.getByRole("menu")).toBeHidden();
+  await (await chooser).setFiles(join(__dirname, "fixtures", "notes.sqlite"));
+  await expect(page.getByRole("button", { name: /^Database: / })).toHaveAccessibleName(
+    "Database: notes",
+    { timeout: 30_000 },
+  );
+});

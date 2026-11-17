@@ -10,6 +10,7 @@ import {
   Sparkles,
   Trash,
 } from "@/shared/ui/icons";
+import { useRef } from "react";
 import { Button } from "@/shared/ui/button";
 import {
   DropdownMenu,
@@ -21,7 +22,7 @@ import {
 } from "@/shared/ui/dropdown-menu";
 import { useDbActions } from "@/shared/hooks/use-db-actions";
 import { useDatabases } from "@/shared/hooks/use-db";
-import { DB_FILE_ACCEPT } from "@/shared/lib/constants";
+import { DbFileInput } from "@/shared/components/db-file-input";
 import { formatBytes } from "@/shared/lib/data/format";
 import { isDesktop } from "@/shared/lib/platform";
 import { useDialogs } from "@/shared/lib/store/dialogs";
@@ -56,12 +57,14 @@ export function DatabaseSwitcher({
   const setDb = useWorkspace((s) => s.setDb);
   const openDialog = useDialogs((s) => s.open);
   const actions = useDbActions();
+  const fileInput = useRef<HTMLInputElement>(null);
   const current = blankDesign?.active ? undefined : dbs.data?.find((d) => d.id === dbId);
   const switchTo = onSwitch ?? setDb;
   const label = blankDesign?.active ? "Blank design" : (current?.name ?? "No database");
 
   return (
     <DropdownMenu>
+      <DbFileInput ref={fileInput} />
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -143,20 +146,8 @@ export function DatabaseSwitcher({
         <DropdownMenuItem onSelect={() => openDialog({ kind: "newDatabase" })}>
           <Plus /> New empty database
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <label className="cursor-pointer">
-            <FolderOpen /> Open a file…
-            <input
-              type="file"
-              accept={DB_FILE_ACCEPT}
-              className="sr-only"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) void actions.openFile(file);
-                e.target.value = "";
-              }}
-            />
-          </label>
+        <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
+          <FolderOpen /> Open a file…
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void actions.createSample()}>
           <Sparkles /> Create sample database
