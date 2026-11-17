@@ -1,11 +1,9 @@
 import { Table } from "@/shared/ui/icons";
-import { Link } from "@/shared/components/link";
 import { navigate, ROUTES } from "@/shared/lib/router";
 import { useState } from "react";
 import { AppProviders } from "@/shared/components/app-providers";
 import { DatabaseSwitcher } from "@/shared/components/database-switcher";
 import { DialogHost } from "@/shared/components/dialogs/dialog-host";
-import { Logo } from "@/shared/components/logo";
 import { Loader } from "@/shared/components/pastel/loader";
 import { ThemeToggle } from "@/shared/components/theme-toggle";
 import {
@@ -20,7 +18,6 @@ import {
 } from "@/shared/ui/alert-dialog";
 import { Button } from "@/shared/ui/button";
 import { useDatabases, useRestoreLastDatabase, useSchema } from "@/shared/hooks/use-db";
-import { APP_NAME } from "@/shared/lib/constants";
 import { useWorkspace } from "@/shared/lib/store/workspace";
 import { BLANK_DESIGN, hasUnsavedDesign, writeDraft } from "@/features/vis/lib/drafts";
 import { EMPTY_DRAFT } from "@/features/vis/lib/model";
@@ -70,17 +67,7 @@ function Visualizer() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b-2 border-hairline bg-surface px-3">
-        <Link
-          href={ROUTES.editor}
-          className="flex items-center gap-2 rounded-xs font-semibold tracking-[-0.015em] text-ink outline-none focus-visible:ring-2 focus-visible:ring-ring max-sm:sr-only"
-        >
-          <Logo size={24} className="rounded-[6px]" />
-          {APP_NAME}
-        </Link>
-        <span aria-hidden className="text-ink-muted max-sm:hidden">
-          /
-        </span>
-        <h1 className="text-sm font-semibold text-ink">Schema</h1>
+        <h1 className="font-semibold tracking-[-0.015em] text-ink">Schema</h1>
         <DatabaseSwitcher
           variant="inline"
           className="ml-2"
