@@ -105,13 +105,24 @@ the open database or the list, and refreshes what's on screen.
 
 ## MCP server
 
-Click **MCP** in the editor's top bar (next to **Jump to…**). It turns access on or off and shows how
-to connect Claude Desktop, Claude Code, Cursor, VS Code, Windsurf, Zed, JetBrains, Codex, Gemini CLI
-or another client, with settings to copy. Access is **off**
-until you turn it on, and the server checks the switch on every call, so turning it off stops an
-assistant at once.
+MCP lets AI assistants (Claude, Cursor, VS Code Copilot and others) use your Sequill databases. Click
+**MCP** in the editor's top bar (next to **Jump to…**) for a three-step guide:
 
-To set a client up by hand, add this to its MCP settings (Claude Desktop: `claude_desktop_config.json`):
+1. **Choose what assistants may do.** _Let assistants use Sequill_ turns access on; _Allow changes_
+   also lets them edit. Both are **off** until you turn them on, and the server checks them on every
+   call, so a change takes effect at once, even mid-conversation, without setting anything up again.
+2. **Add Sequill to your assistant.** Pick it from the list and copy the command or settings shown:
+   Claude Desktop, Claude Code, Cursor, VS Code, Codex, Gemini CLI, Windsurf, Zed, JetBrains or
+   another client.
+3. **Try it.** Ask the assistant to list your Sequill databases.
+
+Claude Code, Codex and Gemini CLI take one command, for example:
+
+```bash
+claude mcp add --scope user sequill -- "C:\Program Files\Sequill\sequill.exe" mcp
+```
+
+For other clients, add this to their MCP settings (Claude Desktop: `claude_desktop_config.json`):
 
 ```json
 {
@@ -121,7 +132,7 @@ To set a client up by hand, add this to its MCP settings (Claude Desktop: `claud
 }
 ```
 
-These tools are always offered (while MCP is on):
+These read and show things (while access is on):
 
 | Tool                 | What it does                                                                         |
 | -------------------- | ------------------------------------------------------------------------------------ |
@@ -134,7 +145,8 @@ These tools are always offered (while MCP is on):
 | `list_saved_queries` | The editor's saved queries.                                                          |
 | `show_in_app`        | Opens a table (with filters, search and sort), a query tab or the schema in the app. |
 
-These change things, so they're only offered with `--allow-writes` ("Also let it make changes"):
+These change things, so they also need **Allow changes**; until then they're refused with a message
+asking the user to turn it on:
 
 | Tool                                                    | What it does                                                       |
 | ------------------------------------------------------- | ------------------------------------------------------------------ |
@@ -145,8 +157,8 @@ These change things, so they're only offered with `--allow-writes` ("Also let it
 | `save_query`, `delete_saved_query`                      | The editor's saved queries.                                        |
 | `execute`                                               | Any SQL script, for whatever the tools above don't cover.          |
 
-Without `--allow-writes`, reads run on a read-only connection and the changing tools aren't offered.
-ATTACH is turned off, so a call can only reach the databases in Sequill's list, including files you
+Reads always run on a read-only connection. `--allow-writes`, which older versions needed, is still
+accepted and does nothing. ATTACH is turned off, so a call can only reach the databases in Sequill's list, including files you
 opened in place. Deleting a database the app has open is refused until the app switches to another
 one; for a file you opened, `delete_database` only removes it from the list and the file stays. `show_in_app` says so if Sequill isn't open.
 `--data-dir <path>` points the server at another data folder. A database is named by its id or name.

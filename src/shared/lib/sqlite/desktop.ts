@@ -103,6 +103,11 @@ export function setMcpEnabled(enabled: boolean): Promise<McpStatus> {
   return invoke("set_mcp_enabled", { enabled });
 }
 
+/** Lets assistants change things over MCP, or only read; returns the new status. */
+export function setMcpAllowChanges(allowed: boolean): Promise<McpStatus> {
+  return invoke("set_mcp_allow_changes", { allowed });
+}
+
 /** Saved queries, kept in the catalog on desktop so assistants can use them too. */
 export const desktopSavedQueries = {
   list: () => invoke<SavedQuery[]>("list_saved_queries"),

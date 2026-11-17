@@ -20,12 +20,12 @@ editor does. Start with list_databases, then get_schema or describe_table. Read 
 find_rows (filters, search, sort, paging) or query (one read-only SELECT; use ? and params). \
 Use show_in_app to put a table (with filters), a query or the schema diagram on the user's \
 screen. Tools that change things (rows, tables, indexes, triggers, views, databases, saved \
-queries) are only there when the user allowed changes: say what you will change before \
-calling them. If a tool says MCP access is off, ask the user to turn it on with the MCP \
-button in Sequill.";
+queries) work only while the user allows changes in Sequill: say what you will change before \
+calling them. If a tool says MCP access or changes are off, ask the user to turn them on with \
+the MCP button in Sequill.";
 
-/// Tools that change data, schema, databases or saved queries; only offered with
-/// `--allow-writes`.
+/// Tools that change data, schema, databases or saved queries; they need "Allow changes"
+/// in the app, checked on every call.
 pub const WRITE_TOOLS: [&str; 15] = [
     "execute",
     "insert_rows",
@@ -251,17 +251,12 @@ pub struct SequillServer {
 }
 
 impl SequillServer {
-    /// A server over the databases in `data_dir`. Without `allow_writes`, nothing can change them.
-    pub fn new(data_dir: PathBuf, allow_writes: bool) -> Self {
-        let mut tool_router = Self::tool_router();
-        if !allow_writes {
-            for name in WRITE_TOOLS {
-                tool_router.remove_route(name);
-            }
-        }
+    /// A server over the databases in `data_dir`. Every tool is offered; the switches in the
+    /// app decide on each call whether assistants may read, and whether they may change things.
+    pub fn new(data_dir: PathBuf) -> Self {
         Self {
             data_dir: Arc::new(data_dir),
-            tool_router,
+            tool_router: Self::tool_router(),
         }
     }
 
@@ -643,32 +638,17 @@ mod tests {
     ];
 
     #[test]
-    fn write_tools_exist_only_when_writes_are_allowed() {
-        let read_only = SequillServer::new(PathBuf::from("."), false);
-        assert_eq!(tool_names(&read_only), READ_TOOLS);
-        let writable = SequillServer::new(PathBuf::from("."), true);
+    fn offers_every_tool_so_the_app_switch_alone_decides() {
+        let server = SequillServer::new(PathBuf::from("."));
         let mut all: Vec<&str> = READ_TOOLS.iter().chain(&WRITE_TOOLS).copied().collect();
         all.sort();
-        assert_eq!(tool_names(&writable), all);
-    }
-
-    #[test]
-    fn the_handler_serves_the_configured_tools() {
-        let read_only = SequillServer::new(PathBuf::from("."), false);
-        for name in WRITE_TOOLS {
-            assert!(read_only.get_tool(name).is_none(), "{name}");
-        }
-        assert!(read_only.get_tool("find_rows").is_some());
-        assert!(
-            SequillServer::new(PathBuf::from("."), true)
-                .get_tool("delete_rows")
-                .is_some()
-        );
+        assert_eq!(tool_names(&server), all);
+        assert!(server.get_tool("delete_rows").is_some());
     }
 
     #[test]
     fn hints_say_which_tools_change_things() {
-        let server = SequillServer::new(PathBuf::from("."), true);
+        let server = SequillServer::new(PathBuf::from("."));
         for tool in server.tool_router.list_all() {
             let hints = tool.annotations.expect("every tool is annotated");
             let changes_nothing =
@@ -679,7 +659,7 @@ mod tests {
 
     #[test]
     fn every_input_schema_is_an_object() {
-        let server = SequillServer::new(PathBuf::from("."), true);
+        let server = SequillServer::new(PathBuf::from("."));
         for tool in server.tool_router.list_all() {
             assert_eq!(
                 tool.input_schema.get("type"),

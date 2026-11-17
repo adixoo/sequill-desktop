@@ -54,6 +54,7 @@ fn run() {
             commands::delete_saved_query,
             commands::mcp_status,
             commands::set_mcp_enabled,
+            commands::set_mcp_allow_changes,
         ])
         .run(tauri::generate_context!())
         .expect("Sequill could not start");

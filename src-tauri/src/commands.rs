@@ -274,20 +274,27 @@ pub async fn delete_saved_query(state: State<'_, AppState>, id: String) -> CmdRe
     with_store(&state, move |s| s.delete_saved_query(&id)).await
 }
 
-/// The MCP switch and how an MCP client starts this app's MCP server.
+/// The MCP switches and how an MCP client starts this app's MCP server.
 #[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct McpStatus {
     enabled: bool,
+    allow_changes: bool,
     command: String,
     args: Vec<String>,
+    /// A development build: assistants would start a copy that opens a console window and
+    /// goes away with the next rebuild, so the app suggests the installed one instead.
+    dev_build: bool,
 }
 
 fn mcp_status_of(store: &Store) -> sequill_core::Result<McpStatus> {
     let exe = std::env::current_exe()?;
     Ok(McpStatus {
         enabled: store.mcp_enabled()?,
+        allow_changes: store.mcp_changes_allowed()?,
         command: exe.to_string_lossy().into_owned(),
         args: vec!["mcp".into()],
+        dev_build: cfg!(debug_assertions),
     })
 }
 
@@ -301,6 +308,19 @@ pub async fn mcp_status(state: State<'_, AppState>) -> CmdResult<McpStatus> {
 pub async fn set_mcp_enabled(state: State<'_, AppState>, enabled: bool) -> CmdResult<McpStatus> {
     with_store(&state, move |s| {
         s.set_mcp_enabled(enabled)?;
+        mcp_status_of(s)
+    })
+    .await
+}
+
+/// Lets assistants change things over MCP, or only read; checked on every call.
+#[tauri::command]
+pub async fn set_mcp_allow_changes(
+    state: State<'_, AppState>,
+    allowed: bool,
+) -> CmdResult<McpStatus> {
+    with_store(&state, move |s| {
+        s.set_mcp_changes_allowed(allowed)?;
         mcp_status_of(s)
     })
     .await

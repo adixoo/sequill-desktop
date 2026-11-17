@@ -21,6 +21,9 @@ const DB_FILE_PREFIX: &str = "db-";
 const DB_FILE_SUFFIX: &str = ".sqlite3";
 /// Whether AI assistants may use the databases over MCP ("1" or "0"); off until turned on.
 const MCP_ENABLED_KEY: &str = "mcp_enabled";
+/// Whether assistants may also change data, schema and databases ("1" or "0"); off until
+/// turned on. Checked by the MCP server on every call that changes something.
+const MCP_CHANGES_KEY: &str = "mcp_allow_changes";
 /// Requests to show something older than this are dropped unseen.
 const UI_REQUEST_MAX_AGE_MS: i64 = 10_000;
 const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
@@ -675,22 +678,39 @@ impl Store {
 
     /// Whether AI assistants may use the databases over MCP. Off until the user turns it on.
     pub fn mcp_enabled(&self) -> Result<bool> {
+        self.switch(MCP_ENABLED_KEY)
+    }
+
+    pub fn set_mcp_enabled(&self, enabled: bool) -> Result<()> {
+        self.set_switch(MCP_ENABLED_KEY, enabled)
+    }
+
+    /// Whether assistants may also change things over MCP (rows, tables, databases, saved
+    /// queries). Off until the user turns it on; without it they can only read and show.
+    pub fn mcp_changes_allowed(&self) -> Result<bool> {
+        self.switch(MCP_CHANGES_KEY)
+    }
+
+    pub fn set_mcp_changes_allowed(&self, allowed: bool) -> Result<()> {
+        self.set_switch(MCP_CHANGES_KEY, allowed)
+    }
+
+    /// An on/off setting; off until set.
+    fn switch(&self, key: &str) -> Result<bool> {
         let value: Option<String> = self
             .catalog
-            .query_row(
-                "SELECT value FROM settings WHERE key = ?",
-                [MCP_ENABLED_KEY],
-                |r| r.get(0),
-            )
+            .query_row("SELECT value FROM settings WHERE key = ?", [key], |r| {
+                r.get(0)
+            })
             .optional()?;
         Ok(value.as_deref() == Some("1"))
     }
 
-    pub fn set_mcp_enabled(&self, enabled: bool) -> Result<()> {
+    fn set_switch(&self, key: &str, on: bool) -> Result<()> {
         self.catalog.execute(
             "INSERT INTO settings (key, value) VALUES (?, ?)
              ON CONFLICT (key) DO UPDATE SET value = excluded.value",
-            params![MCP_ENABLED_KEY, if enabled { "1" } else { "0" }],
+            params![key, if on { "1" } else { "0" }],
         )?;
         Ok(())
     }
@@ -869,6 +889,14 @@ mod tests {
         assert!(other.mcp_enabled().unwrap());
         store.set_mcp_enabled(false).unwrap();
         assert!(!other.mcp_enabled().unwrap());
+
+        assert!(!store.mcp_changes_allowed().unwrap());
+        store.set_mcp_changes_allowed(true).unwrap();
+        assert!(other.mcp_changes_allowed().unwrap());
+        assert!(
+            !other.mcp_enabled().unwrap(),
+            "the two switches are separate"
+        );
     }
 
     #[test]

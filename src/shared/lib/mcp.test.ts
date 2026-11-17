@@ -1,7 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import {
   claudeCodeCommand,
-  codexConfig,
+  codexCommand,
+  geminiCommand,
   MCP_CLIENTS,
   mcpConfig,
   showTableView,
@@ -12,71 +13,65 @@ import {
 const command = { command: "C:\\Program Files\\Sequill\\sequill.exe", args: ["mcp"] };
 
 describe("mcpConfig", () => {
-  test("is read-only unless writes are allowed", () => {
-    expect(JSON.parse(mcpConfig(command, false))).toEqual({
+  test("starts the app with mcp, and nothing else to set: the app decides what's allowed", () => {
+    expect(JSON.parse(mcpConfig(command))).toEqual({
       mcpServers: { sequill: { command: command.command, args: ["mcp"] } },
     });
-    expect(JSON.parse(mcpConfig(command, true)).mcpServers.sequill.args).toEqual([
-      "mcp",
-      "--allow-writes",
-    ]);
   });
 
   test("escapes Windows paths as valid JSON", () => {
-    expect(mcpConfig(command, false)).toContain('"C:\\\\Program Files\\\\Sequill\\\\sequill.exe"');
+    expect(mcpConfig(command)).toContain('"C:\\\\Program Files\\\\Sequill\\\\sequill.exe"');
   });
 });
 
-describe("claudeCodeCommand", () => {
-  test("quotes a path with spaces and passes the server's arguments", () => {
-    expect(claudeCodeCommand(command, false)).toBe(
-      'claude mcp add sequill -- "C:\\Program Files\\Sequill\\sequill.exe" mcp',
+describe("install commands", () => {
+  test("Claude Code: for every project, with a quoted path", () => {
+    expect(claudeCodeCommand(command)).toBe(
+      'claude mcp add --scope user sequill -- "C:\\Program Files\\Sequill\\sequill.exe" mcp',
     );
-    expect(claudeCodeCommand(command, true)).toEndWith(" mcp --allow-writes");
+  });
+
+  test("Codex and Gemini CLI", () => {
+    expect(codexCommand(command)).toBe(
+      'codex mcp add sequill -- "C:\\Program Files\\Sequill\\sequill.exe" mcp',
+    );
+    expect(geminiCommand(command)).toBe(
+      'gemini mcp add --scope user sequill "C:\\Program Files\\Sequill\\sequill.exe" mcp',
+    );
   });
 
   test("leaves simple paths unquoted", () => {
     const simple = { command: "/Applications/Sequill.app/Contents/MacOS/sequill", args: ["mcp"] };
-    expect(claudeCodeCommand(simple, false)).toBe(
-      "claude mcp add sequill -- /Applications/Sequill.app/Contents/MacOS/sequill mcp",
+    expect(claudeCodeCommand(simple)).toBe(
+      "claude mcp add --scope user sequill -- /Applications/Sequill.app/Contents/MacOS/sequill mcp",
     );
   });
 });
 
 describe("other clients' configs", () => {
   test("VS Code uses a stdio entry under servers", () => {
-    expect(JSON.parse(vsCodeConfig(command, true))).toEqual({
-      servers: {
-        sequill: { type: "stdio", command: command.command, args: ["mcp", "--allow-writes"] },
-      },
+    expect(JSON.parse(vsCodeConfig(command))).toEqual({
+      servers: { sequill: { type: "stdio", command: command.command, args: ["mcp"] } },
     });
   });
 
   test("Zed uses context_servers", () => {
-    expect(JSON.parse(zedConfig(command, false))).toEqual({
+    expect(JSON.parse(zedConfig(command))).toEqual({
       context_servers: { sequill: { command: command.command, args: ["mcp"], env: {} } },
     });
   });
 
-  test("Codex gets a TOML table with the Windows path as a literal string", () => {
-    expect(codexConfig(command, true)).toBe(
-      "[mcp_servers.sequill]\n" +
-        "command = 'C:\\Program Files\\Sequill\\sequill.exe'\n" +
-        "args = ['mcp', '--allow-writes']",
-    );
-  });
-
-  test("Codex falls back to an escaped string when the path has a quote", () => {
-    const quoted = { command: "/Users/o'neil/sequill", args: ["mcp"] };
-    expect(codexConfig(quoted, false)).toContain(`command = "/Users/o'neil/sequill"`);
-  });
-
-  test("every client has a unique id, steps and parsable JSON", () => {
+  test("every client has a unique id, steps, and a command or parsable JSON", () => {
     expect(new Set(MCP_CLIENTS.map((c) => c.id)).size).toBe(MCP_CLIENTS.length);
     for (const client of MCP_CLIENTS) {
       expect(client.steps.length).toBeGreaterThan(0);
-      const code = client.config(command, false);
-      if (client.language === "json") expect(() => JSON.parse(code)).not.toThrow();
+      const code = client.config(command);
+      if (client.install === "command") {
+        expect(code).toContain('"C:\\Program Files\\Sequill\\sequill.exe" mcp');
+        expect(code).not.toContain("--allow-writes");
+      } else if (client.language === "json") {
+        expect(() => JSON.parse(code)).not.toThrow();
+      }
     }
   });
 });

@@ -24,12 +24,25 @@ pub const MAX_ROWS_LIMIT: usize = 5_000;
 /// Shown to the assistant while the switch in the app is off.
 pub const MCP_OFF_MESSAGE: &str = "MCP access is turned off in Sequill. Ask the user to turn it on with the MCP button in the app.";
 
+/// Shown to the assistant when it tries to change something while the user allows only reading.
+pub const CHANGES_OFF_MESSAGE: &str = "Changes are turned off in Sequill, so you can only read and show things. Ask the user to switch on \"Allow changes\" in Sequill (MCP button in the top bar), then try again.";
+
 /// The store, if the user has turned MCP access on in the app. Checked on every call,
 /// so switching it off takes effect at once, even for a server that is already running.
 fn open_store(dir: &Path) -> Result<Store> {
     let store = Store::open_shared(dir)?;
     if !store.mcp_enabled()? {
         return Err(Error::msg(MCP_OFF_MESSAGE));
+    }
+    Ok(store)
+}
+
+/// The store for a call that changes something: also needs "Allow changes" in the app,
+/// checked on every call like the MCP switch.
+fn open_store_for_changes(dir: &Path) -> Result<Store> {
+    let store = open_store(dir)?;
+    if !store.mcp_changes_allowed()? {
+        return Err(Error::msg(CHANGES_OFF_MESSAGE));
     }
     Ok(store)
 }
@@ -54,10 +67,14 @@ impl Opened {
     }
 }
 
-/// Opens a database by id or name. Read-only unless `writable`; SQLite itself then refuses
-/// writes. ATTACH is turned off so a call can't reach other files.
+/// Opens a database by id or name. Read-only unless `writable` (which needs "Allow changes");
+/// SQLite itself then refuses writes. ATTACH is turned off so a call can't reach other files.
 fn open_db(dir: &Path, database: &str, writable: bool) -> Result<Opened> {
-    let store = open_store(dir)?;
+    let store = if writable {
+        open_store_for_changes(dir)?
+    } else {
+        open_store(dir)?
+    };
     let info = store.resolve(database)?;
     let path = store.path(&info.id)?;
     let session = if writable {
@@ -180,11 +197,13 @@ pub fn execute(dir: &Path, database: &str, sql: &str) -> Result<Value> {
 pub(crate) mod test_support {
     use sequill_core::Store;
 
-    /// A data folder with MCP turned on and one "Shop" database; returns the folder and its id.
+    /// A data folder with MCP and changes turned on and one "Shop" database; returns the
+    /// folder and its id.
     pub fn store_with_shop() -> (tempfile::TempDir, String) {
         let dir = tempfile::tempdir().unwrap();
         let mut store = Store::open(dir.path()).unwrap();
         store.set_mcp_enabled(true).unwrap();
+        store.set_mcp_changes_allowed(true).unwrap();
         let shop = store
             .create(
                 "Shop",
@@ -319,6 +338,37 @@ mod tests {
             .unwrap();
         let count = query(dir.path(), &id, "SELECT count(*) FROM customer", &[], None).unwrap();
         assert_eq!(count["rows"], json!([[3]]), "nothing was deleted while off");
+    }
+
+    #[test]
+    fn changes_are_refused_until_allowed_but_reading_works() {
+        let (dir, id) = store_with_shop();
+        let store = Store::open_shared(dir.path()).unwrap();
+        store.set_mcp_changes_allowed(false).unwrap();
+        let refused =
+            |r: Result<Value>| assert_eq!(r.unwrap_err().to_string(), CHANGES_OFF_MESSAGE);
+        refused(execute(dir.path(), &id, "DELETE FROM customer"));
+        refused(data::delete_rows(
+            dir.path(),
+            &id,
+            "customer",
+            &[],
+            Default::default(),
+            true,
+        ));
+        refused(app::create_database(dir.path(), "New"));
+        refused(app::rename_database(dir.path(), &id, "Renamed"));
+        refused(app::delete_database(dir.path(), &id));
+        refused(app::save_query(dir.path(), "q", "SELECT 1", None));
+        let count = query(dir.path(), &id, "SELECT count(*) FROM customer", &[], None).unwrap();
+        assert_eq!(
+            count["rows"],
+            json!([[3]]),
+            "reading still works, nothing changed"
+        );
+
+        store.set_mcp_changes_allowed(true).unwrap();
+        execute(dir.path(), &id, "DELETE FROM customer WHERE name = 'Ravi'").unwrap();
     }
 
     #[test]

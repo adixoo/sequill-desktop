@@ -1,7 +1,7 @@
 //! The app around the databases: creating, renaming and deleting databases, saved queries,
 //! and asking the open app to show a table, a query or the schema.
 
-use super::{open_db, open_store, to_json};
+use super::{open_db, open_store, open_store_for_changes, to_json};
 use schemars::JsonSchema;
 use sequill_core::filter::{Filter, FilterMatch, build_where};
 use sequill_core::rows::{Sort, table_columns};
@@ -18,7 +18,7 @@ const NOT_OPEN: &str =
     "Sequill isn't open, so nothing was shown. Ask the user to open Sequill, then try again.";
 
 pub fn create_database(dir: &Path, name: &str) -> Result<Value> {
-    let mut store = open_store(dir)?;
+    let mut store = open_store_for_changes(dir)?;
     let name = name.trim();
     if name.is_empty() {
         return Err(Error::msg("The name is empty"));
@@ -27,13 +27,13 @@ pub fn create_database(dir: &Path, name: &str) -> Result<Value> {
 }
 
 pub fn rename_database(dir: &Path, database: &str, name: &str) -> Result<Value> {
-    let mut store = open_store(dir)?;
+    let mut store = open_store_for_changes(dir)?;
     let info = store.resolve(database)?;
     Ok(json!({ "database": to_json(store.rename(&info.id, name)?) }))
 }
 
 pub fn delete_database(dir: &Path, database: &str) -> Result<Value> {
-    let mut store = open_store(dir)?;
+    let mut store = open_store_for_changes(dir)?;
     let info = store.resolve(database)?;
     store.delete(&info.id)?;
     // A file the user opened from their computer is only taken off the list; it still exists.
@@ -50,11 +50,11 @@ pub fn list_saved_queries(dir: &Path) -> Result<Value> {
 }
 
 pub fn save_query(dir: &Path, name: &str, sql: &str, id: Option<&str>) -> Result<Value> {
-    Ok(json!({ "query": to_json(open_store(dir)?.save_query(name, sql, id)?) }))
+    Ok(json!({ "query": to_json(open_store_for_changes(dir)?.save_query(name, sql, id)?) }))
 }
 
 pub fn delete_saved_query(dir: &Path, id: &str) -> Result<Value> {
-    if !open_store(dir)?.delete_saved_query(id)? {
+    if !open_store_for_changes(dir)?.delete_saved_query(id)? {
         return Err(Error::msg(format!("No saved query has the id {id}")));
     }
     Ok(json!({ "deleted": id }))

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { CodeBlock } from "@/shared/components/pastel/code-block";
-import { useMcpStatus, useSetMcpEnabled } from "@/shared/hooks/use-mcp";
-import { MCP_CLIENTS, type McpClient, type McpCommand } from "@/shared/lib/mcp";
+import { useMcpStatus, useSetMcpAllowChanges, useSetMcpEnabled } from "@/shared/hooks/use-mcp";
+import { MCP_CLIENTS, type McpClient, type McpStatus } from "@/shared/lib/mcp";
 import { errorMessage } from "@/shared/lib/sqlite/errors";
 import { cn } from "@/shared/lib/utils";
 import { Button } from "@/shared/ui/button";
@@ -9,9 +9,8 @@ import { DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/sh
 import { TriangleAlert } from "@/shared/ui/icons";
 import { Label } from "@/shared/ui/label";
 import { ResponsiveDialog, ResponsiveDialogContent } from "@/shared/ui/responsive-dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/ui/select";
 import { Switch } from "@/shared/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/shared/ui/tabs";
-import { Check } from "./column-fields";
 
 /** A step's text with `code` and **bold** spans. */
 function StepText({ text }: { text: string }) {
@@ -37,19 +36,128 @@ function StepText({ text }: { text: string }) {
   });
 }
 
-/** Numbered setup steps, then the code to copy. */
+/** A number in a circle, for steps. */
+function StepNumber({ n, size = "sm" }: { n: number; size?: "sm" | "md" }) {
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-flex shrink-0 items-center justify-center rounded-full bg-sky-wash font-mono font-medium text-sky-ink",
+        size === "md" ? "size-6 text-xs" : "mt-0.5 size-5 text-[0.6875rem]",
+      )}
+    >
+      {n}
+    </span>
+  );
+}
+
+/** One of the guide's three steps. */
+function Step({ n, title, children }: { n: number; title: string; children: ReactNode }) {
+  return (
+    <section aria-labelledby={`mcp-step-${n}`} className="flex min-w-0 flex-col gap-3">
+      <h3 id={`mcp-step-${n}`} className="flex items-center gap-2.5 text-sm font-semibold text-ink">
+        <StepNumber n={n} size="md" />
+        {title}
+      </h3>
+      <div className="flex min-w-0 flex-col gap-3 sm:pl-8.5">{children}</div>
+    </section>
+  );
+}
+
+/** A setting with a plain explanation of what it does right now. */
+function SwitchRow({
+  id,
+  title,
+  detail,
+  checked,
+  disabled,
+  onChange,
+}: {
+  id: string;
+  title: string;
+  detail: string;
+  checked: boolean;
+  disabled: boolean;
+  onChange(on: boolean): void;
+}) {
+  return (
+    <div className="flex items-start justify-between gap-4 p-3">
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <Label htmlFor={id} className="text-sm font-semibold text-ink">
+          {title}
+        </Label>
+        <p id={`${id}-detail`} className="text-xs leading-relaxed text-ink-muted">
+          {detail}
+        </p>
+      </div>
+      <Switch
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        aria-describedby={`${id}-detail`}
+        onCheckedChange={onChange}
+        className="mt-0.5"
+      />
+    </div>
+  );
+}
+
+/** Step 1: the two switches the server checks on every call. */
+function Permissions({ status }: { status: McpStatus }) {
+  const setEnabled = useSetMcpEnabled();
+  const setAllowChanges = useSetMcpAllowChanges();
+  const busy = setEnabled.isPending || setAllowChanges.isPending;
+  return (
+    <>
+      <div className="divide-y-2 divide-hairline rounded-md ring-2 ring-hairline ring-inset">
+        <SwitchRow
+          id="mcp-enabled"
+          title="Let assistants use Sequill"
+          detail={
+            status.enabled
+              ? "On: they can see your databases, read rows and open tables or queries in this window."
+              : "Off: every request from an assistant is refused, even if it's set up."
+          }
+          checked={status.enabled}
+          disabled={busy}
+          onChange={(on) => setEnabled.mutate(on)}
+        />
+        <SwitchRow
+          id="mcp-allow-changes"
+          title="Allow changes"
+          detail={
+            status.allowChanges
+              ? "On: they can also add, edit and delete rows, tables and databases."
+              : "Off: they can only read. Turn it on when you want an assistant to edit for you."
+          }
+          checked={status.allowChanges}
+          disabled={busy || !status.enabled}
+          onChange={(on) => setAllowChanges.mutate(on)}
+        />
+      </div>
+      {status.enabled && status.allowChanges && (
+        <p className="flex items-start gap-2 rounded-md bg-rose-wash px-3 py-2 text-xs leading-relaxed text-rose-ink">
+          <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+          Changes are saved straight to your database files. Keep a copy of anything you can&apos;t
+          lose.
+        </p>
+      )}
+      <p className="text-xs text-ink-muted">
+        Switches work at once, even in the middle of a chat. You never need to redo step 2 after
+        changing them.
+      </p>
+    </>
+  );
+}
+
+/** Numbered instructions for one assistant, then the command or settings to copy. */
 function Setup({ client, code }: { client: McpClient; code: string }) {
   return (
-    <div className="flex min-w-0 flex-col gap-4">
+    <div className="flex min-w-0 flex-col gap-3">
       <ol className="flex flex-col gap-2.5">
         {client.steps.map((step, i) => (
           <li key={step} className="flex gap-3 text-sm leading-relaxed text-ink-soft">
-            <span
-              aria-hidden
-              className="mt-0.5 inline-flex size-5 shrink-0 items-center justify-center rounded-full bg-sky-wash font-mono text-[0.6875rem] font-medium text-sky-ink"
-            >
-              {i + 1}
-            </span>
+            <StepNumber n={i + 1} />
             <span className="min-w-0">
               <StepText text={step} />
             </span>
@@ -61,118 +169,99 @@ function Setup({ client, code }: { client: McpClient; code: string }) {
         code={code}
         language={client.language}
         copyable
+        wrap={client.install === "command"}
         className="min-w-0"
       />
     </div>
   );
 }
 
-function Installation({ command }: { command: McpCommand }) {
-  const [allowWrites, setAllowWrites] = useState(false);
+/** Step 2: pick an assistant, then copy its one command or its settings. */
+function Installation({ status }: { status: McpStatus }) {
+  const [clientId, setClientId] = useState(MCP_CLIENTS[0].id);
+  const client = MCP_CLIENTS.find((c) => c.id === clientId) ?? MCP_CLIENTS[0];
   return (
-    <section aria-labelledby="mcp-setup" className="flex min-w-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="mcp-setup" className="text-sm font-semibold text-ink">
-          Connect an assistant
-        </h3>
-        <Check label="Also let it make changes" checked={allowWrites} onChange={setAllowWrites} />
+    <>
+      <div className="flex flex-col gap-1.5">
+        <Label htmlFor="mcp-client" className="text-sm text-ink-soft">
+          Which assistant do you use?
+        </Label>
+        <Select value={client.id} onValueChange={setClientId}>
+          <SelectTrigger id="mcp-client" className="w-full sm:w-72">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {MCP_CLIENTS.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name}
+                {c.install === "command" && <span className="text-ink-muted"> · one command</span>}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
-      {allowWrites && (
-        <p className="flex items-start gap-2 rounded-md bg-rose-wash px-3 py-2 text-xs text-rose-ink">
-          <TriangleAlert className="mt-px size-3.5 shrink-0" />
-          The assistant can add, change and delete rows, tables and databases. Keep a copy of
-          anything you can&apos;t lose.
-        </p>
-      )}
-      <Tabs defaultValue={MCP_CLIENTS[0].id} className="min-w-0 gap-4">
-        <TabsList
-          aria-label="Assistant"
-          className="grid h-auto w-full grid-cols-2 gap-1.5 bg-transparent p-0 group-data-horizontal/tabs:h-auto sm:grid-cols-5"
-        >
-          {MCP_CLIENTS.map((client) => (
-            <TabsTrigger
-              key={client.id}
-              value={client.id}
-              className={cn(
-                "h-auto flex-col items-start gap-0 rounded-md px-2.5 py-1.5 text-left",
-                "text-ink-soft ring-2 ring-hairline ring-inset hover:text-ink",
-                "data-active:bg-sky-wash data-active:text-ink data-active:shadow-none data-active:ring-sky-ink/40",
-                "dark:data-active:border-transparent dark:data-active:bg-sky-wash dark:data-active:text-ink",
-              )}
-            >
-              <span className="w-full truncate text-[0.8125rem] font-medium">{client.name}</span>
-              <span className="text-[0.6875rem] font-normal text-ink-muted">{client.kind}</span>
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {MCP_CLIENTS.map((client) => (
-          <TabsContent key={client.id} value={client.id} className="min-w-0">
-            <Setup client={client} code={client.config(command, allowWrites)} />
-          </TabsContent>
-        ))}
-      </Tabs>
-      <p className="text-xs text-ink-muted">
-        Without the box ticked the assistant can only read and show things. Settings point at this
-        copy of Sequill; set it up again if you move or reinstall the app.
-      </p>
-    </section>
+      <Setup client={client} code={client.config(status)} />
+    </>
   );
 }
 
-/** Turns MCP access on or off and shows how to connect an assistant. Desktop app only. */
+/** Development builds would hand out an exe that opens a console and changes on rebuild. */
+function DevBuildNote({ command }: { command: string }) {
+  return (
+    <p className="flex items-start gap-2 rounded-md bg-butter-wash px-3 py-2.5 text-xs leading-relaxed text-butter-ink">
+      <TriangleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+      <span>
+        This is a development build. Assistants set up from here start{" "}
+        <code className="font-mono break-all">{command}</code>, which opens a console window and
+        stops working when you rebuild. Set them up from the installed Sequill instead.
+      </span>
+    </p>
+  );
+}
+
+/** Explains MCP, holds its two switches and shows how to connect an assistant. Desktop only. */
 export function McpDialog({ onClose }: { onClose(): void }) {
   const status = useMcpStatus();
-  const setEnabled = useSetMcpEnabled();
-  const enabled = status.data?.enabled ?? false;
-
   return (
     <ResponsiveDialog open onOpenChange={(open) => !open && onClose()}>
       <ResponsiveDialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>MCP server</DialogTitle>
+          <DialogTitle>Connect an AI assistant</DialogTitle>
           <DialogDescription>
-            Let AI assistants such as Claude work with your databases the way you do here: find and
-            filter rows, run and explain queries, and open tables, queries or the schema in this
-            window. If you allow changes, they can also edit rows, tables, indexes, triggers, views,
-            databases and saved queries. Their changes show up here on their own.
+            AI assistants such as Claude, Cursor or GitHub Copilot can work with your Sequill
+            databases through MCP. Set it up once, then just ask, for example &ldquo;Which customers
+            ordered last week?&rdquo; What they change shows up here on its own.
           </DialogDescription>
         </DialogHeader>
-
-        <div
-          className={cn(
-            "flex items-center justify-between gap-4 rounded-md p-3 ring-2 ring-inset",
-            enabled ? "bg-mint-wash ring-mint-ink/25" : "bg-raised ring-hairline",
-          )}
-        >
-          <div className="flex items-start gap-3">
-            <span
-              aria-hidden
-              className={cn(
-                "mt-1.5 size-2 shrink-0 rounded-full",
-                enabled ? "bg-mint-ink" : "bg-strong",
-              )}
-            />
-            <div className="flex flex-col gap-0.5">
-              <Label htmlFor="mcp-enabled" className="text-sm font-semibold text-ink">
-                {enabled ? "On: assistants can use your databases" : "Off: assistants are refused"}
-              </Label>
-              <p className="text-xs text-ink-muted">Takes effect at once, even mid-conversation.</p>
-            </div>
-          </div>
-          <Switch
-            id="mcp-enabled"
-            checked={enabled}
-            disabled={!status.data || setEnabled.isPending}
-            onCheckedChange={(on) => setEnabled.mutate(on)}
-          />
-        </div>
 
         {status.error ? (
           <p role="alert" className="text-sm text-negative">
             {errorMessage(status.error)}
           </p>
         ) : (
-          status.data && <Installation command={status.data} />
+          status.data && (
+            <div className="flex min-w-0 flex-col gap-6">
+              {status.data.devBuild && <DevBuildNote command={status.data.command} />}
+              <Step n={1} title="Choose what assistants may do">
+                <Permissions status={status.data} />
+              </Step>
+              <Step n={2} title="Add Sequill to your assistant">
+                <Installation status={status.data} />
+              </Step>
+              <Step n={3} title="Try it">
+                <p className="text-sm leading-relaxed text-ink-soft">
+                  Start a new chat and ask:{" "}
+                  <strong className="text-ink">List my Sequill databases.</strong> It should name
+                  the databases you see here. If it doesn&apos;t know Sequill, check step 1 and
+                  restart the assistant.
+                </p>
+                <p className="text-xs text-ink-muted">
+                  The setup points at this copy of Sequill. If you move or reinstall it, do step 2
+                  again.
+                </p>
+              </Step>
+            </div>
+          )
         )}
 
         <DialogFooter>

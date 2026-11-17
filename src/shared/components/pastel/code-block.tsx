@@ -23,6 +23,8 @@ interface CodeBlockProps {
   highlightLine?: number;
   /** Shows a Copy button in the title bar. */
   copyable?: boolean;
+  /** Wraps long lines instead of scrolling sideways, so a one-line command reads whole. */
+  wrap?: boolean;
   className?: string;
 }
 
@@ -33,6 +35,7 @@ export function CodeBlock({
   language = "sql",
   highlightLine,
   copyable,
+  wrap,
   className,
 }: CodeBlockProps) {
   const lines = highlightLines(code, language);
@@ -53,7 +56,7 @@ export function CodeBlock({
       </figcaption>
       {/* Long lines scroll sideways; `w-max` lets each line's wash span the widest line. */}
       <pre className="overflow-x-auto py-4 font-mono text-[0.8125rem] leading-[1.7] md:text-sm">
-        <code className="block w-max min-w-full px-2">
+        <code className={cn("block min-w-full px-2", !wrap && "w-max")}>
           {lines.map((line, i) => (
             <span
               key={i}
@@ -62,7 +65,7 @@ export function CodeBlock({
               <span aria-hidden className="w-10 shrink-0 pr-4 text-right text-decor select-none">
                 {i + 1}
               </span>
-              <span>
+              <span className={cn(wrap && "min-w-0 break-all whitespace-pre-wrap")}>
                 {line.map((t, j) => (
                   <span key={j} className={TOKEN_CLASS[t.type]}>
                     {t.text}
