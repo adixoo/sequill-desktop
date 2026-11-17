@@ -18,10 +18,23 @@ fn main() {
     run();
 }
 
+/// The window title: the app's name and version, so people can see which build they run.
+fn window_title(info: &tauri::PackageInfo) -> String {
+    let build = if cfg!(debug_assertions) {
+        " (development build)"
+    } else {
+        ""
+    };
+    format!("{} {}{build}", info.name, info.version)
+}
+
 fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            if let Some(window) = app.get_webview_window("main") {
+                window.set_title(&window_title(app.package_info()))?;
+            }
             let dir =
                 sequill_core::default_data_dir().ok_or("Could not find the app's data folder")?;
             let store = Arc::new(Mutex::new(Store::open(&dir)?));
