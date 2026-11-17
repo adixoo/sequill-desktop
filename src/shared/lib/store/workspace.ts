@@ -58,6 +58,8 @@ interface WorkspaceState {
   syncSavedQuery(id: string, name: string | null): void;
   closeTab(id: string): void;
   closeOtherTabs(id: string): void;
+  /** Closes every tab after this one; it becomes active if the active tab was among them. */
+  closeTabsToRight(id: string): void;
   setActiveTab(id: string): void;
   updateView(tabId: string, patch: Partial<TableViewState>): void;
   updateQuery(tabId: string, sql: string): void;
@@ -168,6 +170,12 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => ({
 
   closeOtherTabs(id) {
     set({ tabs: get().tabs.filter((t) => t.id === id), activeTabId: id });
+  },
+
+  closeTabsToRight(id) {
+    const { tabs, activeTabId } = get();
+    const next = tabs.slice(0, tabs.findIndex((t) => t.id === id) + 1);
+    set({ tabs: next, activeTabId: next.some((t) => t.id === activeTabId) ? activeTabId : id });
   },
 
   setActiveTab(id) {

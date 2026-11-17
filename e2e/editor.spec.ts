@@ -232,3 +232,27 @@ test("opens a database file from the database switcher", async ({ page }) => {
     { timeout: 30_000 },
   );
 });
+
+test("right-clicking a tab offers close and duplicate actions", async ({ page }) => {
+  await createSample(page);
+  await openTable(page, "orders");
+  const tablist = page.getByRole("tablist", { name: "Open tabs" });
+  const tabs = tablist.getByRole("tab");
+  await page.getByRole("button", { name: "New query" }).first().click();
+  await page.getByRole("button", { name: "New query" }).first().click();
+  await expect(tabs).toHaveCount(3);
+
+  await tabs.nth(1).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Close tabs to the right" }).click();
+  await expect(tabs).toHaveCount(2);
+
+  await tabs.nth(1).click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Duplicate query" }).click();
+  await expect(tabs).toHaveCount(3);
+
+  await tabs.nth(0).click({ button: "right" });
+  await expect(page.getByRole("menuitem", { name: "Duplicate query" })).toBeHidden();
+  await page.getByRole("menuitem", { name: "Close others" }).click();
+  await expect(tabs).toHaveCount(1);
+  await expect(tabs.first()).toHaveText("orders");
+});
