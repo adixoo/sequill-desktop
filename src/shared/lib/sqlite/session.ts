@@ -9,6 +9,19 @@ import { readSchema } from "./introspect";
 import { splitStatements } from "./split";
 import type { CellValue, QueryResult, Row, Schema, SqlStatement, StatementResult } from "./types";
 
+/** Thrown inside a design check's transaction to undo it; never escapes. */
+const UNDO = Symbol("undo design");
+
+/**
+ * Everything that makes up a database's structure, minus what SQLite makes by itself (its
+ * internal tables, virtual tables' shadow tables). Tables first, so views and triggers find
+ * them. Mirrors `Session::schema_only_copy` in `crates/sequill-core/src/session.rs`.
+ */
+const STRUCTURE_SQL = `SELECT sql FROM sqlite_schema
+  WHERE sql IS NOT NULL AND substr(name, 1, 7) <> 'sqlite_'
+    AND name NOT IN (SELECT name FROM pragma_table_list WHERE schema = 'main' AND type = 'shadow')
+  ORDER BY CASE type WHEN 'table' THEN 0 WHEN 'index' THEN 1 WHEN 'view' THEN 2 ELSE 3 END, rowid`;
+
 interface CapiExtras {
   sqlite3_complete(sql: string): number;
   sqlite3_stmt_readonly(stmt: number): number;
@@ -18,10 +31,17 @@ export class SqliteSession {
   private readonly capi: CapiExtras;
 
   constructor(
-    sqlite3: Sqlite3Static,
+    private readonly sqlite3: Sqlite3Static,
     readonly db: Database,
   ) {
     this.capi = sqlite3.capi as unknown as CapiExtras;
+  }
+
+  /** A new, empty in-memory database with foreign keys on, like every other session. */
+  static memory(sqlite3: Sqlite3Static): SqliteSession {
+    const session = new SqliteSession(sqlite3, new sqlite3.oo1.DB(":memory:"));
+    session.db.exec("PRAGMA foreign_keys = ON");
+    return session;
   }
 
   query(sql: string, params: CellValue[] = [], limit = Number.POSITIVE_INFINITY): QueryResult {
@@ -128,6 +148,15 @@ export class SqliteSession {
    * the result has more broken foreign-key references than before.
    */
   applyDesign(statements: string[]): void {
+    this.runDesign(statements, true);
+  }
+
+  /** Runs a design exactly like `applyDesign`, then undoes it. Throws when saving would fail. */
+  checkDesign(statements: string[]): void {
+    this.runDesign(statements, false);
+  }
+
+  private runDesign(statements: string[], keep: boolean): void {
     this.db.exec("PRAGMA foreign_keys = OFF");
     try {
       this.db.transaction(() => {
@@ -139,11 +168,49 @@ export class SqliteSession {
             `Saving would leave ${added} ${added === 1 ? "row" : "rows"} pointing at missing rows (foreign keys). Nothing was changed.`,
           );
         }
+        if (!keep) throw UNDO;
       });
+    } catch (error) {
+      if (error !== UNDO) throw error;
     } finally {
       this.db.exec("PRAGMA legacy_alter_table = OFF");
       this.db.exec("PRAGMA foreign_keys = ON");
     }
+  }
+
+  /** Counts every change to the database's structure (SQLite's schema cookie). */
+  schemaVersion(): number {
+    return Number(this.query("PRAGMA schema_version").rows[0]?.[0] ?? 0);
+  }
+
+  /**
+   * A new in-memory database with this one's structure (tables, indexes, views, triggers)
+   * and none of its rows, so it stays small however big this one is.
+   */
+  schemaOnlyCopy(): SqliteSession {
+    let pending = this.query(STRUCTURE_SQL).rows.map((row) => String(row[0]));
+    const copy = SqliteSession.memory(this.sqlite3);
+    // A view can use one made after it (after a rebuild): retry until nothing more works.
+    while (pending.length > 0) {
+      const failed: string[] = [];
+      let lastError: unknown = null;
+      for (const sql of pending) {
+        try {
+          copy.db.exec(sql);
+        } catch (error) {
+          failed.push(sql);
+          lastError = error;
+        }
+      }
+      if (failed.length === pending.length) {
+        copy.db.close();
+        throw new Error(
+          `Sequill could not copy this database's structure to check the design (${errorMessage(lastError)})`,
+        );
+      }
+      pending = failed;
+    }
+    return copy;
   }
 
   private foreignKeyViolations(): number {

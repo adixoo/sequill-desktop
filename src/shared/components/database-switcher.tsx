@@ -111,6 +111,7 @@ export function DatabaseSwitcher({
           <DropdownMenuItem
             key={d.id}
             onSelect={() => switchTo(d.id)}
+            title={d.path ?? undefined}
             className={cn(d.id === current?.id && "bg-sky-wash")}
           >
             <Database />
@@ -146,7 +147,7 @@ export function DatabaseSwitcher({
         <DropdownMenuItem onSelect={() => openDialog({ kind: "newDatabase" })}>
           <Plus /> New empty database
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => fileInput.current?.click()}>
+        <DropdownMenuItem onSelect={() => actions.pickFile(fileInput.current)}>
           <FolderOpen /> Open a file…
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void actions.createSample()}>
@@ -158,6 +159,14 @@ export function DatabaseSwitcher({
             <DropdownMenuLabel className="pn-eyebrow text-ink-muted">
               {current.name}
             </DropdownMenuLabel>
+            {current.path && (
+              <p
+                className="truncate px-2 pb-1.5 font-mono text-[0.6875rem] text-ink-muted"
+                title={current.path}
+              >
+                Changes save to {current.path}
+              </p>
+            )}
             <DropdownMenuItem onSelect={() => void actions.download(current)}>
               <Download /> Download .sqlite
             </DropdownMenuItem>
@@ -175,7 +184,8 @@ export function DatabaseSwitcher({
               variant="destructive"
               onSelect={() => openDialog({ kind: "deleteDatabase", db: current })}
             >
-              <Trash /> {isDesktop() ? "Delete" : "Delete from browser"}
+              <Trash />{" "}
+              {current.path ? "Remove from list" : isDesktop() ? "Delete" : "Delete from browser"}
             </DropdownMenuItem>
           </>
         )}

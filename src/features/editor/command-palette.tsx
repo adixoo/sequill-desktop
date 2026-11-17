@@ -148,7 +148,7 @@ export default function CommandPalette({ open, onOpenChange, schema }: CommandPa
               <CommandItem
                 onSelect={() => {
                   onOpenChange(false);
-                  fileInput.current?.click();
+                  actions.pickFile(fileInput.current);
                 }}
               >
                 <FolderOpen /> Open a database file

@@ -60,6 +60,15 @@ impl Session {
         Self::new(Connection::open(path)?)
     }
 
+    /// Opens an existing database file for reading and writing; a missing file is an error
+    /// (never a new, empty database).
+    pub fn open_existing(path: &Path) -> Result<Self> {
+        let flags = OpenFlags::SQLITE_OPEN_READ_WRITE
+            | OpenFlags::SQLITE_OPEN_URI
+            | OpenFlags::SQLITE_OPEN_NO_MUTEX;
+        Self::new(Connection::open_with_flags(path, flags)?)
+    }
+
     /// Opens a database file so that SQLite itself refuses every write.
     pub fn open_read_only(path: &Path) -> Result<Self> {
         let flags = OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX;
@@ -168,8 +177,17 @@ impl Session {
     /// foreign keys paused, as SQLite requires for rebuilds. Rolls back if the result has
     /// more broken foreign-key references than before.
     pub fn apply_design(&self, statements: &[String]) -> Result<()> {
+        self.run_design(statements, true)
+    }
+
+    /// Runs a design exactly like `apply_design`, then undoes it: Ok when saving would work.
+    pub fn check_design(&self, statements: &[String]) -> Result<()> {
+        self.run_design(statements, false)
+    }
+
+    fn run_design(&self, statements: &[String], keep: bool) -> Result<()> {
         self.conn.execute_batch("PRAGMA foreign_keys = OFF")?;
-        let applied = self.apply_design_unchecked(statements);
+        let applied = self.run_design_unchecked(statements, keep);
         let restored = self
             .conn
             .execute_batch("PRAGMA legacy_alter_table = OFF; PRAGMA foreign_keys = ON");
@@ -177,7 +195,7 @@ impl Session {
         Ok(restored?)
     }
 
-    fn apply_design_unchecked(&self, statements: &[String]) -> Result<()> {
+    fn run_design_unchecked(&self, statements: &[String], keep: bool) -> Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         let before = self.foreign_key_violations()?;
         for sql in statements {
@@ -190,7 +208,56 @@ impl Session {
                 "Saving would leave {added} {rows} pointing at missing rows (foreign keys). Nothing was changed."
             )));
         }
-        Ok(tx.commit()?)
+        if keep {
+            tx.commit()?;
+        }
+        Ok(())
+    }
+
+    /// Counts every change to the database's structure (SQLite's schema cookie), whichever
+    /// connection or process made it.
+    pub fn schema_version(&self) -> Result<i64> {
+        Ok(self
+            .conn
+            .query_row("PRAGMA schema_version", [], |r| r.get(0))?)
+    }
+
+    /// A new in-memory database with this one's structure (tables, indexes, views, triggers)
+    /// and none of its rows, so it stays small however big this one is.
+    pub fn schema_only_copy(&self) -> Result<Session> {
+        // Skips what gets made by itself: SQLite's internal tables and virtual tables' shadow tables.
+        let mut pending: Vec<String> = self
+            .conn
+            .prepare(
+                "SELECT sql FROM sqlite_schema
+                 WHERE sql IS NOT NULL AND substr(name, 1, 7) <> 'sqlite_'
+                   AND name NOT IN (SELECT name FROM pragma_table_list
+                                    WHERE schema = 'main' AND type = 'shadow')
+                 ORDER BY CASE type WHEN 'table' THEN 0 WHEN 'index' THEN 1 WHEN 'view' THEN 2 ELSE 3 END, rowid",
+            )?
+            .query_map([], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        let copy = Session::memory()?;
+        // A view can use one made after it (after a rebuild): retry until nothing more works.
+        while !pending.is_empty() {
+            let before = pending.len();
+            let mut failed = Vec::new();
+            let mut last_error = None;
+            for sql in pending {
+                if let Err(error) = copy.conn.execute_batch(&sql) {
+                    failed.push(sql);
+                    last_error = Some(error);
+                }
+            }
+            if failed.len() == before {
+                let error = Error::from(last_error.expect("a statement failed"));
+                return Err(Error::msg(format!(
+                    "Sequill could not copy this database's structure to check the design ({error})"
+                )));
+            }
+            pending = failed;
+        }
+        Ok(copy)
     }
 
     fn foreign_key_violations(&self) -> Result<usize> {
@@ -245,6 +312,41 @@ impl Session {
         Ok(self
             .conn
             .query_row("PRAGMA data_version", [], |r| r.get(0))?)
+    }
+}
+
+/// The schema designer's structure-only copy of a database. Designs are checked on it, so the
+/// database itself is only touched when the user saves.
+pub struct DesignCopy {
+    base: Option<i64>,
+    session: Session,
+}
+
+impl DesignCopy {
+    /// A copy of `source`'s structure, remembering which version of it was copied.
+    pub fn of(source: &Session) -> Result<Self> {
+        Ok(Self {
+            base: Some(source.schema_version()?),
+            session: source.schema_only_copy()?,
+        })
+    }
+
+    /// An empty database, for a design that will become a new one.
+    pub fn empty() -> Result<Self> {
+        Ok(Self {
+            base: None,
+            session: Session::memory()?,
+        })
+    }
+
+    /// The structure version this copy was made from; None for an empty one.
+    pub fn base(&self) -> Option<i64> {
+        self.base
+    }
+
+    /// Runs the design on the copy and undoes it: Ok when saving it would work.
+    pub fn check(&self, statements: &[String]) -> Result<()> {
+        self.session.check_design(statements)
     }
 }
 
@@ -404,5 +506,66 @@ mod tests {
         let ro = Session::open_read_only(&path).unwrap();
         assert!(ro.query("INSERT INTO t VALUES (1)", &[], None).is_err());
         assert_eq!(count(&ro, "t"), 0);
+    }
+
+    fn schema_sql(s: &Session) -> Vec<String> {
+        s.connection()
+            .prepare("SELECT type || ' ' || name || ': ' || sql FROM sqlite_schema WHERE sql IS NOT NULL ORDER BY type, name")
+            .unwrap()
+            .query_map([], |r| r.get(0))
+            .unwrap()
+            .collect::<rusqlite::Result<_>>()
+            .unwrap()
+    }
+
+    #[test]
+    fn schema_only_copy_has_the_structure_and_no_rows() {
+        let s = session(
+            "CREATE TABLE parent (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE);
+             CREATE TABLE child (id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id));
+             CREATE INDEX child_parent ON child (parent_id);
+             CREATE VIEW names AS SELECT name FROM parent;
+             CREATE TRIGGER no_empty BEFORE INSERT ON parent WHEN new.name = '' BEGIN SELECT RAISE(ABORT, 'empty'); END;
+             CREATE VIRTUAL TABLE docs USING fts5(body);
+             INSERT INTO parent (name) VALUES ('a'), ('b'); INSERT INTO child VALUES (1, 1);
+             INSERT INTO docs VALUES ('hello');",
+        );
+        // A view that uses a view made after it, as a table rebuild leaves them.
+        s.connection()
+            .execute_batch(
+                "CREATE VIEW late AS SELECT 1 AS x; CREATE VIEW early AS SELECT x FROM late;
+                 DROP VIEW late; CREATE VIEW late AS SELECT 2 AS x;",
+            )
+            .unwrap();
+        let copy = s.schema_only_copy().unwrap();
+        assert_eq!(schema_sql(&copy), schema_sql(&s));
+        for table in ["parent", "child", "docs"] {
+            assert_eq!(count(&copy, table), 0, "{table}");
+        }
+        assert_eq!(count(&s, "parent"), 2, "the source keeps its rows");
+    }
+
+    #[test]
+    fn check_design_reports_errors_and_changes_nothing() {
+        let s = session("CREATE TABLE t (a); INSERT INTO t VALUES (1);");
+        s.check_design(&["ALTER TABLE t ADD COLUMN b".into()])
+            .unwrap();
+        assert_eq!(s.schema().unwrap().tables[0].columns.len(), 1);
+        let error = s
+            .check_design(&["ALTER TABLE t DROP COLUMN nope".into()])
+            .unwrap_err();
+        assert!(error.to_string().contains("nope"), "{error}");
+        let version = s.schema_version().unwrap();
+        s.apply_design(&["ALTER TABLE t ADD COLUMN b".into()])
+            .unwrap();
+        assert_ne!(s.schema_version().unwrap(), version);
+    }
+
+    #[test]
+    fn open_existing_never_creates_a_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("missing.db");
+        assert!(Session::open_existing(&path).is_err());
+        assert!(!path.exists());
     }
 }

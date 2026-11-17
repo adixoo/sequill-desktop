@@ -36,7 +36,13 @@ pub fn delete_database(dir: &Path, database: &str) -> Result<Value> {
     let mut store = open_store(dir)?;
     let info = store.resolve(database)?;
     store.delete(&info.id)?;
-    Ok(json!({ "deleted": { "id": info.id, "name": info.name } }))
+    // A file the user opened from their computer is only taken off the list; it still exists.
+    match info.path {
+        Some(path) => Ok(
+            json!({ "removedFromList": { "id": info.id, "name": info.name, "fileKeptAt": path } }),
+        ),
+        None => Ok(json!({ "deleted": { "id": info.id, "name": info.name } })),
+    }
 }
 
 pub fn list_saved_queries(dir: &Path) -> Result<Value> {
@@ -157,6 +163,23 @@ mod tests {
         assert_eq!(renamed["database"]["name"], "Journal");
         delete_database(dir.path(), &id).unwrap();
         assert!(delete_database(dir.path(), "Journal").is_err());
+    }
+
+    #[test]
+    fn deleting_a_file_the_user_opened_only_removes_it_from_the_list() {
+        let (dir, _) = store_with_shop();
+        let outside = tempfile::tempdir().unwrap();
+        let file = outside.path().join("mine.db");
+        sequill_core::Session::open(&file)
+            .unwrap()
+            .connection()
+            .execute_batch("CREATE TABLE t(a)")
+            .unwrap();
+        Store::open(dir.path()).unwrap().link(&file).unwrap();
+        let result = delete_database(dir.path(), "mine").unwrap();
+        assert!(result["removedFromList"]["fileKeptAt"].is_string());
+        assert!(file.exists());
+        assert!(delete_database(dir.path(), "mine").is_err());
     }
 
     #[test]

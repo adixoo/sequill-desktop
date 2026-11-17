@@ -24,7 +24,7 @@ interface SaveMenuProps {
 
 /**
  * The other save choices, beside the header's "Unsaved" badge (a click on the
- * badge saves to the open database). Nothing reaches a database until saved.
+ * badge reviews a save to the open database). Nothing reaches a database until saved.
  */
 export function SaveMenu({
   draft,

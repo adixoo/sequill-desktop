@@ -8,8 +8,8 @@ Contributions are welcome; see [Contributing](#contributing) to get started.
 
 ## Features
 
-- **Databases**: open `.sqlite` / `.db` files (picker or drag and drop), create empty ones or a sample
-  shop, rename, delete, export the file or a SQL dump.
+- **Databases**: open `.sqlite` / `.db` files and edit them where they are (no copy is made), create
+  empty ones or a sample shop, rename, delete, export the file or a SQL dump.
 - **Table grid**: virtualised rows, paging, multi-column sort, global search, a filter builder
   (15 conditions, AND/OR), resizable, reorderable, hideable and pinnable columns, layouts remembered
   per table.
@@ -21,7 +21,9 @@ Contributions are welcome; see [Contributing](#contributing) to get started.
   columns, rename and drop tables, create and drop indexes. Every change previews its SQL.
 - **Schema visualizer**: any database drawn as an ER diagram you can also design in: add tables and
   columns, drag between columns to create foreign keys, then save everything in one transaction or as a
-  new database. Changes SQLite can't make in place rebuild the table and keep its rows.
+  new database. Each edit is checked on a copy of the database's structure (no rows), and nothing
+  touches the database until you review the SQL and confirm. Changes SQLite can't make in place
+  rebuild the table and keep its rows.
 - **Import / export**: CSV, TSV and JSON import with type detection and column mapping; export tables,
   filtered views, selections or query results as CSV, JSON or SQL INSERTs.
 - **MCP server**: AI assistants can read, show and (when allowed) change the databases; see
@@ -92,9 +94,13 @@ The frontend reaches SQLite only through `getSqlite()` in `src/shared/lib/sqlite
 calls the Rust engine through Tauri commands. Values are always bound parameters, names are quoted,
 and destructive actions show their SQL first.
 
-Databases live in the app's data folder (`%APPDATA%\com.adibitz.sequill` on Windows,
-`~/Library/Application Support/com.adibitz.sequill` on macOS, `~/.local/share/com.adibitz.sequill` on
-Linux). The app checks once a second whether another process (such as an assistant over MCP) changed
+A file you open with **Open a file…** is edited where it is: Sequill remembers its path and never
+copies it, and removing it from the list leaves the file alone. A database file dropped on the window
+can't be edited in place (the drop gives no path), so the app points you to **Open a file…**.
+Databases you create, the sample and designs saved as a new database live in the app's data folder
+(`%APPDATA%\com.adibitz.sequill` on Windows, `~/Library/Application Support/com.adibitz.sequill` on
+macOS, `~/.local/share/com.adibitz.sequill` on Linux). The browser build keeps every database in the
+browser's own storage. The app checks once a second whether another process (such as an assistant over MCP) changed
 the open database or the list, and refreshes what's on screen.
 
 ## MCP server
@@ -140,8 +146,9 @@ These change things, so they're only offered with `--allow-writes` ("Also let it
 | `execute`                                               | Any SQL script, for whatever the tools above don't cover.          |
 
 Without `--allow-writes`, reads run on a read-only connection and the changing tools aren't offered.
-ATTACH is turned off, so a call can't reach other files. Deleting a database the app has open is
-refused until the app switches to another one. `show_in_app` says so if Sequill isn't open.
+ATTACH is turned off, so a call can only reach the databases in Sequill's list, including files you
+opened in place. Deleting a database the app has open is refused until the app switches to another
+one; for a file you opened, `delete_database` only removes it from the list and the file stays. `show_in_app` says so if Sequill isn't open.
 `--data-dir <path>` points the server at another data folder. A database is named by its id or name.
 
 ## Limitations

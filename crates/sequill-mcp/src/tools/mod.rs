@@ -61,7 +61,7 @@ fn open_db(dir: &Path, database: &str, writable: bool) -> Result<Opened> {
     let info = store.resolve(database)?;
     let path = store.path(&info.id)?;
     let session = if writable {
-        Session::open(&path)?
+        Session::open_existing(&path)?
     } else {
         Session::open_read_only(&path)?
     };
@@ -84,7 +84,14 @@ pub fn list_databases(dir: &Path) -> Result<Value> {
     let databases: Vec<Value> = store
         .list()?
         .into_iter()
-        .map(|d| json!({ "id": d.id, "name": d.name, "sizeBytes": d.size_bytes, "updatedAt": d.updated_at }))
+        .map(|d| {
+            let mut entry = json!({ "id": d.id, "name": d.name, "sizeBytes": d.size_bytes, "updatedAt": d.updated_at });
+            // A file the user opened from their computer: changes are made to that file.
+            if let Some(path) = d.path {
+                entry["file"] = json!(path);
+            }
+            entry
+        })
         .collect();
     Ok(json!({ "databases": databases }))
 }

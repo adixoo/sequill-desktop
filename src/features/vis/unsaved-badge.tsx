@@ -1,11 +1,8 @@
-import { AlertCircle, Check, Loader } from "@/shared/ui/icons";
+import { AlertCircle, Check } from "@/shared/ui/icons";
 import { cn } from "@/shared/lib/utils";
 
 export type SaveState =
-  | { kind: "unsaved" }
-  | { kind: "blocked"; problems: number }
-  | { kind: "saving" }
-  | { kind: "saved" };
+  { kind: "unsaved" } | { kind: "blocked"; problems: number } | { kind: "saved" };
 
 interface UnsavedBadgeProps {
   state: SaveState;
@@ -17,19 +14,12 @@ interface UnsavedBadgeProps {
 const pill =
   "inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 text-xs font-semibold whitespace-nowrap outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-ring";
 
-/** Header badge for the design's save state; clicking it saves to the open database. */
+/** Header badge for the design's save state; clicking it reviews a save to the open database. */
 export function UnsavedBadge({ state, dbName, onClick }: UnsavedBadgeProps) {
   if (state.kind === "saved") {
     return (
       <span role="status" className={cn(pill, "bg-mint-wash text-mint-ink")}>
         <Check className="size-3.5" strokeWidth={3} aria-hidden /> Saved
-      </span>
-    );
-  }
-  if (state.kind === "saving") {
-    return (
-      <span role="status" className={cn(pill, "bg-raised text-ink-soft")}>
-        <Loader className="size-3.5 animate-spin" aria-hidden /> Saving…
       </span>
     );
   }
@@ -56,7 +46,7 @@ export function UnsavedBadge({ state, dbName, onClick }: UnsavedBadgeProps) {
       }
       title={
         dbName
-          ? `Click to save the changes to ${dbName}`
+          ? `Click to review and save the changes to ${dbName}`
           : "Click to save this design as a database"
       }
       className={cn(pill, "bg-peach-wash text-peach-ink hover:bg-peach-wash/80")}

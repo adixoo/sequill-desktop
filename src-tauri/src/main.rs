@@ -20,6 +20,7 @@ fn main() {
 
 fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let dir =
                 sequill_core::default_data_dir().ok_or("Could not find the app's data folder")?;
@@ -33,6 +34,7 @@ fn run() {
             commands::list_databases,
             commands::create_database,
             commands::import_database,
+            commands::open_database_file,
             commands::export_database,
             commands::rename_database,
             commands::delete_database,
@@ -43,6 +45,7 @@ fn run() {
             commands::exec_script,
             commands::explain_script,
             commands::transaction,
+            commands::preview_design,
             commands::apply_design,
             commands::insert_many,
             commands::dump,

@@ -18,6 +18,11 @@ export const queryKeys = {
   count: (dbId: string, q: Omit<TableQuery, "sort" | "limit" | "offset">) =>
     ["data", dbId, "count", q] as const,
   tableCount: (dbId: string, table: string) => ["data", dbId, "table-count", table] as const,
+  /** Under the database's data, so any change to it (here or outside) checks again. */
+  designCheck: (dbId: string | null, statements: string[]) =>
+    dbId
+      ? (["data", dbId, "design-check", statements] as const)
+      : (["design-check", statements] as const),
   mcp: ["mcp"] as const,
 };
 
@@ -122,10 +127,16 @@ export function useRunStatements() {
     mutationFn: async ({
       statements,
       design,
+      designBase,
     }: {
       statements: SqlStatement[];
       schema?: boolean;
       design?: boolean;
+      /**
+       * For a design: the structure version it was checked against (`previewDesign`); the
+       * save is refused if the database's structure changed since.
+       */
+      designBase?: number | null;
       /** A table rename, so open tabs follow it. */
       renamed?: { from: string; to: string };
       success?: string;
@@ -135,6 +146,7 @@ export function useRunStatements() {
         await getSqlite().applyDesign(
           dbId,
           statements.map((s) => s.sql),
+          designBase,
         );
         return 0;
       }

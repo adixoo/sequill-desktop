@@ -51,6 +51,7 @@ export function ConfirmSqlDialog({
   success,
   schema,
   design,
+  designBase,
   notes,
   destructive,
   onDone,
@@ -64,6 +65,8 @@ export function ConfirmSqlDialog({
   schema?: boolean;
   /** Run as a schema design (see useRunStatements). */
   design?: boolean;
+  /** For a design: the structure version it was checked against (see useRunStatements). */
+  designBase?: number | null;
   /** Things to know before confirming, shown above the SQL. */
   notes?: string[];
   destructive?: boolean;
@@ -94,7 +97,7 @@ export function ConfirmSqlDialog({
             onClick={(e) => {
               e.preventDefault();
               run.mutate(
-                { statements, success, schema, design },
+                { statements, success, schema, design, designBase },
                 {
                   onSuccess: () => {
                     onDone?.();
@@ -232,6 +235,32 @@ export function DdlDialog({ title, sql, onClose }: Closable & { title: string; s
 
 export function DeleteDatabaseDialog({ db, onClose }: Closable & { db: DbInfo }) {
   const actions = useDbActions();
+  if (db.path) {
+    return (
+      <AlertDialog open onOpenChange={(open) => !open && onClose()}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove {db.name} from the list?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sequill forgets it, but the file stays where it is: {db.path}. You can open it again
+              any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={async () => {
+                await actions.remove(db);
+                onClose();
+              }}
+            >
+              Remove from list
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    );
+  }
   return (
     <AlertDialog open onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>

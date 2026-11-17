@@ -234,3 +234,34 @@ describe("DDL builders run on SQLite", () => {
     ).toContain('PRIMARY KEY ("a", "b")');
   });
 });
+
+describe("design copy", () => {
+  const structure = (s: Awaited<ReturnType<typeof memorySession>>) =>
+    s.query(
+      "SELECT type || ' ' || name || ': ' || sql FROM sqlite_schema WHERE sql IS NOT NULL ORDER BY type, name",
+    ).rows;
+
+  test("copies the structure without rows, views made out of order included", async () => {
+    const s = await memorySession(`${SAMPLE}
+      CREATE VIEW late AS SELECT 1 AS x; CREATE VIEW early AS SELECT x FROM late;
+      DROP VIEW late; CREATE VIEW late AS SELECT 2 AS x;
+      CREATE VIRTUAL TABLE docs USING fts5(body); INSERT INTO docs VALUES ('hello');`);
+    const copy = s.schemaOnlyCopy();
+    expect(structure(copy)).toEqual(structure(s));
+    expect(copy.count("SELECT count(*) FROM album", [])).toBe(0);
+    expect(copy.count("SELECT count(*) FROM docs", [])).toBe(0);
+    expect(s.count("SELECT count(*) FROM album", [])).toBeGreaterThan(0);
+  });
+
+  test("checks a design without changing anything", async () => {
+    const s = await memorySession("CREATE TABLE t (a); INSERT INTO t VALUES (1);");
+    const version = s.schemaVersion();
+    s.checkDesign(["ALTER TABLE t ADD COLUMN b"]);
+    expect(s.schema().tables[0]!.columns).toHaveLength(1);
+    expect(s.schemaVersion()).toBe(version);
+    expect(() => s.checkDesign(["ALTER TABLE t DROP COLUMN nope"])).toThrow(/nope/);
+    s.applyDesign(["ALTER TABLE t ADD COLUMN b"]);
+    expect(s.schema().tables[0]!.columns).toHaveLength(2);
+    expect(s.schemaVersion()).not.toBe(version);
+  });
+});

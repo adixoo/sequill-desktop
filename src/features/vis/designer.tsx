@@ -34,10 +34,12 @@ import { ConfirmSqlDialog } from "@/shared/components/dialogs/simple-dialogs";
 import { Button } from "@/shared/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/shared/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/shared/ui/tooltip";
-import { queryKeys, useRunStatements } from "@/shared/hooks/use-db";
+import { queryKeys } from "@/shared/hooks/use-db";
 import { useIsMobile } from "@/shared/hooks/use-mobile";
 import { STORAGE_KEYS } from "@/shared/lib/constants";
 import { downloadBlob, safeFileName } from "@/shared/lib/data/export";
+import { getSqlite } from "@/shared/lib/sqlite/client";
+import { errorMessage } from "@/shared/lib/sqlite/errors";
 import type { Schema } from "@/shared/lib/sqlite/types";
 import { readJson, writeJson } from "@/shared/lib/storage";
 import { cn } from "@/shared/lib/utils";
@@ -85,6 +87,7 @@ import { UnsavedBadge, type SaveState } from "./unsaved-badge";
 import type { SchemaEditor } from "./column-editor";
 import { SchemaOutline } from "./schema-outline";
 import { TableNode, type TableNodeType } from "./table-node";
+import { useDesignCheck } from "./use-design-check";
 
 const nodeTypes = { table: TableNode };
 const ARROW = { type: MarkerType.Arrow, width: 16, height: 16, color: "var(--strong)" } as const;
@@ -94,6 +97,8 @@ interface DesignerProps {
   storageKey: string;
   dbId: string | null;
   dbName: string;
+  /** The file on this computer that saving changes, for a database opened in place. */
+  dbPath: string | null;
   schema: Schema | undefined;
   /** A blank design was turned into a database. */
   onDatabaseCreated(id: string): void;
@@ -105,12 +110,12 @@ function DesignerCanvas({
   storageKey,
   dbId,
   dbName,
+  dbPath,
   schema,
   onDatabaseCreated,
   badgeSlot,
 }: DesignerProps) {
   const flow = useReactFlow();
-  const run = useRunStatements();
   const [justSaved, setJustSaved] = useState(false);
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft>(() => readDraft(storageKey));
@@ -127,6 +132,8 @@ function DesignerCanvas({
   const [sizes, setSizes] = useState<Record<string, { width: number; height: number }>>({});
   const [selection, setSelection] = useState<Selection>(null);
   const [dialog, setDialog] = useState<"update" | "saveAs" | null>(null);
+  /** The structure version the design was last checked against, for the save to confirm. */
+  const [saveBase, setSaveBase] = useState<number | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const isMobile = useIsMobile();
   // Phones: the outline is a sheet. Wide screens: a sidebar that can be hidden.
@@ -287,6 +294,12 @@ function DesignerCanvas({
     [draft, problems, schema],
   );
   const warnings = useMemo(() => saveWarnings(schema, draft), [schema, draft]);
+  // The design also runs on a copy of the structure, so SQLite's own errors block saving too.
+  const checkError = useDesignCheck(dbId, statements);
+  const saveProblems = useMemo(
+    () => (checkError ? [...problems, `Saving would fail: ${checkError}`] : problems),
+    [problems, checkError],
+  );
 
   /**
    * After saving, new tables become real ones and renamed tables get new ids:
@@ -325,33 +338,37 @@ function DesignerCanvas({
     setSelection(null);
   };
 
-  /** The header badge: save straight into the open database, in one transaction. */
+  /**
+   * Checks the design on the structure copy once more, then asks before it touches the
+   * database: the person sees what will change and where, and nothing is written until
+   * they confirm.
+   */
+  const reviewSave = async () => {
+    if (!dbId) return;
+    try {
+      const preview = await getSqlite().previewDesign(dbId, statements);
+      if (preview.error) {
+        toast.error(`Nothing was saved: ${preview.error}`);
+        return;
+      }
+      setSaveBase(preview.base);
+      setDialog("update");
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  };
+
+  /** The header badge: review and save to the open database, or save a blank design. */
   const saveNow = async () => {
-    if (problems.length > 0) {
-      toast.error(`Fix before saving: ${problems.join(" · ")}`);
+    if (saveProblems.length > 0) {
+      toast.error(`Fix before saving: ${saveProblems.join(" · ")}`);
       return;
     }
     if (!dbId) {
       setDialog("saveAs");
       return;
     }
-    // Something would be lost (rules of a rebuilt table, a view): confirm with the SQL first.
-    if (warnings.length > 0) {
-      setDialog("update");
-      return;
-    }
-    try {
-      await run.mutateAsync({
-        statements: statements.map((sql) => ({ sql, params: [] })),
-        schema: true,
-        design: true,
-        success: `Saved to ${dbName}`,
-      });
-    } catch {
-      return; // the mutation already reported the error; nothing was changed
-    }
-    finishSave();
-    setJustSaved(true);
+    await reviewSave();
   };
 
   useEffect(() => {
@@ -360,15 +377,13 @@ function DesignerCanvas({
     return () => clearTimeout(t);
   }, [justSaved]);
 
-  const saveState: SaveState | null = run.isPending
-    ? { kind: "saving" }
-    : !isDraftEmpty(draft)
-      ? problems.length > 0
-        ? { kind: "blocked", problems: problems.length }
-        : { kind: "unsaved" }
-      : justSaved
-        ? { kind: "saved" }
-        : null;
+  const saveState: SaveState | null = !isDraftEmpty(draft)
+    ? saveProblems.length > 0
+      ? { kind: "blocked", problems: saveProblems.length }
+      : { kind: "unsaved" }
+    : justSaved
+      ? { kind: "saved" }
+      : null;
 
   const inspector = (
     <Inspector
@@ -428,9 +443,9 @@ function DesignerCanvas({
               <SaveMenu
                 draft={draft}
                 statements={statements}
-                problems={problems}
+                problems={saveProblems}
                 dbName={dbId ? dbName : null}
-                onUpdate={() => setDialog("update")}
+                onUpdate={() => void reviewSave()}
                 onSaveAsNew={() => setDialog("saveAs")}
                 onDownload={() =>
                   downloadBlob(
@@ -622,14 +637,20 @@ function DesignerCanvas({
       {dialog === "update" && (
         <ConfirmSqlDialog
           title={`Save changes to ${dbName}?`}
-          description="This changes the database itself. It runs in one transaction: if any statement fails, nothing changes."
+          description={`${
+            dbPath ? `This changes the file ${dbPath} itself.` : `This changes ${dbName} itself.`
+          } Your design was checked on a copy of its structure; saving runs it on the database in one transaction, so if any statement fails, nothing changes.`}
           statements={statements.map((sql) => ({ sql, params: [] }))}
           confirmLabel="Save to database"
           success={`Saved to ${dbName}`}
           schema
           design
+          designBase={saveBase}
           notes={warnings}
-          onDone={finishSave}
+          onDone={() => {
+            finishSave();
+            setJustSaved(true);
+          }}
           onClose={() => setDialog(null)}
         />
       )}

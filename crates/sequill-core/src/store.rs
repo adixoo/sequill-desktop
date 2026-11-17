@@ -1,11 +1,13 @@
-//! The databases Sequill manages: files in a data directory, plus a small catalog
-//! database that keeps their display names. Mirrors the web worker's OPFS catalog
+//! The databases Sequill knows: files it keeps in a data directory, and files the user
+//! opened from their computer, which are edited where they are (never copied). A small
+//! catalog database keeps their display names. Mirrors the web worker's OPFS catalog
 //! (`src/shared/lib/sqlite/worker.ts`), with real files that other processes (the MCP
 //! server) can open too.
 
 use crate::error::{Error, Result};
+use crate::session::DesignCopy;
 use crate::session::Session;
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -22,6 +24,7 @@ const MCP_ENABLED_KEY: &str = "mcp_enabled";
 /// Requests to show something older than this are dropped unseen.
 const UI_REQUEST_MAX_AGE_MS: i64 = 10_000;
 const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
+const STRUCTURE_CHANGED: &str = "The database's structure changed since your design was checked (another app or an assistant changed it). Nothing was saved; review the changes and save again.";
 
 /// Where the app and the MCP server keep databases unless told otherwise.
 pub fn default_data_dir() -> Option<PathBuf> {
@@ -36,6 +39,9 @@ pub struct DbInfo {
     pub size_bytes: u64,
     pub created_at: i64,
     pub updated_at: i64,
+    /// The file on the user's computer that is edited in place; None when Sequill keeps the
+    /// file in its data folder.
+    pub path: Option<String>,
 }
 
 /// A query saved by name, shared by every database.
@@ -67,6 +73,17 @@ pub struct ExternalChanges {
     pub database: Option<String>,
 }
 
+/// The result of checking a schema design on a copy of the database's structure.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DesignPreview {
+    /// The structure version the design was checked against (None for a blank design); pass
+    /// it to `apply_design` so a save refuses if the database changed in between.
+    pub base: Option<i64>,
+    /// Why saving the design would fail; None when every statement ran.
+    pub error: Option<String>,
+}
+
 impl ExternalChanges {
     pub fn any(&self) -> bool {
         self.catalog || self.database.is_some()
@@ -84,6 +101,9 @@ pub struct Store {
     catalog: Connection,
     catalog_version: i64,
     current: Option<OpenDb>,
+    /// The schema designer's structure-only copy of a database (None for a blank design),
+    /// kept while that database's structure is unchanged.
+    design: Option<(Option<String>, DesignCopy)>,
 }
 
 /// SQLite integers are signed; no file comes close to the limit.
@@ -123,7 +143,62 @@ fn to_info(row: &rusqlite::Row) -> rusqlite::Result<DbInfo> {
         size_bytes: u64::try_from(row.get::<_, i64>("size")?).unwrap_or(0),
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
+        path: row.get("path")?,
     })
+}
+
+/// Adds the `path` column to catalogs made before files could be opened in place. Inside an
+/// immediate transaction, so the app and the MCP server can't both add it.
+fn migrate_catalog(catalog: &mut Connection) -> Result<()> {
+    let tx = catalog.transaction_with_behavior(TransactionBehavior::Immediate)?;
+    let has_path: bool = tx.query_row(
+        "SELECT count(*) > 0 FROM pragma_table_info('databases') WHERE name = 'path'",
+        [],
+        |r| r.get(0),
+    )?;
+    if !has_path {
+        tx.execute_batch("ALTER TABLE databases ADD COLUMN path TEXT")?;
+    }
+    tx.execute_batch("CREATE UNIQUE INDEX IF NOT EXISTS databases_path ON databases (path)")?;
+    Ok(tx.commit()?)
+}
+
+/// `fs::canonicalize` gives `\\?\C:\…` on Windows; people know the file as `C:\…`.
+fn plain_path(path: PathBuf) -> PathBuf {
+    #[cfg(windows)]
+    if let Some(rest) = path.to_str().and_then(|p| p.strip_prefix(r"\\?\")) {
+        if !rest.starts_with(r"UNC\") {
+            return PathBuf::from(rest);
+        }
+    }
+    path
+}
+
+fn not_sqlite(detail: &str) -> Error {
+    Error::msg(format!(
+        "This file does not look like a SQLite database ({detail})"
+    ))
+}
+
+/// Whether a file on the user's computer is a SQLite database. An empty file counts: SQLite
+/// treats it as an empty database.
+fn check_database_file(path: &Path) -> Result<()> {
+    let mut header = Vec::with_capacity(SQLITE_HEADER.len());
+    let file = fs::File::open(path)?;
+    std::io::Read::read_to_end(
+        &mut std::io::Read::take(file, SQLITE_HEADER.len() as u64),
+        &mut header,
+    )?;
+    if header.is_empty() {
+        return Ok(());
+    }
+    if header != SQLITE_HEADER {
+        return Err(not_sqlite("it has no SQLite header"));
+    }
+    Session::open_read_only(path)
+        .and_then(|s| s.count("SELECT count(*) FROM sqlite_schema", &[]))
+        .map(|_| ())
+        .map_err(|e| not_sqlite(&e.to_string()))
 }
 
 impl Store {
@@ -138,7 +213,7 @@ impl Store {
     /// so it can't race the app while it is importing a file.
     pub fn open_shared(dir: &Path) -> Result<Self> {
         fs::create_dir_all(dir.join(DATABASES_DIR))?;
-        let catalog = Connection::open(dir.join(CATALOG_FILE))?;
+        let mut catalog = Connection::open(dir.join(CATALOG_FILE))?;
         catalog.busy_timeout(crate::session::BUSY_TIMEOUT)?;
         catalog.execute_batch(
             "CREATE TABLE IF NOT EXISTS databases (
@@ -150,12 +225,14 @@ impl Store {
              CREATE TABLE IF NOT EXISTS ui_requests (
                id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT NOT NULL, created_at INTEGER NOT NULL);",
         )?;
+        migrate_catalog(&mut catalog)?;
         let catalog_version = data_version(&catalog)?;
         Ok(Self {
             dir: dir.to_owned(),
             catalog,
             catalog_version,
             current: None,
+            design: None,
         })
     }
 
@@ -163,20 +240,31 @@ impl Store {
         &self.dir
     }
 
-    /// The file of a database in the catalog.
+    /// The file of a database in the catalog: the user's own file for one opened in place.
     pub fn path(&self, id: &str) -> Result<PathBuf> {
         check_id(id)?;
-        self.info(id)?;
-        Ok(self.file(id))
+        let Some(path) = self.info(id)?.path else {
+            return Ok(self.managed_file(id));
+        };
+        let path = PathBuf::from(path);
+        if !path.is_file() {
+            return Err(Error::msg(format!(
+                "The file {} is missing. It may have been moved, renamed or deleted; open it again from where it is now.",
+                path.display()
+            )));
+        }
+        Ok(path)
     }
 
-    fn file(&self, id: &str) -> PathBuf {
+    /// Where Sequill keeps a database it manages itself.
+    fn managed_file(&self, id: &str) -> PathBuf {
         self.dir
             .join(DATABASES_DIR)
             .join(format!("{DB_FILE_PREFIX}{id}{DB_FILE_SUFFIX}"))
     }
 
-    /// Keeps the catalog and the files in sync after crashes or interrupted imports.
+    /// Keeps the catalog and the files in sync after crashes or interrupted imports. Files
+    /// opened in place are left alone: a missing one is reported when it is opened.
     fn reconcile(&self) -> Result<()> {
         let mut files = Vec::new();
         for entry in fs::read_dir(self.dir.join(DATABASES_DIR))? {
@@ -187,12 +275,12 @@ impl Store {
         }
         let known: Vec<String> = self
             .catalog
-            .prepare("SELECT id FROM databases")?
+            .prepare("SELECT id FROM databases WHERE path IS NULL")?
             .query_map([], |r| r.get(0))?
             .collect::<rusqlite::Result<_>>()?;
         let now = now_ms();
         for id in files.iter().filter(|id| !known.contains(id)) {
-            let size = fs::metadata(self.file(id)).map_or(0, |m| m.len());
+            let size = fs::metadata(self.managed_file(id)).map_or(0, |m| m.len());
             self.catalog.execute(
                 "INSERT INTO databases (id, name, size, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
                 params![id, format!("Recovered {}", &id[..8]), sql_size(size), now, now],
@@ -258,7 +346,7 @@ impl Store {
 
     pub fn create(&mut self, name: &str, seed_sql: Option<&str>) -> Result<DbInfo> {
         let id = uuid::Uuid::new_v4().to_string();
-        let path = self.file(&id);
+        let path = self.managed_file(&id);
         let created = (|| {
             let session = Session::open(&path)?;
             if let Some(sql) = seed_sql {
@@ -276,16 +364,11 @@ impl Store {
     }
 
     pub fn import(&mut self, name: &str, bytes: &[u8]) -> Result<DbInfo> {
-        let not_sqlite = |detail: &str| {
-            Error::msg(format!(
-                "This file does not look like a SQLite database ({detail})"
-            ))
-        };
         if !bytes.starts_with(SQLITE_HEADER) {
             return Err(not_sqlite("it has no SQLite header"));
         }
         let id = uuid::Uuid::new_v4().to_string();
-        let path = self.file(&id);
+        let path = self.managed_file(&id);
         let partial = path.with_extension("sqlite3.part");
         fs::write(&partial, bytes)?;
         let checked = Session::open_read_only(&partial)
@@ -297,6 +380,44 @@ impl Store {
         }
         fs::rename(&partial, &path)?;
         self.register(&id, name, bytes.len() as u64)
+    }
+
+    /// Adds a file on the user's computer to the list without copying it: every change is
+    /// made to that file. Opening the same file again returns the entry it already has.
+    pub fn link(&mut self, path: &Path) -> Result<DbInfo> {
+        let path = fs::canonicalize(path)
+            .map(plain_path)
+            .map_err(|e| Error::msg(format!("{} could not be opened ({e})", path.display())))?;
+        if !path.is_file() {
+            return Err(Error::msg(format!("{} is not a file", path.display())));
+        }
+        let text = path
+            .to_str()
+            .ok_or_else(|| Error::msg("Sequill can't open a file whose path isn't valid text"))?
+            .to_owned();
+        let known: Option<String> = self
+            .catalog
+            .query_row("SELECT id FROM databases WHERE path = ?", [&text], |r| {
+                r.get(0)
+            })
+            .optional()?;
+        if let Some(id) = known {
+            return self.info(&id);
+        }
+        check_database_file(&path)?;
+        let name = path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or("Untitled")
+            .to_owned();
+        let id = uuid::Uuid::new_v4().to_string();
+        let now = now_ms();
+        self.catalog.execute(
+            "INSERT INTO databases (id, name, size, created_at, updated_at, path) VALUES (?, ?, ?, ?, ?, ?)",
+            params![id, name, sql_size(fs::metadata(&path)?.len()), now, now, text],
+        )?;
+        self.info(&id)
     }
 
     /// A consistent copy of the database file (includes anything still in a WAL).
@@ -333,13 +454,27 @@ impl Store {
         self.info(id)
     }
 
+    /// Deletes a database Sequill keeps, file and all. A file opened in place is only taken
+    /// off the list: the user's own file is never deleted.
     pub fn delete(&mut self, id: &str) -> Result<()> {
         check_id(id)?;
         if self.current.as_ref().is_some_and(|c| c.id == id) {
             self.current = None;
         }
+        if self
+            .design
+            .as_ref()
+            .is_some_and(|(of, _)| of.as_deref() == Some(id))
+        {
+            self.design = None;
+        }
+        if self.info(id).is_ok_and(|info| info.path.is_some()) {
+            self.catalog
+                .execute("DELETE FROM databases WHERE id = ?", [id])?;
+            return Ok(());
+        }
         // Only forget it once the file is gone: another process may still have it open.
-        let path = self.file(id);
+        let path = self.managed_file(id);
         match fs::remove_file(&path) {
             Ok(()) => {}
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
@@ -360,7 +495,7 @@ impl Store {
         if self.current.as_ref().is_none_or(|c| c.id != id) {
             let path = self.path(id)?;
             self.current = None;
-            let session = Session::open(&path)?;
+            let session = Session::open_existing(&path)?;
             let data_version = session.data_version()?;
             self.current = Some(OpenDb {
                 id: id.to_owned(),
@@ -369,6 +504,54 @@ impl Store {
             });
         }
         Ok(&self.current.as_ref().expect("opened above").session)
+    }
+
+    /// Checks a schema design on a copy of the database's structure (no rows), so the database
+    /// itself is untouched. `None` checks a design for a new, empty database. The copy is
+    /// rebuilt only when the database's structure changed since the last check.
+    pub fn preview_design(
+        &mut self,
+        id: Option<&str>,
+        statements: &[String],
+    ) -> Result<DesignPreview> {
+        let base = match id {
+            Some(id) => Some(self.session(id)?.schema_version()?),
+            None => None,
+        };
+        let fresh = self
+            .design
+            .as_ref()
+            .is_some_and(|(of, copy)| of.as_deref() == id && copy.base() == base);
+        if !fresh {
+            self.design = None;
+            let copy = match id {
+                Some(id) => DesignCopy::of(self.session(id)?)?,
+                None => DesignCopy::empty()?,
+            };
+            self.design = Some((id.map(str::to_owned), copy));
+        }
+        let (_, copy) = self.design.as_ref().expect("made above");
+        Ok(DesignPreview {
+            base,
+            error: copy.check(statements).err().map(|e| e.to_string()),
+        })
+    }
+
+    /// Saves a schema design to the database in one transaction. With `base` (the structure
+    /// version `preview_design` checked against), refuses if the structure changed since.
+    pub fn apply_design(
+        &mut self,
+        id: &str,
+        statements: &[String],
+        base: Option<i64>,
+    ) -> Result<()> {
+        let session = self.session(id)?;
+        let version = session.schema_version()?;
+        if base.is_some_and(|base| base != version) {
+            return Err(Error::msg(STRUCTURE_CHANGED));
+        }
+        session.apply_design(statements)?;
+        self.touch()
     }
 
     /// Records the open database's new size and modification time after a write.
@@ -577,7 +760,7 @@ mod tests {
         );
         store.delete(&a.id).unwrap();
         assert!(store.list().unwrap().is_empty());
-        assert!(!store.file(&a.id).exists());
+        assert!(!store.managed_file(&a.id).exists());
         assert!(store.session(&a.id).is_err());
     }
 
@@ -813,5 +996,179 @@ mod tests {
             }
         );
         assert!(!store.external_changes().unwrap().any());
+    }
+
+    /// A database file outside the store, as a user would have on their computer.
+    fn user_file(dir: &Path, name: &str, sql: &str) -> PathBuf {
+        let path = dir.join(name);
+        Session::open(&path)
+            .unwrap()
+            .connection()
+            .execute_batch(sql)
+            .unwrap();
+        path
+    }
+
+    fn managed_files(dir: &Path) -> usize {
+        fs::read_dir(dir.join(DATABASES_DIR)).unwrap().count()
+    }
+
+    #[test]
+    fn edits_an_opened_file_in_place_without_copying_it() {
+        let (dir, mut store) = store();
+        let outside = tempfile::tempdir().unwrap();
+        let file = user_file(outside.path(), "shop.db", "CREATE TABLE t(a)");
+
+        let info = store.link(&file).unwrap();
+        assert_eq!(info.name, "shop");
+        assert_eq!(
+            fs::canonicalize(info.path.as_deref().unwrap()).unwrap(),
+            fs::canonicalize(&file).unwrap()
+        );
+        assert_eq!(managed_files(dir.path()), 0, "no copy is made");
+
+        store
+            .session(&info.id)
+            .unwrap()
+            .query("INSERT INTO t VALUES (1)", &[], None)
+            .unwrap();
+        store.current = None;
+        let original = Session::open_read_only(&file).unwrap();
+        assert_eq!(original.count("SELECT count(*) FROM t", &[]).unwrap(), 1);
+
+        let again = store
+            .link(&outside.path().join(".").join("shop.db"))
+            .unwrap();
+        assert_eq!(again.id, info.id, "the same file is listed once");
+        assert_eq!(store.list().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn removing_an_opened_file_keeps_the_file() {
+        let (_dir, mut store) = store();
+        let outside = tempfile::tempdir().unwrap();
+        let file = user_file(outside.path(), "keep.sqlite", "CREATE TABLE t(a)");
+        let info = store.link(&file).unwrap();
+        store.session(&info.id).unwrap();
+        store.delete(&info.id).unwrap();
+        assert!(store.list().unwrap().is_empty());
+        assert!(file.exists(), "the user's file is never deleted");
+    }
+
+    #[test]
+    fn a_moved_file_is_reported_and_never_recreated() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        let file = user_file(outside.path(), "gone.db", "CREATE TABLE t(a)");
+        let id = Store::open(dir.path()).unwrap().link(&file).unwrap().id;
+        fs::remove_file(&file).unwrap();
+
+        // Reopening the store keeps the entry, so the person can see what happened.
+        let mut store = Store::open(dir.path()).unwrap();
+        assert_eq!(store.list().unwrap().len(), 1);
+        let error = store.session(&id).err().unwrap().to_string();
+        assert!(error.contains("is missing"), "{error}");
+        assert!(!file.exists(), "no empty database appears in its place");
+    }
+
+    #[test]
+    fn refuses_to_open_files_that_are_not_sqlite() {
+        let (_dir, mut store) = store();
+        let outside = tempfile::tempdir().unwrap();
+        let text = outside.path().join("notes.db");
+        fs::write(&text, b"hello, not a database").unwrap();
+        let error = store.link(&text).unwrap_err().to_string();
+        assert!(error.starts_with("This file does not look like a SQLite database"));
+        assert!(store.link(&outside.path().join("nope.db")).is_err());
+        assert!(
+            store.link(outside.path()).is_err(),
+            "a folder is not a file"
+        );
+        assert!(store.list().unwrap().is_empty());
+
+        let empty = outside.path().join("empty.db");
+        fs::write(&empty, b"").unwrap();
+        assert!(store.link(&empty).is_ok(), "SQLite opens an empty file");
+    }
+
+    #[test]
+    fn adds_the_path_column_to_an_old_catalog() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dir.path().join(DATABASES_DIR)).unwrap();
+        Connection::open(dir.path().join(CATALOG_FILE))
+            .unwrap()
+            .execute_batch(
+                "CREATE TABLE databases (
+                   id TEXT PRIMARY KEY, name TEXT NOT NULL, size INTEGER NOT NULL DEFAULT 0,
+                   created_at INTEGER NOT NULL, updated_at INTEGER NOT NULL);",
+            )
+            .unwrap();
+        let mut store = Store::open(dir.path()).unwrap();
+        let made = store.create("Old style", None).unwrap();
+        assert_eq!(made.path, None);
+        Store::open_shared(dir.path()).unwrap();
+    }
+
+    #[test]
+    fn checks_designs_on_a_copy_and_saves_only_when_asked() {
+        let (_dir, mut store) = store();
+        let a = store
+            .create(
+                "A",
+                Some("CREATE TABLE t(a); INSERT INTO t VALUES (1), (2);"),
+            )
+            .unwrap();
+        let good = vec!["ALTER TABLE t ADD COLUMN b TEXT".to_owned()];
+        let preview = store.preview_design(Some(&a.id), &good).unwrap();
+        assert_eq!(preview.error, None);
+        let columns = |store: &mut Store| {
+            let schema = store.session(&a.id).unwrap().schema().unwrap();
+            schema
+                .tables
+                .iter()
+                .find(|t| t.name == "t")
+                .unwrap()
+                .columns
+                .len()
+        };
+        assert_eq!(columns(&mut store), 1, "checking leaves the database alone");
+
+        let bad = vec!["ALTER TABLE missing ADD COLUMN b".to_owned()];
+        let error = store.preview_design(Some(&a.id), &bad).unwrap().error;
+        assert_eq!(error.as_deref(), Some("no such table: missing"));
+
+        // Something else changes the structure: a save checked against the old one is refused.
+        store
+            .session(&a.id)
+            .unwrap()
+            .query("CREATE TABLE other(x)", &[], None)
+            .unwrap();
+        let stale = store.apply_design(&a.id, &good, preview.base).unwrap_err();
+        assert!(stale.to_string().contains("structure changed"));
+        assert_eq!(columns(&mut store), 1);
+
+        let fresh = store.preview_design(Some(&a.id), &good).unwrap();
+        assert_ne!(fresh.base, preview.base);
+        store.apply_design(&a.id, &good, fresh.base).unwrap();
+        assert_eq!(columns(&mut store), 2);
+        assert_eq!(
+            store
+                .session(&a.id)
+                .unwrap()
+                .count("SELECT count(*) FROM t", &[])
+                .unwrap(),
+            2
+        );
+
+        let blank = store
+            .preview_design(None, &["CREATE TABLE n(id INTEGER PRIMARY KEY)".into()])
+            .unwrap();
+        assert_eq!(
+            blank,
+            DesignPreview {
+                base: None,
+                error: None
+            }
+        );
     }
 }

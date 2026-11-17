@@ -565,7 +565,9 @@ impl SequillServer {
             .await
     }
 
-    /// Deletes a database and its file for good. It can't be undone.
+    /// Deletes a database Sequill keeps and its file for good; it can't be undone. A database
+    /// the user opened from a file on their computer is only removed from the list, and the
+    /// file stays where it is.
     #[tool(annotations(
         title = "Delete database",
         read_only_hint = false,

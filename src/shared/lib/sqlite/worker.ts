@@ -24,7 +24,16 @@ import {
   SQLITE_RUNTIME_URL,
 } from "@/shared/lib/constants";
 import { SqliteSession } from "./session";
-import type { BootProgress, CellValue, DbInfo, Schema, SqlStatement, StorageState } from "./types";
+import { errorMessage } from "./errors";
+import type {
+  BootProgress,
+  CellValue,
+  DbInfo,
+  DesignPreview,
+  Schema,
+  SqlStatement,
+  StorageState,
+} from "./types";
 
 interface Engine {
   sqlite3: Sqlite3Static;
@@ -35,6 +44,15 @@ interface Engine {
 
 let engine: Promise<Engine> | null = null;
 let current: { id: string; session: SqliteSession } | null = null;
+/**
+ * The schema designer's structure-only copy of a database (`of` null for a blank design),
+ * kept while that database's structure (`base`) is unchanged.
+ */
+let design: { of: string | null; base: number | null; session: SqliteSession } | null = null;
+
+/** Matches `STRUCTURE_CHANGED` in `crates/sequill-core/src/store.rs`. */
+const STRUCTURE_CHANGED =
+  "The database's structure changed since your design was checked (another app or an assistant changed it). Nothing was saved; review the changes and save again.";
 
 const filePath = (id: string) => `${DB_FILE_PREFIX}${id}${DB_FILE_SUFFIX}`;
 const idFromPath = (path: string) =>
@@ -232,6 +250,8 @@ function toInfo(row: Record<string, CellValue>): DbInfo {
     sizeBytes: Number(row.size),
     createdAt: Number(row.created_at),
     updatedAt: Number(row.updated_at),
+    // Browsers can't edit a file where it is: every database lives in this browser's storage.
+    path: null,
   };
 }
 
@@ -275,6 +295,11 @@ async function session(id: string): Promise<SqliteSession> {
 function closeCurrent(): void {
   current?.session.db.close();
   current = null;
+}
+
+function dropDesignCopy(): void {
+  design?.session.db.close();
+  design = null;
 }
 
 /** Records the new size and modification time after a write. */
@@ -383,6 +408,7 @@ const api = {
   deleteDatabase: op(async (id: string): Promise<void> => {
     const { pool, catalog } = await getEngine();
     if (current?.id === id) closeCurrent();
+    if (design?.of === id) dropDesignCopy();
     pool.unlink(filePath(id));
     catalog.query("DELETE FROM databases WHERE id = ?", [id]);
   }),
@@ -418,8 +444,38 @@ const api = {
     return changes;
   }),
 
-  applyDesign: op(async (id: string, statements: string[]): Promise<void> => {
-    (await session(id)).applyDesign(statements);
+  /**
+   * Checks a schema design on a copy of the database's structure (no rows); the database
+   * itself is untouched. A null id checks a design for a new, empty database.
+   */
+  previewDesign: op(async (id: string | null, statements: string[]): Promise<DesignPreview> => {
+    const source = id ? await session(id) : null;
+    const base = source ? source.schemaVersion() : null;
+    if (!design || design.of !== id || design.base !== base) {
+      dropDesignCopy();
+      const { sqlite3 } = await getEngine();
+      design = {
+        of: id,
+        base,
+        session: source ? source.schemaOnlyCopy() : SqliteSession.memory(sqlite3),
+      };
+    }
+    try {
+      design.session.checkDesign(statements);
+      return { base, error: null };
+    } catch (error) {
+      return { base, error: errorMessage(error) };
+    }
+  }),
+
+  /**
+   * Saves a schema design in one transaction. With `base` (from `previewDesign`), refuses
+   * if the database's structure changed since the design was checked.
+   */
+  applyDesign: op(async (id: string, statements: string[], base?: number | null): Promise<void> => {
+    const s = await session(id);
+    if (base != null && s.schemaVersion() !== base) throw new Error(STRUCTURE_CHANGED);
+    s.applyDesign(statements);
     await touch();
   }),
 

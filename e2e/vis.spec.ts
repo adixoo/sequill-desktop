@@ -285,8 +285,16 @@ test("edits existing tables and columns from the outline, then saves with the ba
   await expect(editor.getByRole("combobox", { name: "Type" })).toHaveText("INTEGER");
   await page.keyboard.press("Escape");
 
-  // Nothing is in the database yet; one click on the badge saves it all.
+  // Nothing is in the database yet. The badge asks before it changes the database; a
+  // cancelled save leaves it alone.
   await unsavedBadge(page).click();
+  const confirm = page.getByRole("alertdialog");
+  await expect(confirm).toContainText("changes Sample shop itself");
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(unsavedBadge(page)).toBeVisible();
+  await expect(node(page, "t:products")).toContainText("renamed from products");
+  await unsavedBadge(page).click();
+  await confirm.getByRole("button", { name: "Save to database" }).click();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await expect(node(page, "t:items")).toBeVisible();
 

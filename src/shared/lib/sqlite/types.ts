@@ -30,6 +30,22 @@ export interface DbInfo {
   sizeBytes: number;
   createdAt: number;
   updatedAt: number;
+  /**
+   * The file on this computer that is edited in place (desktop app only); null when Sequill
+   * keeps the database in its own storage.
+   */
+  path: string | null;
+}
+
+/** The result of checking a schema design on a copy of the database's structure. */
+export interface DesignPreview {
+  /**
+   * The structure version the design was checked against (null for a blank design); saving
+   * with it refuses if the database's structure changed in between.
+   */
+  base: number | null;
+  /** Why saving the design would fail; null when every statement ran. */
+  error: string | null;
 }
 
 export interface ColumnInfo {

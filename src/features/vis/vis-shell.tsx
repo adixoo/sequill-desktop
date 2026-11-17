@@ -90,6 +90,7 @@ function Visualizer() {
           storageKey={storageKey!}
           dbId={activeDb}
           dbName={blank ? "Blank design" : (current?.name ?? "Database")}
+          dbPath={blank ? null : (current?.path ?? null)}
           schema={schema.data}
           badgeSlot={badgeSlot}
           onDatabaseCreated={(id) => {

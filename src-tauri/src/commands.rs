@@ -4,15 +4,19 @@
 use percent_encoding::percent_decode_str;
 use sequill_core::store::SavedQuery;
 use sequill_core::{
-    CellValue, DbInfo, QueryResult, Row, Schema, SqlStatement, StatementResult, Store,
+    CellValue, DbInfo, DesignPreview, QueryResult, Row, Schema, SqlStatement, StatementResult,
+    Store,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex, PoisonError};
-use tauri::State;
 use tauri::ipc::{InvokeBody, Request, Response};
+use tauri::{AppHandle, State};
+use tauri_plugin_dialog::DialogExt;
 
 /// Header carrying the imported file's name (percent-encoded), next to its raw bytes.
 const NAME_HEADER: &str = "x-sequill-name";
+/// The file picker's database types; matches `DB_FILE_ACCEPT` in `src/shared/lib/constants.ts`.
+const DB_EXTENSIONS: &[&str] = &["sqlite", "sqlite3", "db", "db3", "s3db", "sl3"];
 
 pub struct AppState {
     pub store: Arc<Mutex<Store>>,
@@ -72,6 +76,30 @@ pub async fn import_database(
         .filter(|n| !n.trim().is_empty())
         .unwrap_or_else(|| "Untitled".into());
     with_store(&state, move |s| s.import(&name, &bytes)).await
+}
+
+/// Asks for a database file with the system's file picker and adds it to the list, to be
+/// edited where it is (no copy). None when the person cancels. The path comes from the
+/// picker itself, never from the page.
+#[tauri::command]
+pub async fn open_database_file(
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> CmdResult<Option<DbInfo>> {
+    let dialog = app
+        .dialog()
+        .file()
+        .set_title("Open a SQLite database")
+        .add_filter("SQLite database", DB_EXTENSIONS)
+        .add_filter("All files", &["*"]);
+    let picked = tauri::async_runtime::spawn_blocking(move || dialog.blocking_pick_file())
+        .await
+        .map_err(|e| e.to_string())?;
+    let Some(picked) = picked else {
+        return Ok(None);
+    };
+    let path = picked.into_path().map_err(|e| e.to_string())?;
+    with_store(&state, move |s| s.link(&path)).await.map(Some)
 }
 
 /// Returns the file as raw bytes (an ArrayBuffer on the JavaScript side).
@@ -187,17 +215,27 @@ pub async fn transaction(
     .await
 }
 
+/// Checks a schema design on a structure-only copy; the database itself is not touched.
+#[tauri::command]
+pub async fn preview_design(
+    state: State<'_, AppState>,
+    id: Option<String>,
+    statements: Vec<String>,
+) -> CmdResult<DesignPreview> {
+    with_store(&state, move |s| {
+        s.preview_design(id.as_deref(), &statements)
+    })
+    .await
+}
+
 #[tauri::command]
 pub async fn apply_design(
     state: State<'_, AppState>,
     id: String,
     statements: Vec<String>,
+    base: Option<i64>,
 ) -> CmdResult<()> {
-    with_store(&state, move |s| {
-        s.session(&id)?.apply_design(&statements)?;
-        s.touch()
-    })
-    .await
+    with_store(&state, move |s| s.apply_design(&id, &statements, base)).await
 }
 
 #[tauri::command]

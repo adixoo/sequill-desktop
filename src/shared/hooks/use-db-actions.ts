@@ -3,7 +3,9 @@ import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { STORAGE_KEYS } from "@/shared/lib/constants";
 import { downloadBlob, safeFileName } from "@/shared/lib/data/export";
+import { isDesktop } from "@/shared/lib/platform";
 import { getSqlite } from "@/shared/lib/sqlite/client";
+import { openDatabaseFile } from "@/shared/lib/sqlite/desktop";
 import { errorMessage } from "@/shared/lib/sqlite/errors";
 import { SAMPLE_DB_NAME, SAMPLE_DB_SQL } from "@/shared/lib/sqlite/sample";
 import type { DbInfo } from "@/shared/lib/sqlite/types";
@@ -75,8 +77,43 @@ export function useDbActions() {
     [activate, withToast],
   );
 
+  /**
+   * Desktop: opens a file chosen in the system's file picker where it is, so every change
+   * is saved to that file and no copy is made.
+   */
+  const openInPlace = useCallback(async () => {
+    try {
+      const info = await openDatabaseFile();
+      if (!info) return; // cancelled
+      toast.success(`Opened ${info.name}`, { description: `Changes save to ${info.path}` });
+      await activate(info);
+    } catch (error) {
+      toast.error(errorMessage(error));
+    }
+  }, [activate]);
+
+  /**
+   * "Open a file": the system's file picker on desktop; in browsers, clicks `input` (a
+   * hidden `DbFileInput`) because only a file input can read a file there.
+   */
+  const pickFile = useCallback(
+    (input: HTMLInputElement | null) => {
+      if (isDesktop()) void openInPlace();
+      else input?.click();
+    },
+    [openInPlace],
+  );
+
   const openFile = useCallback(
     async (file: File) => {
+      // A dropped file has no path on desktop, and a copy would leave the real file
+      // unchanged: point at the picker instead, which edits the file itself.
+      if (isDesktop()) {
+        toast.info(`To edit ${file.name} itself, open it with "Open a file…"`, {
+          action: { label: "Open a file…", onClick: () => void openInPlace() },
+        });
+        return;
+      }
       const info = await withToast(
         `Opening ${file.name}`,
         async () =>
@@ -88,7 +125,7 @@ export function useDbActions() {
       );
       await activate(info);
     },
-    [activate, withToast],
+    [activate, openInPlace, withToast],
   );
 
   const download = useCallback(
@@ -125,15 +162,16 @@ export function useDbActions() {
     [withToast],
   );
 
+  /** Deletes a database Sequill keeps; a file opened in place only leaves the list. */
   const remove = useCallback(
     async (info: DbInfo) => {
       const done = await withToast(
-        "Deleting",
+        info.path ? "Removing" : "Deleting",
         () =>
           getSqlite()
             .deleteDatabase(info.id)
             .then(() => true),
-        () => `Deleted ${info.name}`,
+        () => (info.path ? `Removed ${info.name} from the list` : `Deleted ${info.name}`),
       );
       if (!done) return;
       if (useWorkspace.getState().dbId === info.id) setDb(null);
@@ -162,8 +200,17 @@ export function useDbActions() {
   );
 
   return useMemo(
-    () => ({ createEmpty, createSample, openFile, download, downloadDump, remove, rename }),
-    [createEmpty, createSample, openFile, download, downloadDump, remove, rename],
+    () => ({
+      createEmpty,
+      createSample,
+      pickFile,
+      openFile,
+      download,
+      downloadDump,
+      remove,
+      rename,
+    }),
+    [createEmpty, createSample, pickFile, openFile, download, downloadDump, remove, rename],
   );
 }
 

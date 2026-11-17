@@ -9,7 +9,7 @@ import type { SavedQuery } from "@/shared/lib/data/saved-queries";
 import type { McpStatus, ShowRequest } from "@/shared/lib/mcp";
 import type { SqliteApi } from "./client";
 import { decodeRows, encodeCell, encodeRow, type WireCell } from "./cell-codec";
-import type { QueryResult, StatementResult } from "./types";
+import type { DbInfo, QueryResult, StatementResult } from "./types";
 
 /** Matches `NAME_HEADER` in `src-tauri/src/commands.rs`. */
 const NAME_HEADER = "x-sequill-name";
@@ -59,13 +59,22 @@ export const desktopSqlite: SqliteApi = {
       id,
       statements: statements.map((s) => ({ sql: s.sql, params: s.params.map(encodeCell) })),
     }),
-  applyDesign: (id, statements) => invoke("apply_design", { id, statements }),
+  previewDesign: (id, statements) => invoke("preview_design", { id, statements }),
+  applyDesign: (id, statements, base) => invoke("apply_design", { id, statements, base }),
   insertMany: (id, sql, rows) => invoke("insert_many", { id, sql, rows: rows.map(encodeRow) }),
   dump: (id) => invoke("dump", { id }),
 };
 
 export async function bootDesktop(): Promise<string> {
   return invoke<string>("sqlite_version");
+}
+
+/**
+ * Asks for a database file with the system's file picker and opens it where it is: changes
+ * are saved to that file, and no copy is made. Null when the person cancels.
+ */
+export function openDatabaseFile(): Promise<DbInfo | null> {
+  return invoke("open_database_file");
 }
 
 /** Calls `listener` when another process changes the databases; returns a stop function. */
