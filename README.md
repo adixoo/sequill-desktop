@@ -55,6 +55,23 @@ That opens the app with hot reload. `bun run desktop:build` makes a release buil
 End-to-end tests run in the installed Brave browser. If Brave is not at
 `C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe`, set `BRAVE_PATH`.
 
+## Releasing
+
+Versions are managed with [Changesets](https://github.com/changesets/changesets). `package.json`
+holds the version; the app reads it from there, and `bun run version-packages` copies it into
+`Cargo.toml` and `Cargo.lock` (CI fails if they drift: `bun run version:check`).
+
+1. With each user-facing change, run `bun run changeset`, pick patch, minor or major, describe the
+   change, and commit the new `.changeset/*.md` file with it.
+2. When that reaches `master`, the **Release** workflow opens (or updates) a "Version Packages" pull
+   request that bumps the version and writes `CHANGELOG.md`.
+3. Merging that pull request builds the app on Windows (x64), macOS (Apple Silicon and Intel) and
+   Linux (x64), uploads the installers to a GitHub release `v<version>` with the changelog as notes,
+   and publishes it. If a build fails, nothing is published; re-run the workflow to retry.
+
+The **CI** workflow runs the type, lint, format, unit and Rust checks on every pull request and push
+to `master`.
+
 ## Project layout
 
 ```
