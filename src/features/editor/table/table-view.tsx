@@ -5,7 +5,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/shared/ui/input-
 import { ScrollStrip } from "@/shared/ui/scroll-strip";
 import { ToggleGroup, ToggleGroupItem } from "@/shared/ui/toggle-group";
 import { useRowCount, useRunStatements, useTableRows } from "@/shared/hooks/use-db";
-import { ROWID_ALIAS } from "@/shared/lib/constants";
+import { alignRows } from "@/shared/lib/data/grid";
 import { formatCount, formatDuration, valueToText } from "@/shared/lib/data/format";
 import { getSqlite } from "@/shared/lib/sqlite/client";
 import {
@@ -116,15 +116,14 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
     return () => clearTimeout(t);
   }, [search, view.search, tabId, updateView]);
 
-  const { rows, keys } = useMemo(() => {
-    const result = rowsQuery.data;
-    if (!result) return { rows: [] as Row[], keys: [] as CellValue[] };
-    const hasRowid = result.columns[0] === ROWID_ALIAS;
-    return {
-      rows: hasRowid ? result.rows.map((r) => r.slice(1)) : result.rows,
-      keys: hasRowid ? result.rows.map((r) => r[0]) : [],
-    };
-  }, [rowsQuery.data]);
+  // Matched by name: the rows on screen may be from before the table's columns changed.
+  const { rows, keys } = useMemo(
+    () =>
+      rowsQuery.data
+        ? alignRows(rowsQuery.data, columnNames)
+        : { rows: [] as Row[], keys: [] as CellValue[] },
+    [rowsQuery.data, columnNames],
+  );
 
   const current = selectionState.data === rowsQuery.data;
   const selection = current ? selectionState.rows : EMPTY_SELECTION;

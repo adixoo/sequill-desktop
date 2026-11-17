@@ -1,7 +1,12 @@
 /** Pure helpers behind the data grid: column layout and clipboard text. */
-import { DEFAULT_COLUMN_WIDTH, MAX_COLUMN_WIDTH, MIN_COLUMN_WIDTH } from "@/shared/lib/constants";
+import {
+  DEFAULT_COLUMN_WIDTH,
+  MAX_COLUMN_WIDTH,
+  MIN_COLUMN_WIDTH,
+  ROWID_ALIAS,
+} from "@/shared/lib/constants";
 import type { ColumnLayout } from "@/shared/lib/store/workspace";
-import type { CellValue } from "@/shared/lib/sqlite/types";
+import type { CellValue, QueryResult, Row } from "@/shared/lib/sqlite/types";
 import { typeAffinity, valueToText } from "./format";
 
 export interface LaidOutColumn {
@@ -28,6 +33,25 @@ export function defaultWidth(declaredType: string): number {
 
 export function clampWidth(width: number): number {
   return Math.round(Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, width)));
+}
+
+/**
+ * A table query's rows in the order of `columns`, matched by name, with the rowid split off as
+ * keys. Rows on screen can be from before the table changed (a column added, dropped or moved
+ * by another app or an assistant): a column the result lacks is empty until fresh rows arrive,
+ * and no value ever shows under another column's name.
+ */
+export function alignRows(
+  result: Pick<QueryResult, "columns" | "rows">,
+  columns: string[],
+): { rows: Row[]; keys: CellValue[] } {
+  const hasRowid = result.columns[0] === ROWID_ALIAS;
+  const at = new Map(result.columns.map((name, i) => [name, i]));
+  const picks = columns.map((name) => at.get(name));
+  return {
+    rows: result.rows.map((row) => picks.map((i) => (i === undefined ? null : (row[i] ?? null)))),
+    keys: hasRowid ? result.rows.map((row) => row[0]) : [],
+  };
 }
 
 /** Applies saved order, visibility, pinning and widths to the current columns. */

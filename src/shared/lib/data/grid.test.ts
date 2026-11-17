@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { MAX_COLUMN_WIDTH } from "@/shared/lib/constants";
-import { layoutColumns, parseTsv, reorder, toTsv } from "./grid";
+import { MAX_COLUMN_WIDTH, ROWID_ALIAS } from "@/shared/lib/constants";
+import { alignRows, layoutColumns, parseTsv, reorder, toTsv } from "./grid";
 
 const cols = [
   { name: "id", type: "INTEGER" },
@@ -55,5 +55,46 @@ describe("TSV", () => {
       ["1", "2"],
       ["3", "4"],
     ]);
+  });
+});
+
+describe("alignRows", () => {
+  const result = {
+    columns: [ROWID_ALIAS, "a", "b"],
+    rows: [
+      [1, "a1", "b1"],
+      [2, "a2", "b2"],
+    ],
+  };
+
+  test("splits off the rowid and keeps rows in the table's column order", () => {
+    expect(alignRows(result, ["a", "b"])).toEqual({
+      rows: [
+        ["a1", "b1"],
+        ["a2", "b2"],
+      ],
+      keys: [1, 2],
+    });
+  });
+
+  test("a column added outside the app is empty until its rows arrive, never undefined", () => {
+    const { rows } = alignRows(result, ["a", "b", "added"]);
+    expect(rows).toEqual([
+      ["a1", "b1", null],
+      ["a2", "b2", null],
+    ]);
+  });
+
+  test("a dropped or reordered column never shows another column's values", () => {
+    expect(alignRows(result, ["b"]).rows).toEqual([["b1"], ["b2"]]);
+    expect(alignRows(result, ["b", "a"]).rows).toEqual([
+      ["b1", "a1"],
+      ["b2", "a2"],
+    ]);
+  });
+
+  test("results without a rowid have no keys", () => {
+    const plain = { columns: ["a"], rows: [["x"]] };
+    expect(alignRows(plain, ["a"])).toEqual({ rows: [["x"]], keys: [] });
   });
 });

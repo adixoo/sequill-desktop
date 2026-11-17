@@ -256,3 +256,20 @@ test("right-clicking a tab offers close and duplicate actions", async ({ page })
   await expect(tabs).toHaveCount(1);
   await expect(tabs.first()).toHaveText("orders");
 });
+
+test("an open table keeps working when its columns change while it is on screen", async ({
+  page,
+}) => {
+  await createSample(page);
+  await openTable(page, "customers");
+  const grid = page.getByRole("grid", { name: "customers rows" });
+  // Added from the sidebar, the grid stays on screen with its rows while the schema changes,
+  // as it does when an assistant changes the table over MCP.
+  await page.getByRole("button", { name: "Actions for customers" }).click();
+  await page.getByRole("menuitem", { name: "Add column" }).click();
+  await page.getByRole("textbox", { name: "Column name" }).fill("loyalty_points");
+  await page.getByRole("button", { name: "Add column" }).last().click();
+
+  await expect(grid.getByRole("columnheader", { name: /^loyalty_points/ })).toBeVisible();
+  await expect(grid).toContainText("Asha");
+});
