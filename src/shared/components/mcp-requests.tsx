@@ -18,7 +18,7 @@ function show(request: ShowRequest): void {
   if (request.view === "table" && request.table) {
     workspace.openTable(request.table, showTableView(request, newId));
   } else if (request.view === "query") {
-    workspace.openQuery(request.sql ?? "");
+    workspace.showAssistantQuery(request.sql ?? "");
   }
 }
 

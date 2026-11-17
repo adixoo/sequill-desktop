@@ -32,7 +32,12 @@ export type Tab =
       sql: string;
       /** The saved query this tab edits; Save updates it in place. */
       savedId?: string;
+      /** The one tab assistants show queries in (MCP), reused rather than opening new ones. */
+      assistant?: boolean;
     };
+
+/** Title of the tab assistants show queries in. */
+export const ASSISTANT_TAB_TITLE = "Assistant";
 
 /** The saved query a tab is linked to, by id, with the name shown as its title. */
 export interface SavedQueryRef {
@@ -52,6 +57,8 @@ interface WorkspaceState {
   openTable(table: string, patch?: Partial<TableViewState>): void;
   /** Opens a query tab. A saved query that's already open is brought forward instead. */
   openQuery(sql?: string, saved?: SavedQueryRef): void;
+  /** Shows an assistant's query in the Assistant tab, opening it only if it isn't open. */
+  showAssistantQuery(sql: string): void;
   /** Links a tab to the saved query it was just saved as. */
   linkQuery(tabId: string, saved: SavedQueryRef): void;
   /** Follows a saved query's rename (`name`) or deletion (`null`) in open tabs. */
@@ -139,6 +146,26 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => ({
       ? { id: newId(), kind: "query", title: saved.name, sql, savedId: saved.id }
       : { id: newId(), kind: "query", title: `Query ${n}`, sql };
     set({ tabs: [...tabs, tab], activeTabId: tab.id, queryCounter: n });
+  },
+
+  showAssistantQuery(sql) {
+    const { tabs } = get();
+    const open = tabs.find((t) => t.kind === "query" && t.assistant);
+    if (open) {
+      set({
+        activeTabId: open.id,
+        tabs: tabs.map((t) => (t.id === open.id && t.kind === "query" ? { ...t, sql } : t)),
+      });
+      return;
+    }
+    const tab: Tab = {
+      id: newId(),
+      kind: "query",
+      title: ASSISTANT_TAB_TITLE,
+      sql,
+      assistant: true,
+    };
+    set({ tabs: [...tabs, tab], activeTabId: tab.id });
   },
 
   linkQuery(tabId, saved) {
