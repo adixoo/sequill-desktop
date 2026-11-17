@@ -312,3 +312,22 @@ test("edits existing tables and columns from the outline, then saves with the ba
   await expect(node(page, "t:items")).toBeVisible();
   await expect(unsavedBadge(page)).toHaveCount(0);
 });
+
+test("removing the open database moves to another one", async ({ page }) => {
+  await createSample(page);
+  await openVisualizer(page);
+  await switcher(page).click();
+  await page.getByRole("menuitem", { name: "New empty database" }).click();
+  const newDb = page.getByRole("dialog");
+  await newDb.getByLabel("Name").fill("Gone soon");
+  await newDb.getByRole("button", { name: "Create" }).click();
+  await expect(switcher(page)).toHaveAccessibleName("Database: Gone soon");
+
+  await switcher(page).click();
+  await page.getByRole("menuitem", { name: /^Delete/ }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete" }).click();
+
+  await expect(switcher(page)).toHaveAccessibleName("Database: Sample shop");
+  await expect(node(page, "t:customers")).toBeVisible();
+  await expect(page.getByText(/could not be opened/)).toHaveCount(0);
+});

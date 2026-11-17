@@ -3,7 +3,7 @@
  * `src-tauri/src/commands.rs`) instead of the browser worker. Same methods and
  * results as `worker.ts`, so every page works unchanged.
  */
-import { invoke } from "@tauri-apps/api/core";
+import { invoke as tauriInvoke, type InvokeArgs, type InvokeOptions } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { SavedQuery } from "@/shared/lib/data/saved-queries";
 import type { McpStatus, ShowRequest } from "@/shared/lib/mcp";
@@ -24,6 +24,16 @@ export interface ExternalChanges {
   catalog: boolean;
   /** Id of the open database when its data or schema changed. */
   database: string | null;
+}
+
+/**
+ * Calls a command. Tauri rejects with the command's error text (a string); it becomes an
+ * Error here, so pages read `.message` the same way as with the browser build's worker.
+ */
+function invoke<T>(cmd: string, args?: InvokeArgs, options?: InvokeOptions): Promise<T> {
+  return tauriInvoke<T>(cmd, args, options).catch((error: unknown) => {
+    throw error instanceof Error ? error : new Error(String(error));
+  });
 }
 
 type Wire<T extends QueryResult> = Omit<T, "rows"> & { rows: WireCell[][] };

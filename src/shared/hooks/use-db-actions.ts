@@ -174,6 +174,9 @@ export function useDbActions() {
         () => (info.path ? `Removed ${info.name} from the list` : `Deleted ${info.name}`),
       );
       if (!done) return;
+      // The list must be fresh before the open database is cleared: reopening the last
+      // database would otherwise pick the one just removed from the old list.
+      await refresh();
       if (useWorkspace.getState().dbId === info.id) setDb(null);
       client.removeQueries({ queryKey: queryKeys.data(info.id) });
       client.removeQueries({ queryKey: queryKeys.schema(info.id) });
@@ -181,7 +184,6 @@ export function useDbActions() {
       for (const key of [STORAGE_KEYS.visDraft, STORAGE_KEYS.visLayout, STORAGE_KEYS.visColors]) {
         removeKey(key + info.id);
       }
-      await refresh();
     },
     [client, refresh, setDb, withToast],
   );
