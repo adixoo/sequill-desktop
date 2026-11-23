@@ -84,7 +84,7 @@ function DrawerContent({
           className="flex shrink-0 cursor-grab touch-none justify-center pt-2.5 pb-1.5 active:cursor-grabbing"
           {...drag.handlers}
         >
-          <span className="rounded-pill h-1 w-10 bg-strong" />
+          <span className="h-1 w-10 rounded-full bg-strong" />
         </div>
         <div
           className={cn(

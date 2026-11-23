@@ -115,7 +115,7 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
                         <>
                           <span
                             aria-hidden
-                            className="rounded-pill size-1.5 shrink-0 bg-lilac-ink"
+                            className="size-1.5 shrink-0 rounded-full bg-lilac-ink"
                           />
                           <span className="sr-only">(unsaved changes)</span>
                         </>
