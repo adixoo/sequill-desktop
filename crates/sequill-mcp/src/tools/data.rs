@@ -84,15 +84,15 @@ mod tests {
         let (dir, _) = store_with_shop();
         // The app's list can't be updated (here: read-only; in real use: locked by a long write).
         let catalog = dir.path().join("catalog.sqlite3");
-        let mut readonly = std::fs::metadata(&catalog).unwrap().permissions();
+        let original = std::fs::metadata(&catalog).unwrap().permissions();
+        let mut readonly = original.clone();
         readonly.set_readonly(true);
-        std::fs::set_permissions(&catalog, readonly.clone()).unwrap();
+        std::fs::set_permissions(&catalog, readonly).unwrap();
 
         let row = json!({ "name": "Kiran" }).as_object().unwrap().clone();
         let result = insert_rows(dir.path(), "Shop", "customer", &[row]);
 
-        readonly.set_readonly(false);
-        std::fs::set_permissions(&catalog, readonly).unwrap();
+        std::fs::set_permissions(&catalog, original).unwrap();
         // Reported as failed, an assistant would retry and add the row twice.
         assert_eq!(result.unwrap()["inserted"], 1);
         let count = crate::tools::query(

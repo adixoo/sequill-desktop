@@ -40,8 +40,9 @@ export default defineConfig({
     {
       name: "desktop",
       testDir: "./tests/e2e/desktop",
-      // Each test starts its own app; two at a time keeps the machine responsive.
-      workers: 2,
+      // Each test starts its own app (a debug build); one at a time keeps the stress test's
+      // timings honest.
+      workers: 1,
     },
   ],
   webServer: {
