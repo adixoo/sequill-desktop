@@ -23,6 +23,8 @@ export interface SchemaEditor {
   dbId: string | null;
   /** Tables a column can reference, with their columns. */
   refTables: { name: string; columns: string[] }[];
+  /** For a schema imported from another database: its types and enums to suggest. */
+  types?: readonly string[];
   onChange(draft: Draft): void;
 }
 
@@ -183,6 +185,7 @@ function ColumnEditor({
         col={current.def}
         mode={current.mode}
         tables={editor.refTables}
+        types={editor.types}
         onChange={(def) => editor.onChange(updateColumn(draft, schema, table, column.key, def))}
       />
       {(existing || column.change === "edited") && (

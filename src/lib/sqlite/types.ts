@@ -106,11 +106,27 @@ export interface SchemaObject {
   sql: string | null;
 }
 
+/**
+ * One enum, function, procedure, trigger, view, sequence or type of a schema imported from
+ * another database, kept as its SQL (an enum's `body` is its values as a JSON array).
+ */
+export interface ExtraObject {
+  kind: string;
+  name: string;
+  /** The table a trigger belongs to. */
+  table: string | null;
+  body: string;
+}
+
 export interface Schema {
   tables: RelationInfo[];
   views: RelationInfo[];
   indexes: SchemaObject[];
   triggers: SchemaObject[];
+  /** The database a schema was imported from ("postgresql", "mysql"…); null for SQLite. */
+  dialect: string | null;
+  /** That database's objects SQLite can't run (`OBJECTS_TABLE`). */
+  objects: ExtraObject[];
 }
 
 /** Identifies one row: by rowid, or by its primary-key values for WITHOUT ROWID tables. */

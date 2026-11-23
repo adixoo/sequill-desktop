@@ -13,10 +13,10 @@ import {
   emptyColumn,
   type ColumnDef,
 } from "@/lib/sqlite/ddl";
-import { REBUILD_TABLE_PREFIX } from "@/constants";
+import { OBJECTS_TABLE, REBUILD_TABLE_PREFIX } from "@/constants";
 import { typeAffinity } from "@/utils/data/format";
-import { quoteIdent } from "@/lib/sqlite/sql";
-import type { ColumnInfo, RelationInfo, Schema } from "@/lib/sqlite/types";
+import { quoteIdent, sqlLiteral } from "@/lib/sqlite/sql";
+import type { ColumnInfo, ExtraObject, RelationInfo, Schema } from "@/lib/sqlite/types";
 
 export interface DraftTable {
   id: string;
@@ -42,6 +42,11 @@ export interface Draft {
   droppedTables: string[];
   /** Existing table → existing column → change. */
   columnChanges: Record<string, Record<string, ColumnChange>>;
+  /**
+   * An imported schema's enums, functions, procedures, triggers, views, sequences and
+   * types: `objectKey` as stored → its new definition, or null to delete it.
+   */
+  objects: Record<string, ExtraObject | null>;
 }
 
 export const EMPTY_DRAFT: Draft = {
@@ -50,11 +55,66 @@ export const EMPTY_DRAFT: Draft = {
   renamedTables: {},
   droppedTables: [],
   columnChanges: {},
+  objects: {},
 };
+
+/** How an imported object is keyed in a draft: its kind and name as stored. */
+export const objectKey = (o: { kind: string; name: string }) => `${o.kind}:${o.name}`;
+
+/** The imported schema's objects as they will be after saving, in order. */
+export function currentObjects(schema: Schema | null | undefined, draft: Draft): ExtraObject[] {
+  const stored = schema?.objects ?? [];
+  const storedKeys = new Set(stored.map(objectKey));
+  const kept = stored.flatMap((o) => {
+    const key = objectKey(o);
+    if (!(key in draft.objects)) return [o];
+    const next = draft.objects[key];
+    return next ? [next] : [];
+  });
+  const added = Object.entries(draft.objects)
+    .filter(([key, o]) => !storedKeys.has(key) && o !== null)
+    .map(([, o]) => o!);
+  return [...kept, ...added];
+}
+
+/** Sets (or, with null, deletes) an imported object; `key` is its key as stored. */
+export function setObject(draft: Draft, key: string, object: ExtraObject | null): Draft {
+  return { ...draft, objects: { ...draft.objects, [key]: object } };
+}
+
+/** Forgets the draft's change to an object. */
+export function revertObject(draft: Draft, key: string): Draft {
+  const objects = { ...draft.objects };
+  delete objects[key];
+  return { ...draft, objects };
+}
+
+/**
+ * SQL that stores an imported schema's database type and objects (`OBJECTS_TABLE`).
+ * Mirrors `objects_sql` in `crates/sequill-core/src/sql_objects.rs`.
+ */
+export function objectsTableStatements(dialect: string, objects: ExtraObject[]): string[] {
+  const rows: [string, string, string | null, string][] = [
+    ["dialect", dialect, null, ""],
+    ...objects.map((o): [string, string, string | null, string] => [
+      o.kind,
+      o.name,
+      o.table,
+      o.body,
+    ]),
+  ];
+  return [
+    `CREATE TABLE ${quoteIdent(OBJECTS_TABLE)} (kind TEXT NOT NULL, name TEXT NOT NULL, tbl TEXT, body TEXT NOT NULL, PRIMARY KEY (kind, name));`,
+    ...rows.map(
+      (r) =>
+        `INSERT OR REPLACE INTO ${quoteIdent(OBJECTS_TABLE)} VALUES (${r.map(sqlLiteral).join(", ")});`,
+    ),
+  ];
+}
 
 /** Fills in fields missing from drafts saved by earlier versions. */
 export function normalizeDraft(draft: Partial<Draft>): Draft {
-  return { ...EMPTY_DRAFT, ...draft };
+  return { ...EMPTY_DRAFT, ...draft, objects: draft.objects ?? {} };
 }
 
 export type DiagramTableKind = "table" | "view" | "virtual" | "draft";
@@ -371,6 +431,21 @@ export function draftStatements(draft: Draft, schema?: Schema | null): string[] 
       }),
     );
   }
+
+  // An imported schema's objects are rows of OBJECTS_TABLE: replace the changed ones.
+  if (schema?.dialect) {
+    const table = quoteIdent(OBJECTS_TABLE);
+    for (const [key, object] of Object.entries(draft.objects)) {
+      const [kind, ...name] = key.split(":");
+      out.push(
+        `DELETE FROM ${table} WHERE kind = ${sqlLiteral(kind)} AND name = ${sqlLiteral(name.join(":"))}`,
+      );
+      if (object) {
+        const values = [object.kind, object.name.trim(), object.table, object.body];
+        out.push(`INSERT INTO ${table} VALUES (${values.map(sqlLiteral).join(", ")})`);
+      }
+    }
+  }
   return out;
 }
 
@@ -390,6 +465,7 @@ export function schemaStatements(schema: Schema | null | undefined): string[] {
     ...sqlOf(schema.indexes),
     ...sqlOf(schema.triggers),
     ...sqlOf(schema.views),
+    ...(schema.dialect ? objectsTableStatements(schema.dialect, schema.objects) : []),
   ];
 }
 
@@ -404,7 +480,8 @@ export function isDraftEmpty(draft: Draft): boolean {
     Object.values(draft.addedColumns).every((c) => c.length === 0) &&
     Object.keys(draft.renamedTables).length === 0 &&
     draft.droppedTables.length === 0 &&
-    Object.values(draft.columnChanges).every((c) => Object.keys(c).length === 0)
+    Object.values(draft.columnChanges).every((c) => Object.keys(c).length === 0) &&
+    Object.keys(draft.objects).length === 0
   );
 }
 
@@ -415,7 +492,8 @@ export function countChanges(draft: Draft): number {
     Object.values(draft.addedColumns).flat().length +
     Object.keys(draft.renamedTables).length +
     draft.droppedTables.length +
-    Object.values(draft.columnChanges).reduce((n, c) => n + Object.keys(c).length, 0)
+    Object.values(draft.columnChanges).reduce((n, c) => n + Object.keys(c).length, 0) +
+    Object.keys(draft.objects).length
   );
 }
 
@@ -436,7 +514,22 @@ export function changeSummary(draft: Draft): string[] {
     renamed > 0 && plural(renamed, "table renamed", "tables renamed"),
     draft.droppedTables.length > 0 &&
       plural(draft.droppedTables.length, "table deleted", "tables deleted"),
+    Object.keys(draft.objects).length > 0 &&
+      plural(Object.keys(draft.objects).length, "object changed", "objects changed"),
   ].filter((p): p is string => !!p);
+}
+
+/** "Enum", "Function"…: an object kind as the start of a sentence. */
+const kindLabel = (kind: string) => kind.charAt(0).toUpperCase() + kind.slice(1);
+
+/** An enum's values, from its stored body (a JSON array); [] if unreadable. */
+export function enumValues(object: Pick<ExtraObject, "body">): string[] {
+  try {
+    const values: unknown = JSON.parse(object.body);
+    return Array.isArray(values) ? values.map(String) : [];
+  } catch {
+    return [];
+  }
 }
 
 /** How a column default reads in a change list. */
@@ -508,6 +601,22 @@ export function changeDetails(schema: Schema | null | undefined, draft: Draft): 
       const diffs = rel && info ? columnDifferences(columnDefFromInfo(rel, info), change.def) : [];
       out.push(`"${table}": column "${column}" ${diffs.length > 0 ? diffs.join(", ") : "changed"}`);
     }
+  }
+  const stored = new Map((schema?.objects ?? []).map((o) => [objectKey(o), o]));
+  for (const [key, object] of Object.entries(draft.objects)) {
+    const before = stored.get(key);
+    const label = kindLabel(object?.kind ?? before?.kind ?? key.split(":")[0]);
+    const name = before?.name ?? object?.name ?? "";
+    if (!object) {
+      out.push(`${label} "${name}" deleted`);
+      continue;
+    }
+    const renamed = before && before.name !== object.name ? `, renamed to "${object.name}"` : "";
+    const what =
+      object.kind === "enum" ? `values ${enumValues(object).join(", ") || "none"}` : "SQL changed";
+    out.push(
+      before ? `${label} "${name}": ${what}${renamed}` : `New ${object.kind} "${object.name}"`,
+    );
   }
   return out;
 }
@@ -631,6 +740,14 @@ export function validateDraft(schema: Schema | null | undefined, draft: Draft): 
   }
   // Every pending relationship links columns of fitting types.
   problems.push(...edgeTypeProblems(buildDiagram(schema, draft)).values());
+  // Imported objects need a name, unique within their kind.
+  const seen = new Set<string>();
+  for (const object of currentObjects(schema, draft)) {
+    const key = `${object.kind}:${object.name.trim().toLowerCase()}`;
+    if (!object.name.trim()) problems.push(`A ${object.kind} needs a name`);
+    else if (seen.has(key)) problems.push(`Two ${object.kind}s are called ${object.name}`);
+    seen.add(key);
+  }
   return problems;
 }
 

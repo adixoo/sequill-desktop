@@ -59,11 +59,24 @@ function defaultClause(col: ColumnDef): string {
   }
 }
 
+/**
+ * A declared type as SQLite can store it: plain words with an optional (n) or (n, m) as
+ * they are; anything else (`integer[]`, `VARCHAR(MAX)`, `ENUM('a','b')`) as a quoted string,
+ * which SQLite keeps and reports exactly as written. Mirrors `sqlite_type_name` in
+ * `crates/sequill-core/src/sql_objects.rs`.
+ */
+export function sqliteTypeName(declared: string): string {
+  const type = declared.trim();
+  return /^[A-Za-z0-9_ ]*(\(\s*\d+\s*(,\s*\d+\s*)?\))?$/.test(type)
+    ? type
+    : `'${type.replace(/'/g, "''")}'`;
+}
+
 /** Column definition as used in CREATE TABLE and ALTER TABLE ADD COLUMN. */
 export function columnSql(col: ColumnDef, inlinePrimaryKey: boolean): string {
   if (!col.name.trim()) throw new Error("Every column needs a name");
   let sql = quoteIdent(col.name.trim());
-  if (col.type.trim()) sql += ` ${col.type.trim().toUpperCase()}`;
+  if (col.type.trim()) sql += ` ${sqliteTypeName(col.type)}`;
   if (inlinePrimaryKey && col.primaryKey) {
     sql += " PRIMARY KEY";
     if (col.autoincrement) sql += " AUTOINCREMENT";

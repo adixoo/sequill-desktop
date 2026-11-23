@@ -11,6 +11,7 @@ pub mod rows;
 pub mod schema;
 pub mod session;
 pub mod split;
+pub mod sql_objects;
 pub mod store;
 pub mod value;
 

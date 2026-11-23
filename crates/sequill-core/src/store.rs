@@ -437,6 +437,8 @@ impl Store {
         bytes: &[u8],
     ) -> Result<ImportedSchema> {
         let name = required_name(name)?;
+        // The other database's type and its objects SQLite can't run, kept beside the tables.
+        let mut extra = String::new();
         let (structure, skipped) = if bytes.starts_with(SQLITE_HEADER) {
             (self.structure_of_file(bytes)?, Vec::new())
         } else {
@@ -444,6 +446,12 @@ impl Store {
                 Error::msg("This file is neither a SQLite database nor a SQL script")
             })?;
             let converted = dialects::to_sqlite(dialect, script)?;
+            if !dialect.eq_ignore_ascii_case("sqlite") {
+                extra = crate::sql_objects::objects_sql(
+                    &dialect.to_ascii_lowercase(),
+                    &converted.objects,
+                );
+            }
             let scratch = Session::memory()?;
             let mut skipped = converted.skipped;
             for sql in &converted.statements {
@@ -459,7 +467,8 @@ impl Store {
         if structure.schema()?.tables.is_empty() {
             return Err(Error::msg("No tables were found in this file"));
         }
-        let database = self.create(name, Some(&structure.dump()?))?;
+        let seed = format!("{}\n{extra}", structure.dump()?);
+        let database = self.create(name, Some(&seed))?;
         Ok(ImportedSchema { database, skipped })
     }
 
@@ -1505,13 +1514,17 @@ mod tests {
         let script =
             b"CREATE TABLE p (id serial PRIMARY KEY, at timestamptz); CREATE VIEW v AS SELECT 1;";
         let from_sql = store.import_schema("Pg", "postgresql", script).unwrap();
-        assert_eq!(from_sql.skipped, ["CREATE VIEW"]);
+        assert!(from_sql.skipped.is_empty());
         let schema = store
             .session(&from_sql.database.id)
             .unwrap()
             .schema()
             .unwrap();
         assert_eq!(schema.tables[0].columns[1].type_name, "TIMESTAMPTZ");
+        // The database type and the view (which SQLite can't run as PostgreSQL) are kept.
+        assert_eq!(schema.dialect.as_deref(), Some("postgresql"));
+        assert_eq!(schema.objects[0].kind, "view");
+        assert_eq!(schema.tables.len(), 1, "the objects table stays hidden");
 
         assert!(store.import_schema("None", "mysql", b"SET x = 1;").is_err());
         assert_eq!(

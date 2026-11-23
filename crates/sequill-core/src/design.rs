@@ -3,6 +3,7 @@
 //! `src/features/vis/lib/model.ts`, which turns it into SQL; the catalog keeps it so the app
 //! and assistants over MCP edit the same one.
 
+use crate::schema::ExtraObject;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
@@ -25,6 +26,10 @@ pub struct Draft {
     /// Existing table name → existing column name → change.
     #[serde(default)]
     pub column_changes: BTreeMap<String, BTreeMap<String, ColumnChange>>,
+    /// An imported schema's enums, functions, procedures, triggers, views, sequences and
+    /// types: "kind:name" as stored → its new definition, or null to delete it.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub objects: BTreeMap<String, Option<ExtraObject>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

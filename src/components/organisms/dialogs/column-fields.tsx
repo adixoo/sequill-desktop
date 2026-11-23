@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { Checkbox } from "@/components/atoms/checkbox";
 import { Input } from "@/components/atoms/input";
 import {
@@ -59,6 +59,7 @@ export function ColumnFields({
   mode,
   actions,
   layout = "compact",
+  types,
 }: {
   col: ColumnDef;
   onChange(col: ColumnDef): void;
@@ -68,6 +69,11 @@ export function ColumnFields({
   actions?: ReactNode;
   /** "compact": wrapping rows, for lists of columns. "form": labeled rows, for one column. */
   layout?: "compact" | "form";
+  /**
+   * Types to suggest for another database's schema (any type can be typed); SQLite's own
+   * types, from a list, when omitted.
+   */
+  types?: readonly string[];
 }) {
   const set = (patch: Partial<ColumnDef>) => onChange({ ...col, ...patch });
   const compact = layout === "compact";
@@ -91,7 +97,7 @@ export function ColumnFields({
         <FieldLabel>Name</FieldLabel>
         {name}
         <FieldLabel>Type</FieldLabel>
-        <TypeSelect {...field} />
+        <TypeSelect {...field} types={types} />
         <FieldLabel className="self-start pt-px">Rules</FieldLabel>
         <ConstraintChecks {...field} mode={mode} />
         <FieldLabel>Default</FieldLabel>
@@ -121,7 +127,7 @@ export function ColumnFields({
     <div className="@container flex flex-col gap-3 rounded-sm bg-raised p-3 ring-2 ring-hairline ring-inset">
       <div className="flex flex-wrap items-center gap-2">
         {name}
-        <TypeSelect {...field} />
+        <TypeSelect {...field} types={types} />
         {actions}
       </div>
       <CompactRow label="Rules">
@@ -163,7 +169,29 @@ function CompactRow({ label, children }: { label: string; children: ReactNode })
   );
 }
 
-function TypeSelect({ col, set, compact }: FieldProps) {
+function TypeSelect({ col, set, compact, types }: FieldProps & { types?: readonly string[] }) {
+  const id = useId();
+  const width = compact ? "min-w-0 flex-1 @sm:w-32 @sm:flex-none" : "w-full";
+  if (types) {
+    return (
+      <>
+        <Input
+          role="combobox"
+          aria-label="Type"
+          list={id}
+          value={col.type}
+          onChange={(e) => set({ type: e.target.value })}
+          spellCheck={false}
+          className={cn("h-8 bg-surface font-mono text-sm max-md:text-base", width)}
+        />
+        <datalist id={id}>
+          {types.map((t) => (
+            <option key={t} value={t} />
+          ))}
+        </datalist>
+      </>
+    );
+  }
   return (
     <Select
       value={col.type || NONE}

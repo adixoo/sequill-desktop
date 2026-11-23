@@ -24,7 +24,7 @@ function parseDraft(raw: unknown): Draft {
     return EMPTY_DRAFT;
   }
   const draft = normalizeDraft(raw as Partial<Draft>);
-  const records = [draft.addedColumns, draft.renamedTables, draft.columnChanges];
+  const records = [draft.addedColumns, draft.renamedTables, draft.columnChanges, draft.objects];
   return records.every((r) => r && typeof r === "object" && !Array.isArray(r)) &&
     Array.isArray(draft.droppedTables)
     ? draft

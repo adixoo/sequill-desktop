@@ -26,12 +26,17 @@ Contributions are welcome; see [Contributing](#contributing) to get started.
   rebuild the table and keep its rows. Unsaved designs are kept until you save or discard them;
   in the desktop app assistants can read and edit them over MCP (`get_design`, `set_design`), and you
   see their edits live.
-- **Schemas from other databases** (desktop app): paste the schema of a PostgreSQL, MySQL / MariaDB,
-  SQL Server, DuckDB, Oracle or standard-SQL database, or pick a `.sql` or SQLite file, and it becomes
-  a new database with its tables,
-  keys and indexes and no rows. It isn't linked to the file. Export any design as `CREATE` statements
-  for PostgreSQL, MySQL, SQL Server or SQLite. Declared types are kept as written; what has no
-  equivalent (functions, sequences, partial indexes, views across databases) is listed, not guessed.
+- **Schemas from other databases** (desktop app): choose PostgreSQL, MySQL / MariaDB, SQL Server,
+  DuckDB or SQLite, and the import shows how to get that database's schema (`pg_dump --schema-only`,
+  `mysqldump --no-data --routines --triggers`, SSMS "Generate Scripts", `EXPORT DATABASE`); paste
+  it or pick the file. Its tables, keys and indexes become a new database with no rows, the saved
+  schema you design on, with every column type exactly as written (`text[]`, `NVARCHAR(MAX)`,
+  `ENUM('a','b')`, `STRUCT(…)`) and that database's own types offered in the type picker. Its
+  enums, functions, procedures, triggers, views, sequences and types are kept too: listed in the
+  outline, editable (enum values, or the SQL), and saved with the design. Sequill can't run their
+  SQL, so it keeps it as written. Nothing connects to your database. Export a design as `CREATE`
+  statements for PostgreSQL, MySQL, SQL Server, DuckDB or SQLite: to the database it came from,
+  enums, functions, triggers and views come back as written; for another, they are listed.
 - **Import / export**: CSV, TSV and JSON import with type detection and column mapping; export tables,
   filtered views, selections or query results as CSV, JSON or SQL INSERTs.
 - **MCP server**: AI assistants can read, show and (when allowed) change the databases; see

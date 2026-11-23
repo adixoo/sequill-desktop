@@ -5,9 +5,10 @@
 
 use crate::dump::quote_ident;
 use crate::error::{Error, Result};
-use crate::schema::{RelationInfo, RelationKind};
+use crate::schema::{ExtraObject, OBJECTS_TABLE, RelationInfo, RelationKind};
 use crate::session::Session;
 use crate::split::split_statements;
+use crate::sql_objects::{object_of, split_script, sqlite_type_name};
 use serde::Deserialize;
 use sqlparser::ast::{
     ColumnDef, ColumnOption, CreateIndex, Expr, ForeignKeyConstraint, IndexColumn, ObjectName,
@@ -16,10 +17,11 @@ use sqlparser::ast::{
 use sqlparser::dialect::dialect_from_str;
 use sqlparser::parser::Parser;
 
-/// A script for another database as SQLite statements, and what had no SQLite equivalent
-/// (such as "CREATE FUNCTION (2)").
+/// A script for another database as SQLite statements, the objects SQLite can't run (kept
+/// as SQL), and what was left out (such as "CREATE EXTENSION (2)").
 pub struct Converted {
     pub statements: Vec<String>,
+    pub objects: Vec<ExtraObject>,
     pub skipped: Vec<String>,
 }
 
@@ -37,6 +39,7 @@ pub fn to_sqlite(dialect: &str, script: &str) -> Result<Converted> {
         .join("\n");
     let mut out = Converted {
         statements: Vec::new(),
+        objects: Vec::new(),
         skipped: Vec::new(),
     };
     if dialect.eq_ignore_ascii_case("sqlite") {
@@ -46,7 +49,14 @@ pub fn to_sqlite(dialect: &str, script: &str) -> Result<Converted> {
     let mut tables: Vec<Table> = Vec::new();
     let mut indexes = Vec::new();
     let mut skipped = Vec::new();
-    for sql in split_statements(&script) {
+    for sql in split_script(dialect, &script) {
+        // Enums, functions, triggers, views…: kept as written (the last one of a name wins).
+        if let Some(object) = object_of(&sql) {
+            out.objects
+                .retain(|o| !(o.kind == object.kind && o.name == object.name));
+            out.objects.push(object);
+            continue;
+        }
         let parsed = Parser::parse_sql(&*parser_dialect, &sql).unwrap_or_default();
         let mut used = !parsed.is_empty();
         for statement in parsed {
@@ -138,35 +148,11 @@ fn last_name(name: &ObjectName) -> String {
         .map_or_else(|| name.to_string(), |ident| ident.value.clone())
 }
 
-/// A declared type SQLite accepts: words with an optional (n) or (n, m). Others keep their
-/// leading words, such as ENUM for ENUM('a','b') or INTEGER for INTEGER[].
-// shortcut: lengths like VARCHAR(MAX) and array or enum details are dropped, upgrade if a
-// round trip through the designer has to keep them.
-fn sqlite_type(column: &ColumnDef) -> String {
-    let declared = column.data_type.to_string();
-    let words_end = declared
-        .find(|c: char| !(c.is_ascii_alphanumeric() || c == '_' || c == ' '))
-        .unwrap_or(declared.len());
-    let (words, rest) = declared.split_at(words_end);
-    let size = rest
-        .strip_prefix('(')
-        .and_then(|r| r.strip_suffix(')'))
-        .filter(|inside| {
-            inside
-                .split(',')
-                .all(|n| !n.trim().is_empty() && n.trim().bytes().all(|b| b.is_ascii_digit()))
-        });
-    match size {
-        Some(inside) => format!("{}({inside})", words.trim()),
-        None => words.trim().to_owned(),
-    }
-}
-
 fn column_sql(column: &ColumnDef) -> String {
     let mut sql = format!(
         "{} {}",
         quote_ident(&column.name.value),
-        sqlite_type(column)
+        sqlite_type_name(&column.data_type.to_string())
     );
     for option in &column.options {
         match &option.option {
@@ -311,14 +297,26 @@ pub enum Target {
     Postgresql,
     Mysql,
     Mssql,
+    Duckdb,
 }
 
 impl Target {
+    /// The name an imported schema records for this database (`Schema::dialect`).
+    fn dialect(self) -> &'static str {
+        match self {
+            Target::Sqlite => "sqlite",
+            Target::Postgresql => "postgresql",
+            Target::Mysql => "mysql",
+            Target::Mssql => "mssql",
+            Target::Duckdb => "duckdb",
+        }
+    }
+
     fn quote(self, name: &str) -> String {
         match self {
             Target::Mysql => format!("`{}`", name.replace('`', "``")),
             Target::Mssql => format!("[{}]", name.replace(']', "]]")),
-            Target::Sqlite | Target::Postgresql => quote_ident(name),
+            Target::Sqlite | Target::Postgresql | Target::Duckdb => quote_ident(name),
         }
     }
 
@@ -336,7 +334,7 @@ impl Target {
             (Target::Postgresql, "BLOB") => "BYTEA".into(),
             (Target::Mssql, "BLOB") => "VARBINARY(MAX)".into(),
             (Target::Postgresql, "REAL") => "DOUBLE PRECISION".into(),
-            (Target::Mysql, "REAL") => "DOUBLE".into(),
+            (Target::Mysql | Target::Duckdb, "REAL") => "DOUBLE".into(),
             (Target::Mssql, "REAL") => "FLOAT".into(),
             _ => declared.trim().to_owned(),
         }
@@ -348,26 +346,66 @@ impl Target {
             Target::Postgresql => " GENERATED BY DEFAULT AS IDENTITY",
             Target::Mysql => " AUTO_INCREMENT",
             Target::Mssql => " IDENTITY(1,1)",
-            Target::Sqlite => "",
+            // DuckDB numbers rows with a sequence the schema has to create itself.
+            Target::Sqlite | Target::Duckdb => "",
+        }
+    }
+
+    /// An imported object (function, trigger…) as a statement this database's tools run.
+    fn object_sql(self, object: &ExtraObject) -> String {
+        if object.kind == "enum" {
+            let values: Vec<String> = serde_json::from_str::<Vec<String>>(&object.body)
+                .unwrap_or_default()
+                .iter()
+                .map(|v| format!("'{}'", v.replace('\'', "''")))
+                .collect();
+            return format!(
+                "CREATE TYPE {} AS ENUM ({});",
+                self.quote(&object.name),
+                values.join(", ")
+            );
+        }
+        let body = object.body.trim().trim_end_matches(';').trim_end();
+        match self {
+            // A routine's own semicolons would end it early: change the delimiter around it.
+            Target::Mysql if body.contains(';') => format!("DELIMITER ;;\n{body};;\nDELIMITER ;"),
+            // CREATE PROCEDURE, FUNCTION, TRIGGER and VIEW must each be alone in a batch.
+            Target::Mssql => format!("GO\n{body}\nGO"),
+            _ => format!("{body};"),
         }
     }
 }
 
+/// Objects created before the tables (they may use them) and after (they use the tables).
+const OBJECTS_BEFORE: [&str; 4] = ["sequence", "enum", "type", "function"];
+const OBJECTS_AFTER: [&str; 3] = ["view", "procedure", "trigger"];
+
 /// The schema that SQLite `statements` (a whole design, such as the designer's) make, as
-/// `CREATE` statements for `target`. Views, triggers, virtual tables and partial indexes are
-/// SQLite-specific, so for other databases they are listed in a comment instead.
+/// `CREATE` statements for `target`. An imported schema's enums, functions, procedures,
+/// triggers, views, sequences and types are written as they were imported when the target
+/// is the database they came from; otherwise, like SQLite's own views and triggers, they are
+/// listed in a comment instead.
 pub fn export_schema(statements: &[String], target: Target) -> Result<String> {
     let design = Session::memory()?;
     for sql in statements {
         design.connection().execute_batch(sql)?;
     }
     if target == Target::Sqlite {
+        design.connection().execute_batch(&format!(
+            "DROP TABLE IF EXISTS {}",
+            quote_ident(OBJECTS_TABLE)
+        ))?;
         return design.dump();
     }
     let schema = design.schema()?;
-    let mut tables = Vec::new();
-    let mut indexes = Vec::new();
-    let mut keys = Vec::new();
+    let same_database = schema.dialect.as_deref() == Some(target.dialect());
+    let objects_of = |kinds: &[&str]| -> Vec<String> {
+        kinds
+            .iter()
+            .flat_map(|kind| schema.objects.iter().filter(move |o| o.kind == *kind))
+            .map(|o| target.object_sql(o))
+            .collect()
+    };
     let mut left_out: Vec<String> = schema
         .views
         .iter()
@@ -379,12 +417,30 @@ pub fn export_schema(statements: &[String], target: Target) -> Result<String> {
             .iter()
             .map(|t| format!("trigger {}", t.name)),
     );
-    for table in &schema.tables {
+    if !same_database {
+        left_out.extend(
+            schema
+                .objects
+                .iter()
+                .map(|o| format!("{} {}", o.kind, o.name)),
+        );
+    }
+
+    let mut out: Vec<String> = if same_database {
+        objects_of(&OBJECTS_BEFORE)
+    } else {
+        Vec::new()
+    };
+    let mut indexes = Vec::new();
+    let mut keys = Vec::new();
+    // DuckDB can't add foreign keys later: they go inside CREATE TABLE, referenced tables first.
+    let inline_keys = target == Target::Duckdb;
+    for table in creation_order(&schema.tables, inline_keys) {
         if table.kind != RelationKind::Table {
             left_out.push(format!("virtual table {}", table.name));
             continue;
         }
-        tables.push(create_table(table, target));
+        out.push(create_table(table, target, inline_keys));
         for index in table.indexes.iter().filter(|i| i.origin == "c") {
             if index.partial {
                 left_out.push(format!("partial index {}", index.name));
@@ -399,21 +455,60 @@ pub fn export_schema(statements: &[String], target: Target) -> Result<String> {
                 columns.join(", ")
             ));
         }
-        keys.extend(foreign_keys(table, target));
+        if !inline_keys {
+            keys.extend(
+                foreign_keys(table, target)
+                    .into_iter()
+                    .map(|key| format!("ALTER TABLE {} ADD {key};", target.quote(&table.name))),
+            );
+        }
     }
-    let mut out: Vec<String> = tables;
     out.extend(indexes);
     out.extend(keys);
+    if same_database {
+        out.extend(objects_of(&OBJECTS_AFTER));
+    }
     if !left_out.is_empty() {
         out.push(format!(
-            "-- Not exported (SQLite-specific): {}",
+            "-- Not exported (not written for this database): {}",
             left_out.join(", ")
         ));
     }
     Ok(format!("{}\n", out.join("\n\n")))
 }
 
-fn create_table(table: &RelationInfo, target: Target) -> String {
+/// Tables in the order to create them: as they are, or (`referenced_first`) each after the
+/// tables its foreign keys point at, where cycles allow.
+fn creation_order(tables: &[RelationInfo], referenced_first: bool) -> Vec<&RelationInfo> {
+    if !referenced_first {
+        return tables.iter().collect();
+    }
+    fn visit<'a>(
+        table: &'a RelationInfo,
+        tables: &'a [RelationInfo],
+        seen: &mut Vec<&'a str>,
+        out: &mut Vec<&'a RelationInfo>,
+    ) {
+        if seen.contains(&table.name.as_str()) {
+            return;
+        }
+        seen.push(&table.name);
+        for key in &table.foreign_keys {
+            if let Some(target) = tables.iter().find(|t| t.name == key.table) {
+                visit(target, tables, seen, out);
+            }
+        }
+        out.push(table);
+    }
+    let mut seen = Vec::new();
+    let mut out = Vec::new();
+    for table in tables {
+        visit(table, tables, &mut seen, &mut out);
+    }
+    out
+}
+
+fn create_table(table: &RelationInfo, target: Target, inline_keys: bool) -> String {
     let mut pk: Vec<_> = table.columns.iter().filter(|c| c.pk > 0).collect();
     pk.sort_by_key(|c| c.pk);
     let keyed = |name: &str| {
@@ -458,6 +553,9 @@ fn create_table(table: &RelationInfo, target: Target) -> String {
         let names: Vec<String> = unique.columns.iter().map(|c| target.quote(c)).collect();
         parts.push(format!("UNIQUE ({})", names.join(", ")));
     }
+    if inline_keys {
+        parts.extend(foreign_keys(table, target));
+    }
     format!(
         "CREATE TABLE {} (\n  {}\n);",
         target.quote(&table.name),
@@ -465,7 +563,7 @@ fn create_table(table: &RelationInfo, target: Target) -> String {
     )
 }
 
-/// Added after every table exists, so tables can refer to ones created after them.
+/// Each foreign key as a `FOREIGN KEY (…) REFERENCES …` clause.
 fn foreign_keys(table: &RelationInfo, target: Target) -> Vec<String> {
     let mut ids: Vec<i64> = table.foreign_keys.iter().map(|f| f.id).collect();
     ids.dedup();
@@ -479,8 +577,7 @@ fn foreign_keys(table: &RelationInfo, target: Target) -> Vec<String> {
                 .filter_map(|f| f.to.as_deref().map(|t| target.quote(t)))
                 .collect();
             let mut sql = format!(
-                "ALTER TABLE {} ADD FOREIGN KEY ({}) REFERENCES {}",
-                target.quote(&table.name),
+                "FOREIGN KEY ({}) REFERENCES {}",
                 from.join(", "),
                 target.quote(&parts[0].table)
             );
@@ -495,7 +592,6 @@ fn foreign_keys(table: &RelationInfo, target: Target) -> Vec<String> {
             if let Some(action) = on_delete {
                 sql.push_str(&format!(" ON DELETE {action}"));
             }
-            sql.push(';');
             sql
         })
         .collect()
@@ -546,9 +642,20 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
         let converted = to_sqlite("postgresql", PG_DUMP).unwrap();
         assert_eq!(
             converted.skipped,
-            ["CREATE FUNCTION", "CREATE SEQUENCE", "CREATE INDEX"],
+            ["CREATE INDEX"],
             "the partial index is listed"
         );
+        // The function (its $$ body whole) and the sequence are kept as written.
+        let kept: Vec<(&str, &str)> = converted
+            .objects
+            .iter()
+            .map(|o| (o.kind.as_str(), o.name.as_str()))
+            .collect();
+        assert_eq!(
+            kept,
+            [("function", "touch"), ("sequence", "customer_id_seq")]
+        );
+        assert!(converted.objects[0].body.ends_with("RETURN NEW; END; $$"));
         let schema = run(&converted.statements).schema().unwrap();
 
         let customer = schema.tables.iter().find(|t| t.name == "customer").unwrap();
@@ -562,7 +669,7 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
             [
                 "INTEGER",
                 "CHARACTER VARYING(120)",
-                "TEXT",
+                "TEXT[]",
                 "TEXT",
                 "TIMESTAMP WITH TIME ZONE"
             ]
@@ -592,13 +699,20 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
             );
             CREATE INDEX event_user ON event (user_id);";
         let converted = to_sqlite("duckdb", duckdb).unwrap();
-        assert_eq!(converted.skipped, ["CREATE SEQUENCE"]);
+        assert!(converted.skipped.is_empty());
+        assert_eq!(converted.objects[0].kind, "sequence");
         let schema = run(&converted.statements).schema().unwrap();
         let event = schema.tables.iter().find(|t| t.name == "event").unwrap();
         let types: Vec<&str> = event.columns.iter().map(|c| c.type_name.as_str()).collect();
         assert_eq!(
             types,
-            ["BIGINT", "INTEGER", "VARCHAR", "STRUCT", "TIMESTAMP"]
+            [
+                "BIGINT",
+                "INTEGER",
+                "VARCHAR[]",
+                "STRUCT(KIND VARCHAR, SIZE INTEGER)",
+                "TIMESTAMP"
+            ]
         );
         assert_eq!(event.foreign_keys[0].table, "app_user");
         assert_eq!(
@@ -622,7 +736,11 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
             .unwrap();
         let post = &schema.tables[0];
         let types: Vec<&str> = post.columns.iter().map(|c| c.type_name.as_str()).collect();
-        assert_eq!(types, ["INT UNSIGNED", "VARCHAR(200)", "ENUM"]);
+        // An inline ENUM keeps its values exactly (not upper-cased).
+        assert_eq!(
+            types,
+            ["INT UNSIGNED", "VARCHAR(200)", "ENUM('draft', 'live')"]
+        );
         assert!(post.indexes.iter().any(|i| i.origin == "u"));
 
         let mssql = "CREATE TABLE [dbo].[Item] ([Id] INT IDENTITY(1,1) NOT NULL PRIMARY KEY, [Name] NVARCHAR(MAX) NULL)";
@@ -634,7 +752,7 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
             .iter()
             .map(|c| c.type_name.as_str())
             .collect();
-        assert_eq!(types, ["INT", "NVARCHAR"]);
+        assert_eq!(types, ["INT", "NVARCHAR(MAX)"]);
     }
 
     #[test]
@@ -665,7 +783,7 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
         assert!(pg.contains("\"score\" DOUBLE PRECISION DEFAULT 0"), "{pg}");
         assert!(pg.contains("ALTER TABLE \"order\" ADD FOREIGN KEY (\"customer_id\") REFERENCES \"customer\" (\"id\") ON DELETE CASCADE;"), "{pg}");
         assert!(
-            pg.contains("-- Not exported (SQLite-specific): view big"),
+            pg.contains("-- Not exported (not written for this database): view big"),
             "{pg}"
         );
 
@@ -715,5 +833,93 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
         let schema = run(&converted.statements).schema().unwrap();
         let order = schema.tables.iter().find(|t| t.name == "order").unwrap();
         assert_eq!(order.foreign_keys[0].table, "customer");
+    }
+
+    /// An imported schema as the designer's statements make it: tables plus its objects.
+    fn imported(dialect: &str, script: &str) -> Vec<String> {
+        let converted = to_sqlite(dialect, script).unwrap();
+        let mut statements = converted.statements;
+        statements.push(crate::sql_objects::objects_sql(dialect, &converted.objects));
+        statements
+    }
+
+    #[test]
+    fn writes_a_schema_back_to_its_own_database_with_enums_functions_and_triggers() {
+        let script = "CREATE TYPE mood AS ENUM ('sad', 'happy');
+            CREATE SEQUENCE ticket_ids;
+            CREATE TABLE ticket (id integer PRIMARY KEY, feeling mood NOT NULL, tags text[]);
+            CREATE FUNCTION stamp() RETURNS trigger AS $$ BEGIN NEW.tags := '{}'; RETURN NEW; END $$ LANGUAGE plpgsql;
+            CREATE TRIGGER ticket_stamp BEFORE INSERT ON ticket FOR EACH ROW EXECUTE FUNCTION stamp();
+            CREATE VIEW sad_tickets AS SELECT * FROM ticket WHERE feeling = 'sad';";
+        let pg = export_schema(&imported("postgresql", script), Target::Postgresql).unwrap();
+        let at = |needle: &str| {
+            pg.find(needle)
+                .unwrap_or_else(|| panic!("{needle} in {pg}"))
+        };
+        // Types and sequences before the tables, the function too; view and trigger after.
+        assert!(
+            at("CREATE TYPE \"mood\" AS ENUM ('sad', 'happy');") < at("CREATE TABLE \"ticket\"")
+        );
+        assert!(at("CREATE SEQUENCE ticket_ids;") < at("CREATE TABLE \"ticket\""));
+        assert!(
+            at("$$ BEGIN NEW.tags := '{}'; RETURN NEW; END $$") < at("CREATE TABLE \"ticket\"")
+        );
+        assert!(at("CREATE TABLE \"ticket\"") < at("CREATE TRIGGER ticket_stamp"));
+        assert!(at("CREATE TABLE \"ticket\"") < at("CREATE VIEW sad_tickets"));
+        assert!(pg.contains("\"feeling\" mood NOT NULL"), "{pg}");
+        assert!(pg.contains("\"tags\" TEXT[]"), "{pg}");
+        assert!(!pg.contains("Not exported"), "{pg}");
+
+        // To another database, the objects are listed instead of written.
+        let mysql = export_schema(&imported("postgresql", script), Target::Mysql).unwrap();
+        assert!(!mysql.contains("CREATE TRIGGER"), "{mysql}");
+        assert!(mysql.contains("enum mood"), "{mysql}");
+        assert!(mysql.contains("trigger ticket_stamp"), "{mysql}");
+    }
+
+    #[test]
+    fn mysql_and_sql_server_routines_come_back_runnable() {
+        let mysql = "CREATE TABLE t (n int);
+DELIMITER ;;
+CREATE PROCEDURE bump() BEGIN UPDATE t SET n = n + 1; END ;;
+DELIMITER ;";
+        let out = export_schema(&imported("mysql", mysql), Target::Mysql).unwrap();
+        assert!(
+            out.contains("DELIMITER ;;\nCREATE PROCEDURE bump() BEGIN UPDATE t SET n = n + 1; END;;\nDELIMITER ;"),
+            "{out}"
+        );
+
+        let mssql =
+            "CREATE TABLE t (n INT);\nGO\nCREATE PROCEDURE bump AS UPDATE t SET n = n + 1;\nGO";
+        let out = export_schema(&imported("mssql", mssql), Target::Mssql).unwrap();
+        assert!(
+            out.contains("GO\nCREATE PROCEDURE bump AS UPDATE t SET n = n + 1\nGO"),
+            "{out}"
+        );
+    }
+
+    #[test]
+    fn duckdb_gets_its_foreign_keys_inside_the_tables_referenced_tables_first() {
+        let duck = export(Target::Duckdb);
+        assert!(duck.find("CREATE TABLE \"customer\"") < duck.find("CREATE TABLE \"order\""));
+        assert!(
+            duck.contains("FOREIGN KEY (\"customer_id\") REFERENCES \"customer\" (\"id\") ON DELETE CASCADE\n);"),
+            "{duck}"
+        );
+        assert!(!duck.contains("ALTER TABLE"), "{duck}");
+        assert!(duck.contains("\"score\" DOUBLE DEFAULT 0"), "{duck}");
+    }
+
+    #[test]
+    fn a_sqlite_export_leaves_the_imported_objects_out() {
+        let sql = export_schema(
+            &imported(
+                "postgresql",
+                "CREATE TABLE t (x int); CREATE VIEW v AS SELECT 1;",
+            ),
+            Target::Sqlite,
+        )
+        .unwrap();
+        assert!(!sql.contains(OBJECTS_TABLE), "{sql}");
     }
 }

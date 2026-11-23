@@ -81,7 +81,9 @@ import {
   type Draft,
   newDatabaseStatements,
   changeDetails,
+  currentObjects,
 } from "@/features/vis/lib/model";
+import { DIALECT_TYPES } from "@/features/vis/lib/dialects";
 import { isDesktop } from "@/lib/platform";
 import { SaveMenu } from "./save-menu";
 import { ExportSchemaMenu } from "./export-schema-menu";
@@ -203,11 +205,21 @@ function DesignerCanvas({
   }, [selection, diagram.edges]);
 
   // One editor for the outline and the table cards; both edit the same draft.
+  // A schema imported from another database: its own types and enums in the type pickers.
+  const dialectTypes = schema?.dialect
+    ? [
+        ...currentObjects(schema, draft)
+          .filter((o) => o.kind === "enum")
+          .map((o) => o.name),
+        ...(DIALECT_TYPES[schema.dialect] ?? []),
+      ]
+    : undefined;
   const schemaEditor: SchemaEditor = {
     draft,
     schema,
     dbId,
     refTables: referenceTargets(diagram),
+    types: dialectTypes,
     onChange: setDraft,
   };
 
@@ -407,6 +419,7 @@ function DesignerCanvas({
 
   const inspector = (
     <Inspector
+      types={dialectTypes}
       selection={selection}
       diagram={diagram}
       draft={draft}

@@ -125,35 +125,69 @@ test("an assistant's changes show in the open app, and it keeps working after th
   await expectRowCount(app.page, 2);
 });
 
-test("a pasted PostgreSQL schema becomes the saved schema to design on", async ({ launch }) => {
+test("a PostgreSQL schema keeps its types, enums, functions and triggers to design on", async ({
+  launch,
+}) => {
   const { page } = await launch();
   await getStarted(page);
   await page.getByRole("link", { name: "Schema" }).click();
   await page.getByRole("button", { name: /^Database: / }).click();
   await page.getByRole("menuitem", { name: "Import a schema…" }).click();
 
+  // First the database type, then how to get its schema.
   const dialog = page.getByRole("dialog", { name: "Import a schema" });
-  await dialog.getByRole("textbox", { name: "Paste the schema" }).fill(
-    `CREATE TABLE public.customer (id serial PRIMARY KEY, email varchar(255) NOT NULL UNIQUE);
-CREATE TABLE public."order" (
+  await dialog.getByRole("button", { name: "PostgreSQL" }).click();
+  const step = page.getByRole("dialog", { name: "Import a PostgreSQL schema" });
+  await expect(step).toContainText("pg_dump --schema-only");
+  await step.getByRole("textbox", { name: "Paste the schema" }).fill(
+    `CREATE TYPE public.mood AS ENUM ('sad', 'happy');
+CREATE TABLE public.customer (id serial PRIMARY KEY, email varchar(255) NOT NULL UNIQUE);
+CREATE TABLE public.ticket (
   id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
   customer_id integer NOT NULL REFERENCES public.customer(id) ON DELETE CASCADE,
+  feeling public.mood NOT NULL,
+  tags text[],
   total numeric(10,2) DEFAULT 0
 );
-CREATE FUNCTION touch() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql;`,
+CREATE FUNCTION public.stamp() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.tags := '{}'; RETURN NEW; END $$;
+CREATE TRIGGER ticket_stamp BEFORE INSERT ON public.ticket FOR EACH ROW EXECUTE FUNCTION public.stamp();
+CREATE VIEW public.sad_tickets AS SELECT * FROM public.ticket WHERE feeling = 'sad';
+CREATE EXTENSION IF NOT EXISTS pgcrypto;`,
   );
-  await expect(dialog.getByRole("combobox", { name: "Written for" })).toHaveText("PostgreSQL");
-  await dialog.getByRole("textbox", { name: "Database name" }).fill("Shop (Postgres)");
-  await dialog.getByRole("button", { name: "Import" }).click();
+  await step.getByRole("textbox", { name: "Database name" }).fill("Tickets (Postgres)");
+  await step.getByRole("button", { name: "Import" }).click();
 
-  await expect(page.getByText("Left out (no SQLite equivalent): CREATE FUNCTION")).toBeVisible();
-  await expect(page.getByRole("button", { name: /^Database: Shop \(Postgres\)/ })).toBeVisible();
-  const customer = page.locator('.react-flow__node[data-id="t:customer"]');
-  await expect(customer).toContainText("VARCHAR(255)");
-  await expect(page.locator('.react-flow__node[data-id="t:order"]')).toContainText("NUMERIC(10,2)");
+  // Only what has no place in a schema design is left out.
+  await expect(page.getByText("Left out (no SQLite equivalent): CREATE EXTENSION")).toBeVisible();
+  const ticket = page.locator('.react-flow__node[data-id="t:ticket"]');
+  await expect(ticket).toContainText("mood");
+  await expect(ticket).toContainText("TEXT[]");
+  await expect(ticket).toContainText("NUMERIC(10,2)");
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
-  // It is the saved schema: nothing is waiting to be saved until you design on it.
   await expect(page.getByRole("button", { name: /^Unsaved/ })).toHaveCount(0);
+
+  const objects = page.getByRole("listitem", { name: "Other objects" });
+  await expect(objects.getByRole("region", { name: "Enums" })).toContainText("mood");
+  await expect(objects.getByRole("region", { name: "Functions" })).toContainText("stamp");
+  await expect(objects.getByRole("region", { name: "Triggers" })).toContainText("on ticket");
+  await expect(objects.getByRole("region", { name: "Views" })).toContainText("sad_tickets");
+
+  // An enum is designed like a table: change its values, review, save.
+  await objects.getByRole("button", { name: "Edit enum mood" }).click();
+  const editor = page.getByRole("dialog", { name: "Enum mood" });
+  await editor.getByRole("textbox", { name: "Values" }).fill("sad\nok\nhappy");
+  await editor.getByRole("button", { name: "Keep changes" }).click();
+  await page.getByRole("button", { name: /^Unsaved/ }).click();
+  const review = page.getByRole("alertdialog");
+  await expect(review.getByRole("region", { name: "What changes" })).toContainText(
+    'Enum "mood": values sad, ok, happy',
+  );
+  await review.getByRole("button", { name: "Save to database" }).click();
+  await expect(page.getByRole("button", { name: /^Unsaved/ })).toHaveCount(0);
+  await objects.getByRole("button", { name: "Edit enum mood" }).click();
+  await expect(
+    page.getByRole("dialog", { name: "Enum mood" }).getByRole("textbox", { name: "Values" }),
+  ).toHaveValue("sad\nok\nhappy");
 });
 
 test("stress: 4 assistant sessions write 200 rows at once while a person runs 200,000-row SQL", async ({

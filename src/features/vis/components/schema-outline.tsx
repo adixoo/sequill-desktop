@@ -39,6 +39,7 @@ import { cn } from "@/utils";
 import { ColumnIcon, ColumnName, tableChangeClass, tableChangeLabel } from "./change-marks";
 import { ColorDot } from "./color-picker";
 import { ColumnEditPopover, ColumnType, isEditableTable, type SchemaEditor } from "./column-editor";
+import { ObjectsOutline } from "./objects-outline";
 
 interface SchemaOutlineProps {
   tables: DiagramTable[];
@@ -289,6 +290,7 @@ export function SchemaOutline({
             {tables.length === 0 ? "No tables yet." : "Nothing matches."}
           </li>
         )}
+        <ObjectsOutline editor={editor} />
       </ul>
     </nav>
   );

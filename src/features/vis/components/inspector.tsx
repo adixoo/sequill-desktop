@@ -51,11 +51,14 @@ function ColumnList({
   onChange,
   tables,
   mode,
+  types,
 }: {
   columns: ColumnDef[];
   onChange(columns: ColumnDef[]): void;
   tables: { name: string; columns: string[] }[];
   mode: "create" | "add";
+  /** Another database's types and enums to suggest (see ColumnFields). */
+  types?: readonly string[];
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -65,6 +68,7 @@ function ColumnList({
           col={col}
           mode={mode}
           tables={tables}
+          types={types}
           onChange={(c) => onChange(columns.map((x, j) => (j === i ? c : x)))}
           actions={
             <Button
@@ -163,6 +167,8 @@ interface InspectorProps {
   onRemoveDraftTable(id: string): void;
   onAddedColumnsChange(table: string, columns: ColumnDef[]): void;
   onDisconnect(edge: DiagramEdge): void;
+  /** Another database's types and enums to suggest in column editors. */
+  types?: readonly string[];
 }
 
 /** Details for the selected table or relationship; renders nothing when nothing is selected. */
@@ -248,6 +254,7 @@ export function Inspector(props: InspectorProps) {
           <ColumnList
             columns={def.columns}
             tables={refTables}
+            types={props.types}
             mode="create"
             onChange={(columns) => props.onDraftTableChange({ ...def, columns })}
           />
@@ -283,6 +290,7 @@ export function Inspector(props: InspectorProps) {
             <ColumnList
               columns={added}
               tables={refTables}
+              types={props.types}
               mode="add"
               onChange={(columns) => props.onAddedColumnsChange(original, columns)}
             />

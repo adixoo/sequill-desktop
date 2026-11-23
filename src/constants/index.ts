@@ -74,6 +74,13 @@ export const STORAGE_KEYS = {
   guideSeen: "sbe:guide-seen",
 } as const;
 
+/**
+ * Where a schema imported from another database keeps its database type and the objects
+ * SQLite can't run (enums, functions, triggers…). Hidden like SQLite's own tables. Matches
+ * `OBJECTS_TABLE` in `crates/sequill-core/src/schema.rs`.
+ */
+export const OBJECTS_TABLE = "_sequill_objects";
+
 /** Name prefix of the temporary table a schema design rebuilds into (see draftStatements). */
 export const REBUILD_TABLE_PREFIX = "__sbe_rebuild_";
 
