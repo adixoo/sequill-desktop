@@ -25,6 +25,7 @@ import { Label } from "@/components/atoms/label";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { useRunStatements } from "@/hooks/use-db";
 import { isDesktop } from "@/lib/platform";
+import { errorMessage } from "@/lib/sqlite/errors";
 import { sqlLiteral } from "@/lib/sqlite/sql";
 import type { DbInfo, SqlStatement } from "@/lib/sqlite/types";
 
@@ -57,6 +58,7 @@ export function ConfirmSqlDialog({
   schema,
   design,
   designBase,
+  changes,
   notes,
   destructive,
   onDone,
@@ -72,6 +74,8 @@ export function ConfirmSqlDialog({
   design?: boolean;
   /** For a design: the structure version it was checked against (see useRunStatements). */
   designBase?: number | null;
+  /** What will change, in plain words, shown above the SQL. */
+  changes?: string[];
   /** Things to know before confirming, shown above the SQL. */
   notes?: string[];
   destructive?: boolean;
@@ -86,6 +90,18 @@ export function ConfirmSqlDialog({
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {changes && changes.length > 0 && (
+          <section aria-labelledby="confirm-changes" className="flex flex-col gap-1.5">
+            <h3 id="confirm-changes" className="text-sm font-semibold text-ink">
+              What changes
+            </h3>
+            <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto rounded-sm bg-raised px-3 py-2.5 text-sm text-ink-soft">
+              {changes.map((change) => (
+                <li key={change}>{change}</li>
+              ))}
+            </ul>
+          </section>
+        )}
         {notes && notes.length > 0 && (
           <ul className="flex flex-col gap-1.5 rounded-sm bg-butter-wash px-3 py-2.5 text-sm text-butter-ink">
             {notes.map((note) => (
@@ -94,6 +110,11 @@ export function ConfirmSqlDialog({
           </ul>
         )}
         <SqlPreview sql={previewSql(statements)} />
+        {run.error && (
+          <p role="alert" className="rounded-sm bg-rose-wash px-3 py-2.5 text-sm text-rose-ink">
+            Nothing was saved: {errorMessage(run.error)}
+          </p>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel>Cancel</AlertDialogCancel>
           <AlertDialogAction

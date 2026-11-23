@@ -80,6 +80,7 @@ import {
   validateDraft,
   type Draft,
   newDatabaseStatements,
+  changeDetails,
 } from "@/features/vis/lib/model";
 import { isDesktop } from "@/lib/platform";
 import { SaveMenu } from "./save-menu";
@@ -701,6 +702,7 @@ function DesignerCanvas({
             dbPath ? `This changes the file ${dbPath} itself.` : `This changes ${dbName} itself.`
           } Your design was checked on a copy of its structure; saving runs it on the database in one transaction, so if any statement fails, nothing changes.`}
           statements={statements.map((sql) => ({ sql, params: [] }))}
+          changes={changeDetails(schema, draft)}
           confirmLabel="Save to database"
           success={`Saved to ${dbName}`}
           schema

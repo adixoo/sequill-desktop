@@ -13,6 +13,7 @@ import {
   emptyColumn,
   type ColumnDef,
 } from "@/lib/sqlite/ddl";
+import { REBUILD_TABLE_PREFIX } from "@/constants";
 import { typeAffinity } from "@/utils/data/format";
 import { quoteIdent } from "@/lib/sqlite/sql";
 import type { ColumnInfo, RelationInfo, Schema } from "@/lib/sqlite/types";
@@ -265,7 +266,7 @@ export function buildDiagram(
  * the table's indexes and triggers and every view.
  */
 function rebuildStatements(rel: RelationInfo, defs: ColumnDef[], schema: Schema): string[] {
-  const tmp = `__sbe_rebuild_${rel.name}`;
+  const tmp = `${REBUILD_TABLE_PREFIX}${rel.name}`;
   const cols = defs.map((d) => quoteIdent(d.name)).join(", ");
   const views = schema.views.filter((v) => v.sql);
   const objects = [
@@ -436,6 +437,79 @@ export function changeSummary(draft: Draft): string[] {
     draft.droppedTables.length > 0 &&
       plural(draft.droppedTables.length, "table deleted", "tables deleted"),
   ].filter((p): p is string => !!p);
+}
+
+/** How a column default reads in a change list. */
+function defaultText(c: ColumnDef): string {
+  switch (c.defaultKind) {
+    case "none":
+      return "no default";
+    case "null":
+      return "default NULL";
+    case "text":
+      return `default '${c.defaultValue}'`;
+    default:
+      return `default ${c.defaultValue}`;
+  }
+}
+
+/** What differs between a column as it is and as designed, e.g. ["type TEXT → INTEGER"]. */
+function columnDifferences(base: ColumnDef, def: ColumnDef): string[] {
+  const flag = (on: boolean, what: string) => (on ? `now ${what}` : `no longer ${what}`);
+  const ref = (c: ColumnDef) =>
+    c.references ? `${c.references.table}.${c.references.column}` : "nothing";
+  return [
+    base.name !== def.name && `renamed to "${def.name}"`,
+    base.type !== def.type && `type ${base.type || "none"} → ${def.type || "none"}`,
+    base.notNull !== def.notNull && flag(def.notNull, "NOT NULL"),
+    base.unique !== def.unique && flag(def.unique, "UNIQUE"),
+    base.primaryKey !== def.primaryKey && flag(def.primaryKey, "the primary key"),
+    defaultText(base) !== defaultText(def) && defaultText(def),
+    ref(base) !== ref(def) && `references ${ref(def)}`,
+  ].filter((d): d is string => !!d);
+}
+
+/**
+ * Everything a save would change, one plain sentence per change, for the review before
+ * saving (the SQL shows how; this shows what).
+ */
+export function changeDetails(schema: Schema | null | undefined, draft: Draft): string[] {
+  const rels = new Map((schema?.tables ?? []).map((t) => [t.name, t]));
+  const out: string[] = [];
+  for (const t of draft.tables) {
+    const names = t.columns.map((c) => c.name).join(", ");
+    out.push(
+      `New table "${t.name}" with ${plural(t.columns.length, "column", "columns")}: ${names}`,
+    );
+  }
+  for (const table of draft.droppedTables) {
+    out.push(`Table "${table}" deleted, with all its rows`);
+  }
+  const live = (table: string) => !draft.droppedTables.includes(table);
+  for (const [from, to] of Object.entries(draft.renamedTables)) {
+    if (live(from)) out.push(`Table "${from}" renamed to "${to}"`);
+  }
+  for (const [table, columns] of Object.entries(draft.addedColumns)) {
+    if (!live(table)) continue;
+    for (const c of columns) {
+      const ref = c.references ? `, references ${c.references.table}.${c.references.column}` : "";
+      out.push(`"${table}": new column "${c.name}" (${c.type || "no type"}${ref})`);
+    }
+  }
+  for (const [table, changes] of Object.entries(draft.columnChanges)) {
+    if (!live(table)) continue;
+    const rel = rels.get(table);
+    for (const [column, change] of Object.entries(changes)) {
+      if (change.kind === "drop") {
+        out.push(`"${table}": column "${column}" deleted, with its data`);
+        continue;
+      }
+      const info = rel?.columns.find((c) => c.name === column);
+      const diffs = rel && info ? columnDifferences(columnDefFromInfo(rel, info), change.def) : [];
+      out.push(`"${table}": column "${column}" ${diffs.length > 0 ? diffs.join(", ") : "changed"}`);
+    }
+  }
+  return out;
 }
 
 /** Tables a column can point at after saving, with their columns. */

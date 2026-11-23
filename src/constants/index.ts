@@ -74,6 +74,9 @@ export const STORAGE_KEYS = {
   guideSeen: "sbe:guide-seen",
 } as const;
 
+/** Name prefix of the temporary table a schema design rebuilds into (see draftStatements). */
+export const REBUILD_TABLE_PREFIX = "__sbe_rebuild_";
+
 export const SQLITE_TYPES = ["INTEGER", "REAL", "TEXT", "BLOB", "NUMERIC", "ANY"] as const;
 export const FK_ACTIONS = ["NO ACTION", "RESTRICT", "SET NULL", "SET DEFAULT", "CASCADE"] as const;
 

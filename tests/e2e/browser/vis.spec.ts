@@ -333,6 +333,41 @@ test("edits existing tables and columns from the outline, then saves with the ba
   await expect(unsavedBadge(page)).toHaveCount(0);
 });
 
+test("a design autosaves, the review lists every change, and a failed save is shown", async ({
+  page,
+}) => {
+  await createSample(page);
+  await openVisualizer(page);
+  const outline = page.getByRole("navigation", { name: "Tables and columns" });
+  const editor = page.locator('[data-slot="popover-content"]');
+  await outline.getByRole("button", { name: "Expand all tables" }).click();
+  // Cities repeat, so a UNIQUE city passes the check on the (empty) structure copy but
+  // fails on the real rows.
+  await outline.getByRole("button", { name: "Edit column city of customers" }).click();
+  await editor.getByRole("checkbox", { name: "Unique" }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Add table" }).first().click();
+
+  // Every edit is kept as it happens: a reload brings the design back, still unsaved.
+  await page.reload();
+  await expect(unsavedBadge(page)).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator('.react-flow__node[data-id^="d:"]')).toHaveCount(1);
+
+  await unsavedBadge(page).click();
+  const confirm = page.getByRole("alertdialog");
+  const changes = confirm.getByRole("region", { name: "What changes" });
+  await expect(changes).toContainText('New table "table_1" with 1 column: id');
+  await expect(changes).toContainText('"customers": column "city" now UNIQUE');
+  await confirm.getByRole("button", { name: "Save to database" }).click();
+  await expect(confirm.getByRole("alert")).toContainText("Nothing was saved");
+  await expect(confirm.getByRole("alert")).toContainText("UNIQUE constraint failed");
+
+  // Nothing reached the database; the design is still there to fix.
+  await confirm.getByRole("button", { name: "Cancel" }).click();
+  await expect(unsavedBadge(page)).toBeVisible();
+  await expect(node(page, "t:table_1")).toHaveCount(0);
+});
+
 test("removing the open database moves to another one", async ({ page }) => {
   await createSample(page);
   await openVisualizer(page);
