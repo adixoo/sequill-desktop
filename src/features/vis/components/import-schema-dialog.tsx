@@ -9,6 +9,7 @@ import {
 } from "@/components/atoms/dialog";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
+import { Textarea } from "@/components/atoms/textarea";
 import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/atoms/responsive-dialog";
 import {
   Select,
@@ -35,17 +36,22 @@ interface ImportSchemaDialogProps {
  * linked to the file.
  */
 export function ImportSchemaDialog({ onImported, onClose }: ImportSchemaDialogProps) {
+  const [pasted, setPasted] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [name, setName] = useState("");
   const [dialect, setDialect] = useState<string>(IMPORT_DIALECTS[0].value);
   const [busy, setBusy] = useState(false);
-  const sqliteFile = file !== null && isDatabaseFile(file);
+  // Pasted SQL wins over a picked file.
+  const usePasted = pasted.trim() !== "";
+  const sqliteFile = !usePasted && file !== null && isDatabaseFile(file);
+  const ready = (usePasted || file !== null) && name.trim() !== "";
 
   const submit = async () => {
-    if (!file) return;
     setBusy(true);
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
+      const bytes = usePasted
+        ? new TextEncoder().encode(pasted)
+        : new Uint8Array(await file!.arrayBuffer());
       const { database, skipped } = await importSchema(name.trim(), dialect, bytes);
       onImported(database, skipped);
       onClose();
@@ -58,23 +64,41 @@ export function ImportSchemaDialog({ onImported, onClose }: ImportSchemaDialogPr
 
   return (
     <ResponsiveDialog open onOpenChange={(open) => !open && !busy && onClose()}>
-      <ResponsiveDialogContent className="sm:max-w-md">
+      <ResponsiveDialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg">
         <form
           className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault();
-            if (file && name.trim()) void submit();
+            if (ready) void submit();
           }}
         >
           <DialogHeader>
             <DialogTitle>Import a schema</DialogTitle>
             <DialogDescription>
-              Tables, columns, keys and indexes from a SQL script or a SQLite file become a new
-              database with no rows. It isn&apos;t linked to the file, so changes stay here.
+              Paste the schema of a PostgreSQL, MySQL, MariaDB, SQL Server, DuckDB or SQLite
+              database (its CREATE TABLE statements), or pick a .sql or SQLite file. Its tables,
+              columns, keys and indexes become a new database with no rows, kept as the saved schema
+              you design on. Nothing connects to your database.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
-            <Label htmlFor="schema-file">File</Label>
+            <Label htmlFor="schema-sql">Paste the schema</Label>
+            <Textarea
+              id="schema-sql"
+              value={pasted}
+              onChange={(e) => {
+                setPasted(e.target.value);
+                if (!name.trim()) setName("Imported schema");
+              }}
+              placeholder={
+                "CREATE TABLE customer (\n  id SERIAL PRIMARY KEY,\n  email TEXT NOT NULL\n);"
+              }
+              spellCheck={false}
+              className="h-40 font-mono text-xs max-md:text-base"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="schema-file">Or pick a file</Label>
             <Input
               id="schema-file"
               type="file"
@@ -86,7 +110,7 @@ export function ImportSchemaDialog({ onImported, onClose }: ImportSchemaDialogPr
               }}
             />
           </div>
-          {file && !sqliteFile && (
+          {(usePasted || file) && !sqliteFile && (
             <div className="flex flex-col gap-2">
               <Label htmlFor="schema-dialect">Written for</Label>
               <Select value={dialect} onValueChange={setDialect}>
@@ -116,7 +140,7 @@ export function ImportSchemaDialog({ onImported, onClose }: ImportSchemaDialogPr
             <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
               Cancel
             </Button>
-            <Button type="submit" disabled={busy || !file || !name.trim()}>
+            <Button type="submit" disabled={busy || !ready}>
               {busy ? "Importing…" : "Import"}
             </Button>
           </DialogFooter>

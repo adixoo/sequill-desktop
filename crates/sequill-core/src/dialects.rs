@@ -580,6 +580,29 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
     }
 
     #[test]
+    fn reads_duckdb() {
+        let duckdb = "CREATE SEQUENCE event_ids START 1;
+            CREATE TABLE app_user (id INTEGER PRIMARY KEY, email VARCHAR NOT NULL UNIQUE);
+            CREATE TABLE event (
+                id BIGINT PRIMARY KEY DEFAULT nextval('event_ids'),
+                user_id INTEGER REFERENCES app_user(id),
+                tags VARCHAR[],
+                payload STRUCT(kind VARCHAR, size INTEGER),
+                at TIMESTAMP DEFAULT current_timestamp
+            );
+            CREATE INDEX event_user ON event (user_id);";
+        let converted = to_sqlite("duckdb", duckdb).unwrap();
+        assert_eq!(converted.skipped, ["CREATE SEQUENCE"]);
+        let schema = run(&converted.statements).schema().unwrap();
+        let event = schema.tables.iter().find(|t| t.name == "event").unwrap();
+        let types: Vec<&str> = event.columns.iter().map(|c| c.type_name.as_str()).collect();
+        assert_eq!(types, ["BIGINT", "INTEGER", "VARCHAR", "STRUCT", "TIMESTAMP"]);
+        assert_eq!(event.foreign_keys[0].table, "app_user");
+        assert_eq!(event.columns[4].default_value.as_deref(), Some("CURRENT_TIMESTAMP"));
+        assert_eq!(schema.indexes.len(), 1);
+    }
+
+    #[test]
     fn reads_mysql_and_sql_server() {
         let mysql = "CREATE TABLE `post` (
             `id` int unsigned NOT NULL AUTO_INCREMENT,

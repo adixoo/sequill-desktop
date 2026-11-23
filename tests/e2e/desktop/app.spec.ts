@@ -125,6 +125,37 @@ test("an assistant's changes show in the open app, and it keeps working after th
   await expectRowCount(app.page, 2);
 });
 
+test("a pasted PostgreSQL schema becomes the saved schema to design on", async ({ launch }) => {
+  const { page } = await launch();
+  await getStarted(page);
+  await page.getByRole("link", { name: "Schema" }).click();
+  await page.getByRole("button", { name: /^Database: / }).click();
+  await page.getByRole("menuitem", { name: "Import a schema…" }).click();
+
+  const dialog = page.getByRole("dialog", { name: "Import a schema" });
+  await dialog.getByRole("textbox", { name: "Paste the schema" }).fill(
+    `CREATE TABLE public.customer (id serial PRIMARY KEY, email varchar(255) NOT NULL UNIQUE);
+CREATE TABLE public."order" (
+  id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  customer_id integer NOT NULL REFERENCES public.customer(id) ON DELETE CASCADE,
+  total numeric(10,2) DEFAULT 0
+);
+CREATE FUNCTION touch() RETURNS trigger AS $$ BEGIN RETURN NEW; END $$ LANGUAGE plpgsql;`,
+  );
+  await expect(dialog.getByRole("combobox", { name: "Written for" })).toHaveText("PostgreSQL");
+  await dialog.getByRole("textbox", { name: "Database name" }).fill("Shop (Postgres)");
+  await dialog.getByRole("button", { name: "Import" }).click();
+
+  await expect(page.getByText("Left out (no SQLite equivalent): CREATE FUNCTION")).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Database: Shop \(Postgres\)/ })).toBeVisible();
+  const customer = page.locator('.react-flow__node[data-id="t:customer"]');
+  await expect(customer).toContainText("VARCHAR(255)");
+  await expect(page.locator('.react-flow__node[data-id="t:order"]')).toContainText("NUMERIC(10,2)");
+  await expect(page.locator(".react-flow__edge")).toHaveCount(1);
+  // It is the saved schema: nothing is waiting to be saved until you design on it.
+  await expect(page.getByRole("button", { name: /^Unsaved/ })).toHaveCount(0);
+});
+
 test("stress: 4 assistant sessions write 200 rows at once while a person runs 200,000-row SQL", async ({
   launch,
   mcp,

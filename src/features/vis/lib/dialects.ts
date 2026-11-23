@@ -8,6 +8,7 @@ export const IMPORT_DIALECTS = [
   { value: "postgresql", label: "PostgreSQL" },
   { value: "mysql", label: "MySQL / MariaDB" },
   { value: "mssql", label: "SQL Server" },
+  { value: "duckdb", label: "DuckDB" },
   { value: "oracle", label: "Oracle" },
   { value: "sqlite", label: "SQLite" },
   { value: "generic", label: "Other (standard SQL)" },
