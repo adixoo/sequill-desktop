@@ -43,6 +43,7 @@ import { useDialogs } from "@/store/dialogs";
 import { useSavedQueries } from "@/store/saved-queries";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
+import { hasUnsavedDesign } from "@/features/vis/lib/drafts";
 
 function Group({
   title,
@@ -366,7 +367,7 @@ export function Sidebar({ dbId, schema, onNavigate, className }: SidebarProps) {
       </div>
 
       <div className="border-b-2 border-hairline p-2">
-        <DatabaseSwitcher dbId={dbId} />
+        <DatabaseSwitcher dbId={dbId} hasDraft={hasUnsavedDesign} />
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">

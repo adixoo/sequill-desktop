@@ -11,7 +11,7 @@ const view = EditorView.theme({
     height: "100%",
   },
   ".cm-scroller": { fontFamily: "var(--font-mono)", lineHeight: "1.7" },
-  ".cm-content": { caretColor: "var(--ink)", padding: "12px 0" },
+  ".cm-content": { caretColor: "var(--ink)", padding: "calc(var(--spacing) * 3) 0" },
   ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--ink)", borderLeftWidth: "2px" },
   "&.cm-focused": { outline: "none" },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
@@ -20,7 +20,10 @@ const view = EditorView.theme({
   ".cm-activeLine": { backgroundColor: "var(--lilac-wash)" },
   ".cm-gutters": { backgroundColor: "var(--surface)", color: "var(--decor)", border: "none" },
   ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--ink-muted)" },
-  ".cm-lineNumbers .cm-gutterElement": { paddingRight: "16px", minWidth: "40px" },
+  ".cm-lineNumbers .cm-gutterElement": {
+    paddingRight: "calc(var(--spacing) * 4)",
+    minWidth: "calc(var(--spacing) * 10)",
+  },
   ".cm-matchingBracket": { backgroundColor: "var(--butter-wash)", outline: "none" },
   ".cm-tooltip": {
     backgroundColor: "var(--raised)",

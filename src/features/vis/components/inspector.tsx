@@ -7,7 +7,7 @@ import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { useTableCount } from "@/hooks/use-db";
-import { ColumnIcon, ColumnName } from "@/components/molecules/change-marks";
+import { ColumnIcon, ColumnName } from "./change-marks";
 import { ColorSwatches } from "./color-picker";
 import { formatCount } from "@/utils/data/format";
 import type { TableColor } from "@/features/vis/lib/colors";

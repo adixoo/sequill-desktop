@@ -85,7 +85,12 @@ function Visualizer() {
           className="ml-2"
           dbId={activeDb}
           onSwitch={(id) => leave({ kind: "db", id })}
-          blankDesign={{ active: blank, onSelect: () => leave({ kind: "blank" }) }}
+          blankDesign={{
+            active: blank,
+            onSelect: () => leave({ kind: "blank" }),
+            hasDraft: hasUnsavedDesign(BLANK_DESIGN),
+          }}
+          hasDraft={hasUnsavedDesign}
           onImportSchema={isDesktop() ? () => setImporting(true) : undefined}
         />
         {/* The designer shows its save state here: "Unsaved" (click to save), "Saved". */}

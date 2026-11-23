@@ -23,13 +23,12 @@ import {
 } from "@/components/atoms/dropdown-menu";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { useDatabases } from "@/hooks/use-db";
-import { DbFileInput } from "@/components/molecules/db-file-input";
+import { DbFileInput } from "@/components/organisms/db-file-input";
 import { formatBytes } from "@/utils/data/format";
 import { isDesktop } from "@/lib/platform";
 import { useDialogs } from "@/store/dialogs";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
-import { BLANK_DESIGN, hasUnsavedDesign } from "@/features/vis/lib/drafts";
 
 interface DatabaseSwitcherProps {
   /** The database shown as current; null when none (or a blank design) is open. */
@@ -37,7 +36,9 @@ interface DatabaseSwitcherProps {
   /** Lets a page step in before switching (e.g. to ask about unsaved work). Defaults to switching. */
   onSwitch?(dbId: string): void;
   /** The schema page also offers a design that isn't tied to any database. */
-  blankDesign?: { active: boolean; onSelect(): void };
+  blankDesign?: { active: boolean; onSelect(): void; hasDraft: boolean };
+  /** The schema page marks databases with an unsaved schema design. */
+  hasDraft?(dbId: string): boolean;
   /** The schema page can also make a database from another database's schema. */
   onImportSchema?(): void;
   /** "panel" fills a sidebar; "inline" is a single-line header control. */
@@ -53,6 +54,7 @@ export function DatabaseSwitcher({
   dbId,
   onSwitch,
   blankDesign,
+  hasDraft,
   onImportSchema,
   variant = "panel",
   className,
@@ -120,7 +122,7 @@ export function DatabaseSwitcher({
           >
             <Database />
             <span className="truncate">{d.name}</span>
-            {hasUnsavedDesign(d.id) && (
+            {hasDraft?.(d.id) && (
               <span
                 className="pn-table-head shrink-0 text-peach-ink"
                 title="Has an unsaved schema design"
@@ -142,7 +144,7 @@ export function DatabaseSwitcher({
             className={cn(blankDesign.active && "bg-sky-wash")}
           >
             <PencilRuler /> Blank design
-            {hasUnsavedDesign(BLANK_DESIGN) && (
+            {blankDesign.hasDraft && (
               <span className="pn-table-head ml-auto text-peach-ink">draft</span>
             )}
           </DropdownMenuItem>

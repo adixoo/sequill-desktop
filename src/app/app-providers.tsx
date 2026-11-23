@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
-import { ExternalChanges } from "@/components/organisms/external-changes";
+import { ExternalChanges } from "./external-changes";
 import { StorageHandoff } from "@/components/organisms/storage-handoff";
 import { Toaster } from "@/components/atoms/sonner";
 import { TooltipProvider } from "@/components/atoms/tooltip";

@@ -1,6 +1,7 @@
 import { Ban, Check, Pipette } from "@/components/atoms/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/popover";
 import { cn } from "@/utils";
+import { LOGO_COLORS } from "@/utils/logo";
 import {
   colorFill,
   colorInk,
@@ -80,7 +81,7 @@ export function ColorSwatches({ value, onChange, label }: ColorSwatchesProps) {
           role="radio"
           aria-checked={!!custom}
           aria-label="Custom color"
-          value={custom ?? "#a6e3c4"}
+          value={custom ?? LOGO_COLORS.mint}
           onChange={(e) => onChange(e.target.value.toLowerCase() as TableColor)}
           className="absolute inset-0 cursor-pointer opacity-0"
         />

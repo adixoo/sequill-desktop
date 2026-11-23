@@ -30,7 +30,7 @@ import {
 } from "@/components/atoms/command";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { useDatabases } from "@/hooks/use-db";
-import { DbFileInput } from "@/components/molecules/db-file-input";
+import { DbFileInput } from "@/components/organisms/db-file-input";
 import type { Schema } from "@/lib/sqlite/types";
 import { useDialogs } from "@/store/dialogs";
 import { useSavedQueries } from "@/store/saved-queries";

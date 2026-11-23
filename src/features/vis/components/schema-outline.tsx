@@ -36,12 +36,7 @@ import {
   type DiagramTable,
 } from "@/features/vis/lib/model";
 import { cn } from "@/utils";
-import {
-  ColumnIcon,
-  ColumnName,
-  tableChangeClass,
-  tableChangeLabel,
-} from "@/components/molecules/change-marks";
+import { ColumnIcon, ColumnName, tableChangeClass, tableChangeLabel } from "./change-marks";
 import { ColorDot } from "./color-picker";
 import { ColumnEditPopover, ColumnType, isEditableTable, type SchemaEditor } from "./column-editor";
 

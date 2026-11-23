@@ -114,7 +114,7 @@ pub enum ShowView {
     Schema,
 }
 
-/// The request the app receives (`src/components/organisms/mcp-requests.tsx` reads it).
+/// The request the app receives (`src/app/mcp-requests.tsx` reads it).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ShowRequest<'a> {

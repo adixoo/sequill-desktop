@@ -1,7 +1,7 @@
 import { useEffect, type ComponentType } from "react";
 import { EditorPage } from "@/pages/editor-page";
 import { VisPage } from "@/pages/vis-page";
-import { McpRequests } from "@/components/organisms/mcp-requests";
+import { McpRequests } from "./mcp-requests";
 import { APP_NAME } from "@/constants";
 import { ROUTES, usePathname } from "@/lib/router";
 

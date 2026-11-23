@@ -9,7 +9,7 @@ import { useSyncExternalStore } from "react";
 import { toast } from "sonner";
 import { STORAGE_KEYS } from "@/constants";
 import { isDesktop } from "@/lib/platform";
-import { desktopDesigns } from "@/lib/sqlite/desktop";
+import { desktopDesigns, watchDesktopChanges } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { readJson, removeKey, writeJson } from "@/lib/storage";
 import { EMPTY_DRAFT, isDraftEmpty, normalizeDraft, type Draft } from "./model";
@@ -112,7 +112,13 @@ function moveLocalDrafts(): void {
   notify();
 }
 
-if (desktop) void reloadDrafts().then(moveLocalDrafts);
+if (desktop) {
+  void reloadDrafts().then(moveLocalDrafts);
+  // The catalog changed in another process (an assistant over MCP): its designs may have too.
+  watchDesktopChanges(({ catalog }) => {
+    if (catalog) void reloadDrafts();
+  });
+}
 
 // ---- Both builds -------------------------------------------------------------------------
 

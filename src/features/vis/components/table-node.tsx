@@ -10,12 +10,7 @@ import {
 } from "@/features/vis/lib/layout";
 import { TABLE_HANDLE, type DiagramTable } from "@/features/vis/lib/model";
 import { cn } from "@/utils";
-import {
-  ColumnIcon,
-  ColumnName,
-  tableChangeClass,
-  tableChangeLabel,
-} from "@/components/molecules/change-marks";
+import { ColumnIcon, ColumnName, tableChangeClass, tableChangeLabel } from "./change-marks";
 import { ColumnEditPopover, ColumnType, isEditableTable, type SchemaEditor } from "./column-editor";
 
 export type TableNodeData = {

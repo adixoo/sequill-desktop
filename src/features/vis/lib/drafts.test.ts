@@ -20,6 +20,7 @@ mock.module("@/lib/sqlite/desktop", () => ({
     save: async (key: string, draft: unknown, version: number) =>
       catalogSave(key, structuredClone(draft), version),
   },
+  watchDesktopChanges: () => () => undefined,
 }));
 
 const local = new Map<string, string>();
