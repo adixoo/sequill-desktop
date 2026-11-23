@@ -56,10 +56,20 @@ struct Opened {
 
 impl Opened {
     /// Keeps the app's list (size, last change) current after a write; the app also
-    /// notices the write itself and refreshes what's on screen.
-    fn record_write(&self) -> Result<()> {
-        self.store
-            .record_write(&self.info.id, self.session.size_bytes()?)
+    /// notices the write itself and refreshes what's on screen. The write is already saved,
+    /// so a failure here (such as a lock held by a long write) is only logged: reported as a
+    /// failed call, the assistant would retry and make the change twice.
+    fn record_write(&self) {
+        let recorded = self
+            .session
+            .size_bytes()
+            .and_then(|size| self.store.record_write(&self.info.id, size));
+        if let Err(error) = recorded {
+            eprintln!(
+                "sequill mcp: could not update the size of {}: {error}",
+                self.info.name
+            );
+        }
     }
 
     fn database(&self) -> Value {
@@ -216,7 +226,7 @@ pub fn explain_query(dir: &Path, database: &str, sql: &str) -> Result<Value> {
 pub fn execute(dir: &Path, database: &str, sql: &str) -> Result<Value> {
     let db = open_db(dir, database, true)?;
     let results = db.session.exec_script(sql, DEFAULT_MAX_ROWS);
-    db.record_write()?;
+    db.record_write();
     let failed = results.iter().any(|r| r.error.is_some());
     Ok(json!({ "ok": !failed, "statements": results }))
 }

@@ -29,7 +29,7 @@ fn apply(dir: &Path, database: &str, sql: String) -> Result<Value> {
     let tx = db.session.connection().unchecked_transaction()?;
     tx.execute_batch(&sql)?;
     tx.commit()?;
-    db.record_write()?;
+    db.record_write();
     Ok(json!({ "ok": true, "sql": sql }))
 }
 

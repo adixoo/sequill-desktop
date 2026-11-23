@@ -40,7 +40,7 @@ pub fn insert_rows(
 ) -> Result<Value> {
     let db = open_db(dir, database, true)?;
     let inserted = rows::insert_rows(&db.session, table, rows)?;
-    db.record_write()?;
+    db.record_write();
     Ok(json!({ "inserted": inserted }))
 }
 
@@ -55,7 +55,7 @@ pub fn update_rows(
 ) -> Result<Value> {
     let db = open_db(dir, database, true)?;
     let changed = rows::update_rows(&db.session, table, set, filters, matching, all_rows)?;
-    db.record_write()?;
+    db.record_write();
     Ok(json!({ "changed": changed }))
 }
 
@@ -69,7 +69,7 @@ pub fn delete_rows(
 ) -> Result<Value> {
     let db = open_db(dir, database, true)?;
     let deleted = rows::delete_rows(&db.session, table, filters, matching, all_rows)?;
-    db.record_write()?;
+    db.record_write();
     Ok(json!({ "deleted": deleted }))
 }
 
@@ -78,6 +78,33 @@ mod tests {
     use super::*;
     use crate::tools::test_support::store_with_shop;
     use sequill_core::filter::FilterOp;
+
+    #[test]
+    fn a_saved_write_is_reported_as_saved_even_if_the_bookkeeping_after_it_fails() {
+        let (dir, _) = store_with_shop();
+        // The app's list can't be updated (here: read-only; in real use: locked by a long write).
+        let catalog = dir.path().join("catalog.sqlite3");
+        let mut readonly = std::fs::metadata(&catalog).unwrap().permissions();
+        readonly.set_readonly(true);
+        std::fs::set_permissions(&catalog, readonly.clone()).unwrap();
+
+        let row = json!({ "name": "Kiran" }).as_object().unwrap().clone();
+        let result = insert_rows(dir.path(), "Shop", "customer", &[row]);
+
+        readonly.set_readonly(false);
+        std::fs::set_permissions(&catalog, readonly).unwrap();
+        // Reported as failed, an assistant would retry and add the row twice.
+        assert_eq!(result.unwrap()["inserted"], 1);
+        let count = crate::tools::query(
+            dir.path(),
+            "Shop",
+            "SELECT count(*) FROM customer",
+            &[],
+            None,
+        )
+        .unwrap();
+        assert_eq!(count["rows"], json!([[4]]));
+    }
 
     fn city(name: &str) -> Vec<Filter> {
         vec![Filter {
