@@ -117,6 +117,26 @@ test("designs a new related table and applies it to the database", async ({ page
   await expect(edges(page)).toHaveCount(4);
 });
 
+test("shows the schema as saved, read-only, and comes back to the design", async ({ page }) => {
+  await createSample(page);
+  await openVisualizer(page);
+  await page.getByRole("button", { name: "Add table" }).first().click();
+  const draftNode = page.locator('.react-flow__node[data-id^="d:"]');
+  await expect(draftNode).toBeVisible();
+
+  const asSaved = page.getByRole("button", { name: "Show the schema as saved" });
+  await asSaved.click();
+  await expect(asSaved).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("status")).toContainText("without your changes");
+  await expect(draftNode).toHaveCount(0);
+  await expect(node(page, "t:customers")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add table" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Back to your design" }).click();
+  await expect(draftNode).toBeVisible();
+  await expect(unsavedBadge(page)).toBeVisible();
+});
+
 test("turns a blank design into a new database", async ({ page }) => {
   await createSample(page);
   await openVisualizer(page);

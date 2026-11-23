@@ -23,6 +23,8 @@ export type TableNodeData = {
   dimmed: boolean;
   color: TableColor | null;
   editor: SchemaEditor;
+  /** Showing the schema as saved: nothing can be edited. */
+  readOnly?: boolean;
 };
 export type TableNodeType = Node<TableNodeData, "table">;
 
@@ -63,7 +65,7 @@ export const TableNode = memo(function TableNode({ id, data, selected }: NodePro
   const { table, dimmed, color, editor } = data;
   /** Key of the column whose editor is open. */
   const [editing, setEditing] = useState<string | null>(null);
-  const editable = isEditableTable(table);
+  const editable = !data.readOnly && isEditableTable(table);
   // Columns (and so handles) can be added or renamed while designing; React Flow
   // must re-measure the handles or new ones can't start a connection.
   const updateNodeInternals = useUpdateNodeInternals();

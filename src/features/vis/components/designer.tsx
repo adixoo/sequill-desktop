@@ -19,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Eye,
   EyeOff,
+  History,
   LayoutGrid,
   Maximize,
   PanelLeftClose,
@@ -163,6 +164,13 @@ function DesignerCanvas({
   }, [positions, storageKey]);
 
   const diagram = useMemo(() => buildDiagram(schema, draft, showViews), [schema, draft, showViews]);
+  // The schema as saved (before the design), shown read-only; the design itself is kept.
+  const [showOriginal, setShowOriginal] = useState(false);
+  const viewingOriginal = showOriginal && !isDraftEmpty(draft);
+  const shown = useMemo(
+    () => (viewingOriginal ? buildDiagram(schema, EMPTY_DRAFT, showViews) : diagram),
+    [viewingOriginal, schema, showViews, diagram],
+  );
 
   // Fit the view once, after every table has been measured (an earlier fit sees zero-size nodes).
   const fitted = useRef(false);
@@ -202,7 +210,7 @@ function DesignerCanvas({
     onChange: setDraft,
   };
 
-  const nodes: TableNodeType[] = diagram.tables.map((t) => ({
+  const nodes: TableNodeType[] = shown.tables.map((t) => ({
     id: t.id,
     type: "table",
     position: positionOf(t.id),
@@ -211,6 +219,7 @@ function DesignerCanvas({
       dimmed: !!focus && !focus.has(t.id),
       color: colors[t.id] ?? null,
       editor: schemaEditor,
+      readOnly: viewingOriginal,
     },
     measured: sizes[t.id],
     selected: selection?.kind === "table" && selection.id === t.id,
@@ -218,7 +227,7 @@ function DesignerCanvas({
   }));
 
   const typeProblems = useMemo(() => edgeTypeProblems(diagram), [diagram]);
-  const edges: Edge[] = diagram.edges.map((e) => {
+  const edges: Edge[] = shown.edges.map((e) => {
     const active =
       selection?.kind === "edge"
         ? selection.id === e.id
@@ -417,9 +426,10 @@ function DesignerCanvas({
   );
   // The details panel only exists while a table or relationship is selected.
   const hasDetails =
-    selection?.kind === "table"
+    !viewingOriginal &&
+    (selection?.kind === "table"
       ? diagram.tables.some((t) => t.id === selection.id)
-      : selection?.kind === "edge" && diagram.edges.some((e) => e.id === selection.id);
+      : selection?.kind === "edge" && diagram.edges.some((e) => e.id === selection.id));
 
   const outline = (onClose?: () => void) => (
     <SchemaOutline
@@ -484,7 +494,7 @@ function DesignerCanvas({
         aria-label="Schema outline"
         className={cn(
           "w-64 shrink-0 border-r-2 border-hairline bg-surface max-lg:hidden",
-          !outlineShown && "lg:hidden",
+          (!outlineShown || viewingOriginal) && "lg:hidden",
         )}
       >
         {outline(() => showOutline(false))}
@@ -507,6 +517,7 @@ function DesignerCanvas({
           nodeTypes={nodeTypes}
           onNodesChange={onNodesChange}
           onConnect={onConnect}
+          nodesConnectable={!viewingOriginal}
           onNodeClick={(_, n) => setSelection({ kind: "table", id: n.id })}
           onEdgeClick={(_, e) => setSelection({ kind: "edge", id: e.id })}
           onPaneClick={() => setSelection(null)}
@@ -537,7 +548,7 @@ function DesignerCanvas({
                 <Button
                   variant="ghost"
                   size="icon-sm"
-                  className="max-lg:hidden"
+                  className={cn("max-lg:hidden", viewingOriginal && "hidden")}
                   aria-label={outlineShown ? "Hide tables sidebar" : "Show tables sidebar"}
                   aria-pressed={outlineShown}
                   onClick={() => showOutline(!outlineShown)}
@@ -550,15 +561,17 @@ function DesignerCanvas({
             <Button
               variant="ghost"
               size="icon-sm"
-              className="lg:hidden"
+              className={cn("lg:hidden", viewingOriginal && "hidden")}
               aria-label="Tables and columns"
               onClick={() => setOutlineOpen(true)}
             >
               <PanelLeftOpen />
             </Button>
-            <Button size="sm" onClick={addTable}>
-              <Plus /> Add table
-            </Button>
+            {!viewingOriginal && (
+              <Button size="sm" onClick={addTable}>
+                <Plus /> Add table
+              </Button>
+            )}
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -602,6 +615,24 @@ function DesignerCanvas({
               </TooltipTrigger>
               <TooltipContent>{showViews ? "Hide views" : "Show views"}</TooltipContent>
             </Tooltip>
+            {!isDraftEmpty(draft) && (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label="Show the schema as saved"
+                    aria-pressed={viewingOriginal}
+                    onClick={() => setShowOriginal(!viewingOriginal)}
+                  >
+                    <History />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {viewingOriginal ? "Back to your design" : "Show the schema as saved"}
+                </TooltipContent>
+              </Tooltip>
+            )}
             {hasDetails && (
               <Button
                 variant="ghost"
@@ -614,7 +645,19 @@ function DesignerCanvas({
               </Button>
             )}
           </Panel>
-          {diagram.tables.length === 0 && (
+          {viewingOriginal && (
+            <Panel
+              position="top-center"
+              role="status"
+              className="flex items-center gap-2 rounded-sm bg-sky-wash px-3 py-1.5 text-sm text-ink ring-2 ring-hairline max-md:mt-14"
+            >
+              <span>The schema as saved, without your changes</span>
+              <Button size="sm" variant="ghost" onClick={() => setShowOriginal(false)}>
+                Back to your design
+              </Button>
+            </Panel>
+          )}
+          {shown.tables.length === 0 && (
             <Panel position="top-center" className="mt-20 max-w-sm text-center">
               <p className="text-lg font-semibold text-ink">Nothing to draw yet</p>
               <p className="mt-1 text-sm text-ink-soft">Add a table to start designing a schema.</p>
