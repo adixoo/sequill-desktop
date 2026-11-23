@@ -51,20 +51,46 @@ That opens the app with hot reload. `bun run desktop:build` makes a release buil
 
 ## Scripts
 
-| Script                     | What it does                                             |
-| -------------------------- | -------------------------------------------------------- |
-| `bun run desktop:dev`      | Desktop app with hot reload.                             |
-| `bun run desktop:build`    | Release build and installers in `target/release/bundle`. |
-| `bun run mcp -- [options]` | MCP server from source (see [MCP server](#mcp-server)).  |
-| `bun run test:rust`        | Rust tests for the engine, the MCP server and the app.   |
-| `bun run typecheck`        | TypeScript checks.                                       |
-| `bun run lint`             | ESLint.                                                  |
-| `bun run format`           | Prettier; `format:check` to verify.                      |
-| `bun run test`             | Frontend unit and integration tests.                     |
-| `bun run test:e2e`         | Playwright end-to-end tests (run `bun run build` first). |
+| Script                        | What it does                                                                           |
+| ----------------------------- | -------------------------------------------------------------------------------------- |
+| `bun run desktop:dev`         | Desktop app with hot reload.                                                           |
+| `bun run desktop:build`       | Release build and installers in `target/release/bundle`.                               |
+| `bun run desktop:build:debug` | Debug build of the app, for desktop end-to-end tests.                                  |
+| `bun run mcp -- [options]`    | MCP server from source (see [MCP server](#mcp-server)).                                |
+| `bun run test:rust`           | Rust tests for the engine, the MCP server and the app.                                 |
+| `bun run typecheck`           | TypeScript checks.                                                                     |
+| `bun run lint`                | ESLint.                                                                                |
+| `bun run format`              | Prettier; `format:check` to verify.                                                    |
+| `bun run test`                | Vitest: all unit and integration tests (`test:unit`, `test:integration`).              |
+| `bun run test:e2e`            | Playwright on the browser build (run `bun run build` first).                           |
+| `bun run test:e2e:desktop`    | Playwright on the real desktop app (run `bun run desktop:build:debug` first; Windows). |
 
-End-to-end tests run in the installed Brave browser. If Brave is not at
-`C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe`, set `BRAVE_PATH`.
+## Tests
+
+Every JavaScript test lives in `tests/` and runs with [Vitest](https://vitest.dev) or
+[Playwright](https://playwright.dev); Rust tests stay next to the Rust code (`bun run test:rust`).
+
+```
+tests/
+  unit/          one function or module at a time, no SQLite (Vitest)
+  integration/   modules together on a real SQLite (the WASM build, in memory) (Vitest)
+  e2e/browser/   the browser build, driven like a person would (Playwright, in Brave)
+  e2e/desktop/   the compiled desktop app: UI, Tauri IPC, Rust engine and MCP (Playwright)
+  helpers/       shared test code: SQLite sessions, seeded randomness
+  fixtures/      files the tests open and import
+```
+
+Each layer has stress tests (`*.stress.test.ts`, `stress.spec.ts` and the desktop "stress" test):
+100,000–200,000-row tables, 120–150-table schemas, 30,000-row imports, thousands of seeded random
+filters and edits checked against plain-JS answers, and assistants writing over MCP while a person
+runs large SQL. Random inputs come from a fixed seed, printed in each test's name; set `STRESS_SEED`
+to try others.
+
+Browser end-to-end tests run in the installed Brave browser. If Brave is not at
+`C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe`, set `BRAVE_PATH`. Desktop
+end-to-end tests start `target/debug/sequill.exe` with WebView2's DevTools port open and attach
+Playwright to it (no WebDriver), on a fresh data folder (`SEQUILL_DATA_DIR`) and WebView2 profile,
+so your own databases and settings are never touched. WebView2 makes them Windows only.
 
 ## Releasing
 
@@ -98,6 +124,7 @@ src/                   the React 19 + TypeScript frontend (Vite)
   constants/ store/    app constants and zustand stores
   styles/              global CSS
 src-tauri/             the desktop app: Tauri commands and the outside-change watcher
+tests/                 unit, integration and end-to-end tests (see [Tests](#tests))
 crates/
   sequill-core/        the native engine: sessions, schema, filters, DDL, dump, database catalog
   sequill-mcp/         the MCP server and its tools
@@ -224,8 +251,8 @@ Found a security problem? Please don't open a public issue; report it privately 
    are quoted, and destructive actions show their SQL first.
 4. Add or update tests:
    - Rust: unit tests sit next to the code in `crates/` and `src-tauri/` (`bun run test:rust`).
-   - Frontend: `*.test.ts` files beside the code in `src/` (`bun run test`).
-   - User flows: Playwright specs in `e2e/` (`bun run test:e2e`).
+   - Frontend: `tests/unit/` and `tests/integration/` (`bun run test`), see [Tests](#tests).
+   - User flows: Playwright specs in `tests/e2e/` (`bun run test:e2e`, `test:e2e:desktop`).
 5. Run the same checks CI runs before you push:
 
    ```bash

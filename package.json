@@ -13,12 +13,16 @@
     "typecheck": "tsc --noEmit",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "bun test src scripts",
-    "test:e2e": "playwright test",
+    "test": "vitest run",
+    "test:unit": "vitest run --project unit",
+    "test:integration": "vitest run --project integration",
+    "test:e2e": "playwright test --project browser",
+    "test:e2e:desktop": "playwright test --project desktop",
     "test:rust": "cargo test --workspace",
     "tauri": "tauri",
     "desktop:dev": "tauri dev",
     "desktop:build": "tauri build",
+    "desktop:build:debug": "tauri build --debug --no-bundle",
     "mcp": "cargo run -q -p sequill-mcp --",
     "changeset": "changeset",
     "version-packages": "changeset version && bun scripts/sync-cargo-version.ts",
@@ -86,7 +90,8 @@
     "tailwindcss": "^4",
     "typescript": "^5",
     "typescript-eslint": "8.72.2",
-    "vite": "8.3.8"
+    "vite": "8.3.8",
+    "vitest": "^5.1.1"
   },
   "packageManager": "bun@1.2.9",
   "ignoreScripts": [

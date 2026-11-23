@@ -36,8 +36,14 @@ const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
 const STRUCTURE_CHANGED: &str = "The database's structure changed since your design was checked (another app or an assistant changed it). Nothing was saved; review the changes and save again.";
 
+/// Points the app and `sequill mcp` at another data folder (end-to-end tests use a fresh one).
+pub const DATA_DIR_ENV: &str = "SEQUILL_DATA_DIR";
+
 /// Where the app and the MCP server keep databases unless told otherwise.
 pub fn default_data_dir() -> Option<PathBuf> {
+    if let Some(dir) = std::env::var_os(DATA_DIR_ENV).filter(|d| !d.is_empty()) {
+        return Some(PathBuf::from(dir));
+    }
     dirs::data_dir().map(|dir| dir.join(APP_IDENTIFIER))
 }
 

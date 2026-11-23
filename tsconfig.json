@@ -18,6 +18,13 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src", "e2e", "scripts", "vite.config.ts", "playwright.config.ts"],
+  "include": [
+    "src",
+    "tests",
+    "scripts",
+    "vite.config.ts",
+    "vitest.config.mts",
+    "playwright.config.ts"
+  ],
   "exclude": ["node_modules", "dist", "target"]
 }
