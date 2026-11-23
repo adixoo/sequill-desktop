@@ -596,9 +596,15 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
         let schema = run(&converted.statements).schema().unwrap();
         let event = schema.tables.iter().find(|t| t.name == "event").unwrap();
         let types: Vec<&str> = event.columns.iter().map(|c| c.type_name.as_str()).collect();
-        assert_eq!(types, ["BIGINT", "INTEGER", "VARCHAR", "STRUCT", "TIMESTAMP"]);
+        assert_eq!(
+            types,
+            ["BIGINT", "INTEGER", "VARCHAR", "STRUCT", "TIMESTAMP"]
+        );
         assert_eq!(event.foreign_keys[0].table, "app_user");
-        assert_eq!(event.columns[4].default_value.as_deref(), Some("CURRENT_TIMESTAMP"));
+        assert_eq!(
+            event.columns[4].default_value.as_deref(),
+            Some("CURRENT_TIMESTAMP")
+        );
         assert_eq!(schema.indexes.len(), 1);
     }
 
