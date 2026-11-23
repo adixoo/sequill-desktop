@@ -46,7 +46,7 @@ const fromChoice = (value: string) => (value === FOREVER ? null : Number(value))
 const SHOWN_ARGUMENTS = new Set(["table", "view"]);
 
 /** A green dot for a call that worked, a rose one for one that failed or was refused. */
-export function ActivityDot({ ok }: { ok: boolean }) {
+function ActivityDot({ ok }: { ok: boolean }) {
   return (
     <span
       aria-hidden

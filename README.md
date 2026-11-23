@@ -167,8 +167,7 @@ Desktop from the Microsoft Store: its calls must go through the app, so while Se
 one answers that it isn't open, and once you open it the next call works without restarting the
 assistant. A call that is running when Sequill closes says it may or may not have finished.
 
-Everything an assistant does is listed under **History** (next to **MCP** in the top bar) and
-under **Assistant (MCP)** in the editor's sidebar; the
+Everything an assistant does is listed under **History** (next to **MCP** in the top bar); the
 full history opens as a panel with each call's database, SQL and result, and links to open a query
 in the **Assistant** tab or show a table. A query an assistant shows you always goes to that one
 tab instead of opening a new one each time. The history stays on your computer and is deleted

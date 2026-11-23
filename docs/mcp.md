@@ -368,8 +368,6 @@ All MCP UI is desktop-only (`isDesktop()`); the browser build has no MCP.
 - **History button / sheet** (`McpHistoryButton`, `McpActivitySheet`): every call grouped by day,
   with database, SQL, arguments, result/error, retention picker and clear. Links open the query
   in the Assistant tab or show the table.
-- **Sidebar**: the editor sidebar's _Assistant (MCP)_ section shows recent calls with an
-  `ActivityDot`.
 
 Data flow: `use-mcp.ts` (React Query) → `desktop.ts` (`invoke`) → Tauri commands in
 `commands.rs` → `Store`. `describeTool` / `TOOL_LABELS` in `mcp.ts` give each tool a short label

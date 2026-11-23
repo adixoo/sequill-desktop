@@ -3,10 +3,8 @@ import {
   ChevronDown,
   Eye,
   FileCode,
-  History,
   ListTree,
   MoreHorizontal,
-  PanelRightOpen,
   Pencil,
   Plus,
   SquareTerminal,
@@ -19,7 +17,6 @@ import {
 } from "@/components/atoms/icons";
 import { useState, type ReactNode } from "react";
 import { DatabaseSwitcher } from "@/components/organisms/database-switcher";
-import { ActivityDot } from "@/components/organisms/mcp-activity";
 import { Link } from "@/components/atoms/link";
 import { ROUTES } from "@/lib/router";
 import { ThemeToggle } from "@/components/molecules/theme-toggle";
@@ -31,13 +28,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
 import { useTableCount } from "@/hooks/use-db";
-import { useMcpActivity } from "@/hooks/use-mcp";
-import { useNow } from "@/hooks/use-now";
 import { useSavedQueryActions } from "@/hooks/use-saved-queries";
 import { formatCount } from "@/utils/data/format";
 import type { SavedQuery } from "@/utils/data/saved-queries";
-import { activityLabel, timeAgo } from "@/lib/mcp";
-import { isDesktop } from "@/lib/platform";
 import type { RelationInfo, Schema, SchemaObject } from "@/lib/sqlite/types";
 import { useDialogs } from "@/store/dialogs";
 import { useSavedQueries } from "@/store/saved-queries";
@@ -182,82 +175,6 @@ function RelationItem({
         </DropdownMenuContent>
       </DropdownMenu>
     </li>
-  );
-}
-
-/** Latest calls shown in the sidebar; the sheet lists them all. */
-const SIDEBAR_ACTIVITY = 5;
-
-/**
- * The "Assistant (MCP)" section: the latest things AI assistants did, with the full
- * history a click away. Desktop app only.
- */
-function AssistantGroup() {
-  const activity = useMcpActivity();
-  const openDialog = useDialogs((s) => s.open);
-  const now = useNow();
-  if (!isDesktop()) return null;
-  const entries = activity.data ?? [];
-  const showAll = () => openDialog({ kind: "mcpActivity" });
-  return (
-    <Group
-      title="Assistant (MCP)"
-      count={entries.length}
-      icon={<History className="size-3.5" />}
-      action={
-        <Button
-          variant="ghost"
-          size="icon-xs"
-          aria-label="Open assistant activity"
-          onClick={showAll}
-        >
-          <PanelRightOpen />
-        </Button>
-      }
-    >
-      {entries.slice(0, SIDEBAR_ACTIVITY).map((a) => {
-        const label = activityLabel(a);
-        return (
-          <li key={a.id}>
-            <button
-              type="button"
-              onClick={showAll}
-              title={[label, a.databaseName, a.ok ? null : "failed"].filter(Boolean).join(" · ")}
-              className="flex h-8 w-full items-center gap-2 rounded-xs pr-2 pl-7 text-left text-sm text-ink-soft outline-none hover:bg-zebra focus-visible:bg-zebra"
-            >
-              <ActivityDot ok={a.ok} />
-              <span className="min-w-0 flex-1 truncate">{label}</span>
-              <span className="shrink-0 font-mono text-[0.6875rem] text-ink-muted">
-                {timeAgo(a.at, now)}
-              </span>
-            </button>
-          </li>
-        );
-      })}
-      {entries.length > SIDEBAR_ACTIVITY && (
-        <li>
-          <button
-            type="button"
-            onClick={showAll}
-            className="h-7 w-full rounded-xs pl-7 text-left text-xs text-sky-ink outline-none hover:underline focus-visible:bg-zebra"
-          >
-            Show all {entries.length}
-          </button>
-        </li>
-      )}
-      {entries.length === 0 && (
-        <li className="px-7 py-1 text-sm text-ink-muted">
-          Nothing yet.{" "}
-          <button
-            type="button"
-            className="text-sky-ink underline-offset-2 hover:underline"
-            onClick={() => openDialog({ kind: "mcp" })}
-          >
-            Connect an assistant
-          </button>
-        </li>
-      )}
-    </Group>
   );
 }
 
@@ -446,7 +363,6 @@ export function Sidebar({ dbId, schema, onNavigate, className }: SidebarProps) {
             )}
           </>
         )}
-        <AssistantGroup />
       </div>
 
       {dbId && (
