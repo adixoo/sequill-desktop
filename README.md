@@ -80,17 +80,23 @@ to `master`.
 
 ```
 src/                   the React 19 + TypeScript frontend (Vite)
-  main/                entry point and page switch
+  app/                 entry point, providers and page switch
+  pages/               one file per route; each lazy-loads its feature
   features/editor/     the editor: sidebar, tabs, grid, query console, command palette
-  features/vis/        the schema visualizer and designer
-  shared/              UI, dialogs, hooks and the SQLite client used by both pages
+  features/vis/        the schema visualizer and designer (components/, hooks/, lib/)
+  components/          shared UI by atomic level: atoms/ (shadcn), molecules/, organisms/, templates/
+  hooks/               shared React hooks
+  lib/                 the SQLite client, platform, storage, router, theme, MCP
+  utils/               pure helpers: formatting, grid, import/export, highlighting
+  constants/ store/    app constants and zustand stores
+  styles/              global CSS
 src-tauri/             the desktop app: Tauri commands and the outside-change watcher
 crates/
   sequill-core/        the native engine: sessions, schema, filters, DDL, dump, database catalog
   sequill-mcp/         the MCP server and its tools
 ```
 
-The frontend reaches SQLite only through `getSqlite()` in `src/shared/lib/sqlite/client.ts`, which
+The frontend reaches SQLite only through `getSqlite()` in `src/lib/sqlite/client.ts`, which
 calls the Rust engine through Tauri commands. Values are always bound parameters, names are quoted,
 and destructive actions show their SQL first.
 

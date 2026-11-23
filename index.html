@@ -14,7 +14,7 @@
     <link rel="icon" href="/logo.svg" type="image/svg+xml" />
     <title>Sequill</title>
     <script>
-      // Apply the saved theme before the first paint (same key as src/shared/lib/theme.ts).
+      // Apply the saved theme before the first paint (same key as src/lib/theme.ts).
       try {
         if (localStorage.getItem("theme") === "light") {
           document.documentElement.classList.replace("dark", "light");
@@ -29,6 +29,6 @@
   </head>
   <body class="flex min-h-full flex-col">
     <div id="root" class="contents"></div>
-    <script type="module" src="/src/main/main.tsx"></script>
+    <script type="module" src="/src/app/main.tsx"></script>
   </body>
 </html>

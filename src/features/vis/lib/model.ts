@@ -12,10 +12,10 @@ import {
   buildRenameTable,
   emptyColumn,
   type ColumnDef,
-} from "@/shared/lib/sqlite/ddl";
-import { typeAffinity } from "@/shared/lib/data/format";
-import { quoteIdent } from "@/shared/lib/sqlite/sql";
-import type { ColumnInfo, RelationInfo, Schema } from "@/shared/lib/sqlite/types";
+} from "@/lib/sqlite/ddl";
+import { typeAffinity } from "@/utils/data/format";
+import { quoteIdent } from "@/lib/sqlite/sql";
+import type { ColumnInfo, RelationInfo, Schema } from "@/lib/sqlite/types";
 
 export interface DraftTable {
   id: string;

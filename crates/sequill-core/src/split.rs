@@ -1,6 +1,6 @@
 //! Splits a script into statements with SQLite's own `sqlite3_complete`, so strings,
 //! comments and CREATE TRIGGER bodies are handled exactly as SQLite does.
-//! Mirrors the web app's `src/shared/lib/sqlite/split.ts`.
+//! Mirrors the web app's `src/lib/sqlite/split.ts`.
 
 use std::ffi::CString;
 

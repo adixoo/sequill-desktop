@@ -9,7 +9,7 @@ use std::thread;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
-/// The events the frontend listens for (`src/shared/lib/sqlite/desktop.ts`).
+/// The events the frontend listens for (`src/lib/sqlite/desktop.ts`).
 pub const EXTERNAL_CHANGE_EVENT: &str = "sequill://external-change";
 pub const SHOW_EVENT: &str = "sequill://show";
 const POLL_INTERVAL: Duration = Duration::from_secs(1);

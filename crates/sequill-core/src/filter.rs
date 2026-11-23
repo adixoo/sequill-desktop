@@ -1,5 +1,5 @@
 //! Row filters and search, the same as the editor's filter builder. Mirrors `buildWhere`
-//! in the web app's `src/shared/lib/sqlite/sql.ts`: same operators, same text matching,
+//! in the web app's `src/lib/sqlite/sql.ts`: same operators, same text matching,
 //! and numeric-looking text compared as a number.
 
 use crate::dump::quote_ident;

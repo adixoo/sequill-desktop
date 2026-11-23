@@ -1,5 +1,5 @@
 //! Builders for schema changes from structured definitions, with the same rules and messages
-//! as the web app's `src/shared/lib/sqlite/ddl.ts`. Names are always quoted.
+//! as the web app's `src/lib/sqlite/ddl.ts`. Names are always quoted.
 
 use crate::dump::quote_ident;
 use crate::error::{Error, Result};

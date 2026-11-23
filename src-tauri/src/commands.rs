@@ -1,5 +1,5 @@
 //! The SQLite API the web UI calls, one command per method of the browser build's worker
-//! (`src/shared/lib/sqlite/worker.ts`). The frontend side is `src/shared/lib/sqlite/desktop.ts`.
+//! (`src/lib/sqlite/worker.ts`). The frontend side is `src/lib/sqlite/desktop.ts`.
 
 use percent_encoding::percent_decode_str;
 use sequill_core::store::SavedQuery;
@@ -15,7 +15,7 @@ use tauri_plugin_dialog::DialogExt;
 
 /// Header carrying the imported file's name (percent-encoded), next to its raw bytes.
 const NAME_HEADER: &str = "x-sequill-name";
-/// The file picker's database types; matches `DB_FILE_ACCEPT` in `src/shared/lib/constants.ts`.
+/// The file picker's database types; matches `DB_FILE_ACCEPT` in `src/constants/index.ts`.
 const DB_EXTENSIONS: &[&str] = &["sqlite", "sqlite3", "db", "db3", "s3db", "sl3"];
 
 pub struct AppState {

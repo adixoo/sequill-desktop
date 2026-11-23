@@ -2,7 +2,7 @@
  * Table colors on the schema diagram: one of the design system's pastels, or a
  * custom hex. Values are validated before they reach any style attribute.
  */
-import type { Accent } from "@/shared/components/pastel/accent";
+import type { Accent } from "@/components/molecules/pastel/accent";
 
 export const PRESET_COLORS: { value: Accent; label: string }[] = [
   { value: "peach", label: "Peach" },

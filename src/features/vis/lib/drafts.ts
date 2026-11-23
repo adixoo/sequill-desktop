@@ -2,8 +2,8 @@
  * Unsaved schema designs live in this browser, one per database id (or
  * "blank"), until the user saves them into a database or discards them.
  */
-import { STORAGE_KEYS } from "@/shared/lib/constants";
-import { readJson, removeKey, writeJson } from "@/shared/lib/storage";
+import { STORAGE_KEYS } from "@/constants";
+import { readJson, removeKey, writeJson } from "@/lib/storage";
 import { EMPTY_DRAFT, isDraftEmpty, normalizeDraft, type Draft } from "./model";
 
 export const BLANK_DESIGN = "blank";

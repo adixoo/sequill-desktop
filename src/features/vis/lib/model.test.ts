@@ -1,8 +1,8 @@
 import { describe, expect, test } from "bun:test";
-import { emptyColumn } from "@/shared/lib/sqlite/ddl";
-import type { Schema } from "@/shared/lib/sqlite/types";
-import { SAMPLE_DB_SQL } from "@/shared/lib/sqlite/sample";
-import { memorySession } from "@/shared/lib/sqlite/test-utils";
+import { emptyColumn } from "@/lib/sqlite/ddl";
+import type { Schema } from "@/lib/sqlite/types";
+import { SAMPLE_DB_SQL } from "@/lib/sqlite/sample";
+import { memorySession } from "@/lib/sqlite/test-utils";
 import {
   autoLayout,
   edgeSides,
