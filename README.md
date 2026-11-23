@@ -23,7 +23,9 @@ Contributions are welcome; see [Contributing](#contributing) to get started.
   columns, drag between columns to create foreign keys, then save everything in one transaction or as a
   new database. Each edit is checked on a copy of the database's structure (no rows), and nothing
   touches the database until you review the SQL and confirm. Changes SQLite can't make in place
-  rebuild the table and keep its rows.
+  rebuild the table and keep its rows. Unsaved designs are kept until you save or discard them;
+  in the desktop app assistants can read and edit them over MCP (`get_design`, `set_design`), and you
+  see their edits live.
 - **Import / export**: CSV, TSV and JSON import with type detection and column mapping; export tables,
   filtered views, selections or query results as CSV, JSON or SQL INSERTs.
 - **MCP server**: AI assistants can read, show and (when allowed) change the databases; see
@@ -165,18 +167,20 @@ These read and show things (while access is on):
 | `explain_query`      | EXPLAIN QUERY PLAN for a script, without running it.                                 |
 | `list_saved_queries` | The editor's saved queries.                                                          |
 | `show_in_app`        | Opens a table (with filters, search and sort), a query tab or the schema in the app. |
+| `get_design`         | The schema designer's unsaved design for a database, with its version.               |
 
 These change things, so they also need **Allow changes**; until then they're refused with a message
 asking the user to turn it on:
 
-| Tool                                                    | What it does                                                       |
-| ------------------------------------------------------- | ------------------------------------------------------------------ |
-| `insert_rows`, `update_rows`, `delete_rows`             | Rows by column name; update and delete need filters or `all_rows`. |
-| `create_table`, `alter_table`, `drop_object`            | Tables and columns (add, rename, drop), and dropping any object.   |
-| `create_index`, `create_trigger`, `create_view`         | Indexes (unique, partial, descending), triggers and views.         |
-| `create_database`, `rename_database`, `delete_database` | Databases in Sequill.                                              |
-| `save_query`, `delete_saved_query`                      | The editor's saved queries.                                        |
-| `execute`                                               | Any SQL script, for whatever the tools above don't cover.          |
+| Tool                                                    | What it does                                                                                                                                |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `insert_rows`, `update_rows`, `delete_rows`             | Rows by column name; update and delete need filters or `all_rows`.                                                                          |
+| `create_table`, `alter_table`, `drop_object`            | Tables and columns (add, rename, drop), and dropping any object.                                                                            |
+| `create_index`, `create_trigger`, `create_view`         | Indexes (unique, partial, descending), triggers and views.                                                                                  |
+| `create_database`, `rename_database`, `delete_database` | Databases in Sequill.                                                                                                                       |
+| `save_query`, `delete_saved_query`                      | The editor's saved queries.                                                                                                                 |
+| `set_design`                                            | Replaces the schema designer's unsaved design (refused if it changed since `get_design`). The user reviews it and saves it to the database. |
+| `execute`                                               | Any SQL script, for whatever the tools above don't cover.                                                                                   |
 
 Reads always run on a read-only connection. `--allow-writes`, which older versions needed, is still
 accepted and does nothing. ATTACH is turned off, so a call can only reach the databases in Sequill's list, including files you

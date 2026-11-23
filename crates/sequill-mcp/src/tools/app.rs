@@ -1,13 +1,15 @@
 //! The app around the databases: creating, renaming and deleting databases, saved queries,
-//! and asking the open app to show a table, a query or the schema.
+//! schema designs, and asking the open app to show a table, a query or the schema.
 
 use super::{open_db, open_store, open_store_for_changes, to_json};
 use schemars::JsonSchema;
+use sequill_core::design::Draft;
 use sequill_core::filter::{Filter, FilterMatch, build_where};
 use sequill_core::rows::{Sort, table_columns};
 use sequill_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -51,6 +53,46 @@ pub fn list_saved_queries(dir: &Path) -> Result<Value> {
 
 pub fn save_query(dir: &Path, name: &str, sql: &str, id: Option<&str>) -> Result<Value> {
     Ok(json!({ "query": to_json(open_store_for_changes(dir)?.save_query(name, sql, id)?) }))
+}
+
+/// Told to an assistant whose design save lost the race to another edit.
+pub const DESIGN_CHANGED_MESSAGE: &str = "The design changed since you read it (the user or another assistant edited it), so nothing was saved. Call get_design again and apply your changes to that version.";
+
+pub fn get_design(dir: &Path, database: &str) -> Result<Value> {
+    let store = open_store(dir)?;
+    let info = store.resolve(database)?;
+    let design = store.design(&info.id)?;
+    Ok(json!({
+        "database": { "id": info.id, "name": info.name },
+        "version": design.version,
+        "draft": design.draft,
+    }))
+}
+
+/// Replaces a database's unsaved design if it is still at `version`. Existing tables and
+/// columns must be named as they are in the database; the user saves the design into it.
+pub fn set_design(dir: &Path, database: &str, version: i64, draft: &Draft) -> Result<Value> {
+    open_store_for_changes(dir)?;
+    let db = open_db(dir, database, false)?;
+    let tables: BTreeMap<String, Vec<String>> = db
+        .session
+        .schema()?
+        .tables
+        .into_iter()
+        .map(|t| (t.name, t.columns.into_iter().map(|c| c.name).collect()))
+        .collect();
+    let unknown = draft.unknown_names(&tables);
+    if !unknown.is_empty() {
+        return Err(Error::msg(format!(
+            "The database has no {}. Name existing tables and columns as they are now (see get_schema); new tables go in \"tables\".",
+            unknown.join(", ")
+        )));
+    }
+    let draft = serde_json::to_value(draft).expect("drafts serialize");
+    match db.store.save_design(&db.info.id, &draft, version)? {
+        Some(version) => Ok(json!({ "database": db.database(), "version": version })),
+        None => Err(Error::msg(DESIGN_CHANGED_MESSAGE)),
+    }
 }
 
 pub fn delete_saved_query(dir: &Path, id: &str) -> Result<Value> {
@@ -153,6 +195,35 @@ mod tests {
     use crate::tools::test_support::store_with_shop;
     use sequill_core::Store;
     use sequill_core::filter::FilterOp;
+
+    #[test]
+    fn edits_the_design_over_the_version_it_read_and_leaves_the_database_alone() {
+        let (dir, id) = store_with_shop();
+        let read = get_design(dir.path(), "Shop").unwrap();
+        assert_eq!(read["version"], 0);
+
+        let draft: Draft =
+            serde_json::from_value(json!({ "renamedTables": { "customer": "client" } })).unwrap();
+        let saved = set_design(dir.path(), "Shop", 0, &draft).unwrap();
+        assert_eq!(saved["version"], 1);
+        let read = get_design(dir.path(), &id).unwrap();
+        assert_eq!(read["draft"]["renamedTables"]["customer"], "client");
+
+        // Based on an old read: refused, so the newer design isn't lost.
+        let error = set_design(dir.path(), "Shop", 0, &Draft::default()).unwrap_err();
+        assert_eq!(error.to_string(), DESIGN_CHANGED_MESSAGE);
+
+        let ghost: Draft = serde_json::from_value(json!({ "droppedTables": ["ghost"] })).unwrap();
+        let error = set_design(dir.path(), "Shop", 1, &ghost).unwrap_err();
+        assert!(error.to_string().contains("no ghost"), "{error}");
+
+        let store = Store::open_shared(dir.path()).unwrap();
+        store.set_mcp_changes_allowed(false).unwrap();
+        assert!(set_design(dir.path(), "Shop", 1, &draft).is_err());
+        // The database itself never changed.
+        let schema = crate::tools::get_schema(dir.path(), "Shop").unwrap();
+        assert_eq!(schema["tables"][0]["name"], "customer");
+    }
 
     #[test]
     fn creates_renames_and_deletes_databases() {

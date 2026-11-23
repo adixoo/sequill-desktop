@@ -129,6 +129,21 @@ export const desktopSavedQueries = {
   remove: (id: string) => invoke<boolean>("delete_saved_query", { id }),
 };
 
+/** A schema design as the catalog keeps it; `version` goes up by one on every save. */
+export interface StoredDesign {
+  key: string;
+  draft: unknown;
+  version: number;
+}
+
+/** Unsaved schema designs, kept in the catalog on desktop so assistants can edit them too. */
+export const desktopDesigns = {
+  list: () => invoke<StoredDesign[]>("list_designs"),
+  /** The new version, or null when an assistant saved first (then nothing is saved). */
+  save: (key: string, draft: unknown, version: number) =>
+    invoke<number | null>("save_design", { key, draft, version }),
+};
+
 /** Calls `listener` when an assistant asks the app to show something; returns a stop function. */
 export function watchShowRequests(listener: (request: ShowRequest) => void): () => void {
   const stop = listen<ShowRequest>(SHOW_EVENT, (event) => listener(event.payload));

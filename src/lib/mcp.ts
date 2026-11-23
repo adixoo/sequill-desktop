@@ -61,6 +61,8 @@ const TOOL_LABELS: Record<string, { label: string; changes?: true }> = {
   explain_query: { label: "Explain" },
   list_saved_queries: { label: "List saved queries" },
   show_in_app: { label: "Show" },
+  get_design: { label: "Read design" },
+  set_design: { label: "Edit design", changes: true },
   insert_rows: { label: "Insert rows", changes: true },
   update_rows: { label: "Update rows", changes: true },
   delete_rows: { label: "Delete rows", changes: true },

@@ -5,7 +5,7 @@ use percent_encoding::percent_decode_str;
 use sequill_core::store::SavedQuery;
 use sequill_core::{
     CellValue, DbInfo, DesignPreview, McpActivity, QueryResult, Row, Schema, SqlStatement,
-    StatementResult, Store,
+    StatementResult, Store, StoredDesign,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -272,6 +272,22 @@ pub async fn upsert_saved_query(state: State<'_, AppState>, query: SavedQuery) -
 #[tauri::command]
 pub async fn delete_saved_query(state: State<'_, AppState>, id: String) -> CmdResult<bool> {
     with_store(&state, move |s| s.delete_saved_query(&id)).await
+}
+
+#[tauri::command]
+pub async fn list_designs(state: State<'_, AppState>) -> CmdResult<Vec<StoredDesign>> {
+    with_store(&state, |s| s.designs()).await
+}
+
+/// The new version, or None when an assistant saved the design first (nothing is saved).
+#[tauri::command]
+pub async fn save_design(
+    state: State<'_, AppState>,
+    key: String,
+    draft: serde_json::Value,
+    version: i64,
+) -> CmdResult<Option<i64>> {
+    with_store(&state, move |s| s.save_design(&key, &draft, version)).await
 }
 
 /// The MCP switches and how an MCP client starts this app's MCP server.

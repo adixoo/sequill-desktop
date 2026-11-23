@@ -71,6 +71,8 @@ fn run() {
             commands::list_saved_queries,
             commands::upsert_saved_query,
             commands::delete_saved_query,
+            commands::list_designs,
+            commands::save_design,
             commands::mcp_status,
             commands::set_mcp_enabled,
             commands::set_mcp_allow_changes,

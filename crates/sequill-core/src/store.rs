@@ -72,6 +72,20 @@ fn required_name(name: &str) -> Result<&str> {
     }
 }
 
+/// The schema designer's unsaved design for one database (or "blank"), as stored.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct StoredDesign {
+    /// A database id, or [`BLANK_DESIGN`].
+    pub key: String,
+    /// The draft as JSON (see [`crate::design::Draft`]).
+    pub draft: serde_json::Value,
+    /// Goes up by one on every save, so a save based on an older read can be refused.
+    pub version: i64,
+}
+
+/// The key of the design that isn't tied to a database (it becomes a new one).
+pub const BLANK_DESIGN: &str = "blank";
+
 /// What other processes changed since the last check.
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -238,7 +252,9 @@ impl Store {
                id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, tool TEXT NOT NULL,
                database_id TEXT, database_name TEXT, sql TEXT, details TEXT,
                ok INTEGER NOT NULL, message TEXT);
-             CREATE INDEX IF NOT EXISTS mcp_activity_at ON mcp_activity (at);",
+             CREATE INDEX IF NOT EXISTS mcp_activity_at ON mcp_activity (at);
+             CREATE TABLE IF NOT EXISTS designs (
+               key TEXT PRIMARY KEY, draft TEXT NOT NULL, version INTEGER NOT NULL);",
         )?;
         migrate_catalog(&mut catalog)?;
         let catalog_version = data_version(&catalog)?;
@@ -486,6 +502,8 @@ impl Store {
         if self.info(id).is_ok_and(|info| info.path.is_some()) {
             self.catalog
                 .execute("DELETE FROM databases WHERE id = ?", [id])?;
+            self.catalog
+                .execute("DELETE FROM designs WHERE key = ?", [id])?;
             return Ok(());
         }
         // Only forget it once the file is gone: another process may still have it open.
@@ -502,6 +520,8 @@ impl Store {
         drop_side_files(&path);
         self.catalog
             .execute("DELETE FROM databases WHERE id = ?", [id])?;
+        self.catalog
+            .execute("DELETE FROM designs WHERE key = ?", [id])?;
         Ok(())
     }
 
@@ -647,6 +667,66 @@ impl Store {
             .catalog
             .execute("DELETE FROM saved_queries WHERE id = ?", [id])?
             > 0)
+    }
+
+    /// Every stored schema design.
+    pub fn designs(&self) -> Result<Vec<StoredDesign>> {
+        self.catalog
+            .prepare("SELECT key, draft, version FROM designs")?
+            .query_map([], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get(2)?))
+            })?
+            .map(|row| {
+                let (key, draft, version) = row?;
+                let draft = serde_json::from_str(&draft)
+                    .map_err(|e| Error::msg(format!("The design for {key} is unreadable ({e})")))?;
+                Ok(StoredDesign {
+                    key,
+                    draft,
+                    version,
+                })
+            })
+            .collect()
+    }
+
+    /// The stored design for `key`; an empty one at version 0 if there is none.
+    pub fn design(&self, key: &str) -> Result<StoredDesign> {
+        Ok(self
+            .designs()?
+            .into_iter()
+            .find(|d| d.key == key)
+            .unwrap_or_else(|| StoredDesign {
+                key: key.to_owned(),
+                draft: serde_json::json!({}),
+                version: 0,
+            }))
+    }
+
+    /// Saves the design for `key` (a database id or [`BLANK_DESIGN`]) if it is still at
+    /// `version` (0 when none was saved yet). Returns the new version, or None when another
+    /// window or an assistant saved it first; nothing is saved then.
+    pub fn save_design(
+        &self,
+        key: &str,
+        draft: &serde_json::Value,
+        version: i64,
+    ) -> Result<Option<i64>> {
+        if key != BLANK_DESIGN {
+            check_id(key)?;
+        }
+        let draft = draft.to_string();
+        let saved = if version == 0 {
+            self.catalog.execute(
+                "INSERT INTO designs (key, draft, version) VALUES (?, ?, 1) ON CONFLICT (key) DO NOTHING",
+                params![key, draft],
+            )?
+        } else {
+            self.catalog.execute(
+                "UPDATE designs SET draft = ?, version = version + 1 WHERE key = ? AND version = ?",
+                params![draft, key, version],
+            )?
+        };
+        Ok((saved > 0).then_some(version + 1))
     }
 
     /// Records one call an assistant made over MCP, then forgets calls older than the
@@ -1342,6 +1422,34 @@ mod tests {
                 error: None
             }
         );
+    }
+
+    #[test]
+    fn saves_designs_only_over_the_version_they_were_read_at() {
+        let (dir, mut store) = store();
+        let db = store.create("A", None).unwrap();
+        let other = Store::open_shared(dir.path()).unwrap();
+        let v1 = serde_json::json!({ "droppedTables": ["a"] });
+        let v2 = serde_json::json!({ "droppedTables": ["b"] });
+
+        assert_eq!(store.design(&db.id).unwrap().version, 0);
+        assert_eq!(store.save_design(&db.id, &v1, 0).unwrap(), Some(1));
+        // Another process read version 0 too: its save is refused, not merged.
+        assert_eq!(other.save_design(&db.id, &v2, 0).unwrap(), None);
+        assert_eq!(other.save_design(&db.id, &v2, 1).unwrap(), Some(2));
+        assert_eq!(store.save_design(&db.id, &v1, 1).unwrap(), None);
+        assert_eq!(store.design(&db.id).unwrap().draft, v2);
+
+        assert_eq!(store.save_design(BLANK_DESIGN, &v1, 0).unwrap(), Some(1));
+        assert!(store.save_design("../x", &v1, 0).is_err());
+        store.delete(&db.id).unwrap();
+        let keys: Vec<String> = store
+            .designs()
+            .unwrap()
+            .into_iter()
+            .map(|d| d.key)
+            .collect();
+        assert_eq!(keys, [BLANK_DESIGN]);
     }
 
     fn call(tool: &str, ok: bool) -> NewMcpActivity {

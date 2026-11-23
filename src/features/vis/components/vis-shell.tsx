@@ -19,7 +19,12 @@ import {
 import { Button } from "@/components/atoms/button";
 import { useDatabases, useRestoreLastDatabase, useSchema } from "@/hooks/use-db";
 import { useWorkspace } from "@/store/workspace";
-import { BLANK_DESIGN, hasUnsavedDesign, writeDraft } from "@/features/vis/lib/drafts";
+import {
+  BLANK_DESIGN,
+  hasUnsavedDesign,
+  useDraftsLoaded,
+  writeDraft,
+} from "@/features/vis/lib/drafts";
 import { EMPTY_DRAFT } from "@/features/vis/lib/model";
 import { Designer } from "./designer";
 
@@ -61,7 +66,8 @@ function Visualizer() {
     else go(to);
   };
 
-  const ready = blank || (activeDb !== null && schema.data !== undefined);
+  const draftsLoaded = useDraftsLoaded();
+  const ready = draftsLoaded && (blank || (activeDb !== null && schema.data !== undefined));
   const designName = blank ? "the blank design" : (current?.name ?? "this database");
 
   return (

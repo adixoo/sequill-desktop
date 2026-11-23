@@ -12,6 +12,7 @@ use rmcp::{ErrorData, RoleServer, ServerHandler, tool, tool_handler, tool_router
 use schemars::JsonSchema;
 use sequill_core::CellValue;
 use sequill_core::ddl::{ColumnSpec, IndexSpec, ObjectKind, TableSpec, TriggerSpec};
+use sequill_core::design::Draft;
 use sequill_core::filter::{Filter, FilterMatch};
 use sequill_core::rows::Sort;
 use serde::Deserialize;
@@ -26,11 +27,13 @@ query (one read-only SELECT; use ? and params). Use show_in_app to put a table (
 screen. Tools that change things (rows, tables, indexes, triggers, views, databases, saved \
 queries) work only while the user allows changes in Sequill: say what you will change before \
 calling them. If a tool says MCP access or changes are off, ask the user to turn them on with \
-the MCP button in Sequill.";
+the MCP button in Sequill. To propose schema changes for the user to review instead of making \
+them, read the schema designer's draft with get_design and write it back with set_design; the \
+user saves it to the database.";
 
 /// Tools that change data, schema, databases or saved queries; they need "Allow changes"
 /// in the app, checked on every call.
-pub const WRITE_TOOLS: [&str; 15] = [
+pub const WRITE_TOOLS: [&str; 16] = [
     "execute",
     "insert_rows",
     "update_rows",
@@ -46,6 +49,7 @@ pub const WRITE_TOOLS: [&str; 15] = [
     "delete_database",
     "save_query",
     "delete_saved_query",
+    "set_design",
 ];
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -228,6 +232,17 @@ pub struct SavedQueryIdArgs {
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
+pub struct SetDesignArgs {
+    /// The database's id, or its exact name, from list_databases.
+    pub database: String,
+    /// The version get_design returned; the save is refused if the design changed since.
+    pub version: i64,
+    /// The whole design: what get_design returned, with your changes. It replaces the
+    /// stored one. Name existing tables and columns as they are in the database now.
+    pub draft: Draft,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
 pub struct ShowArgs {
     /// The database's id, or its exact name, from list_databases.
     pub database: String,
@@ -356,6 +371,14 @@ impl SequillServer {
     #[tool(annotations(title = "List saved queries", read_only_hint = true))]
     async fn list_saved_queries(&self) -> Result<String, String> {
         self.run(app::list_saved_queries).await
+    }
+
+    /// Reads the database's unsaved schema design: the changes the user (or an assistant)
+    /// planned in Sequill's schema designer but hasn't saved to the database yet, with its
+    /// version. The database itself is unchanged until the user saves the design there.
+    #[tool(annotations(title = "Get design", read_only_hint = true))]
+    async fn get_design(&self, Parameters(a): Parameters<DatabaseArgs>) -> Result<String, String> {
+        self.run(move |dir| app::get_design(dir, &a.database)).await
     }
 
     /// Shows something in the open Sequill window: a table with filters, search and sort
@@ -592,6 +615,15 @@ impl SequillServer {
             .await
     }
 
+    /// Replaces the database's unsaved schema design (from get_design, with your changes)
+    /// for the user to review in Sequill's schema designer. The database itself doesn't
+    /// change: the user saves the design there, and sees any error then.
+    #[tool(annotations(title = "Set design", read_only_hint = false, destructive_hint = true))]
+    async fn set_design(&self, Parameters(a): Parameters<SetDesignArgs>) -> Result<String, String> {
+        self.run(move |dir| app::set_design(dir, &a.database, a.version, &a.draft))
+            .await
+    }
+
     /// Removes a saved query.
     #[tool(annotations(
         title = "Delete saved query",
@@ -682,10 +714,11 @@ mod tests {
         names
     }
 
-    const READ_TOOLS: [&str; 8] = [
+    const READ_TOOLS: [&str; 9] = [
         "describe_table",
         "explain_query",
         "find_rows",
+        "get_design",
         "get_schema",
         "list_databases",
         "list_saved_queries",

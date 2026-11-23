@@ -80,7 +80,7 @@ import {
   type Draft,
 } from "@/features/vis/lib/model";
 import { SaveMenu } from "./save-menu";
-import { readDraft, writeDraft } from "@/features/vis/lib/drafts";
+import { readDraft, useStoredDraft, writeDraft } from "@/features/vis/lib/drafts";
 import { Inspector, type Selection } from "./inspector";
 import { SaveAsDialog } from "./save-as-dialog";
 import { UnsavedBadge, type SaveState } from "./unsaved-badge";
@@ -119,6 +119,13 @@ function DesignerCanvas({
   const [justSaved, setJustSaved] = useState(false);
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<Draft>(() => readDraft(storageKey));
+  // An assistant can change the stored design (desktop); show its version.
+  const storedDraft = useStoredDraft(storageKey);
+  const [seenStored, setSeenStored] = useState(storedDraft);
+  if (storedDraft !== seenStored) {
+    setSeenStored(storedDraft);
+    setDraft(storedDraft);
+  }
   const [positions, setPositions] = useState<Record<string, Point>>(() =>
     readJson(STORAGE_KEYS.visLayout + storageKey, {}),
   );
