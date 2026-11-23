@@ -265,8 +265,8 @@ export function McpDialog({ onClose }: { onClose(): void }) {
                   Start a new chat and ask:{" "}
                   <strong className="text-ink">List my Sequill databases.</strong> It should name
                   the databases you see here. If it doesn&apos;t know Sequill, check step 1 and
-                  restart the assistant. Keep Sequill open while it works: assistants reach your
-                  databases through this window.
+                  restart the assistant. Assistants keep working when Sequill is closed, except
+                  Claude Desktop from the Microsoft Store, which needs Sequill open.
                 </p>
                 <div className="flex flex-wrap items-center gap-2 text-sm text-ink-soft">
                   Everything they do is listed under History, next to MCP in the top bar.

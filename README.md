@@ -129,13 +129,16 @@ MCP lets AI assistants (Claude, Cursor, VS Code Copilot and others) use your Seq
    another client.
 3. **Try it.** Ask the assistant to list your Sequill databases.
 
-Sequill must be open while an assistant works: the app runs every tool on the databases it has, and
-`sequill mcp` (what the assistant starts) only passes the calls on to it over a local pipe (a named
-pipe on Windows, a socket in the data folder elsewhere). It never opens a database or the data
-folder itself, so an assistant always sees the same list and files as the window, even one that
-Windows runs in a package with its own copy of `%APPDATA%`, such as Claude Desktop. While Sequill is
-closed, each call answers that it isn't open; once you open it, the next call works, without
-restarting the assistant.
+While Sequill is open, the app runs every tool on the databases it has: `sequill mcp` (what the
+assistant starts) passes each call on to it over a local pipe (a named pipe on Windows, a socket in
+the data folder elsewhere), so an assistant sees the same list and files as the window. While
+Sequill is closed, or if it closes mid-conversation, `sequill mcp` runs the calls itself on the same
+data folder, with the same switches and history, and the app shows the changes when it opens; the
+next call after that goes to the app again. Only `show_in_app` needs the window. The exception is an
+assistant that Windows runs in an app package with its own copy of `%APPDATA%`, such as Claude
+Desktop from the Microsoft Store: its calls must go through the app, so while Sequill is closed each
+one answers that it isn't open, and once you open it the next call works without restarting the
+assistant. A call that is running when Sequill closes says it may or may not have finished.
 
 Everything an assistant does is listed under **History** (next to **MCP** in the top bar) and
 under **Assistant (MCP)** in the editor's sidebar; the

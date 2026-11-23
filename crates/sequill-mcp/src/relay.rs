@@ -1,7 +1,11 @@
 //! What `sequill mcp` runs for an assistant: an MCP server that passes every tool call on to
-//! the running app (`host.rs`), which runs it on the databases it has. It never opens the
-//! data folder itself. While Sequill is closed each call says so; once the user opens it,
-//! the next call reaches it, without restarting the assistant.
+//! the running app (`host.rs`), which runs it on the databases it has. While Sequill is
+//! closed, the relay runs the call itself on the same data folder, so assistants keep working;
+//! the app picks the changes up when it opens. The next call after that goes to the app again.
+//!
+//! The exception is an assistant inside a Windows app package (such as Claude Desktop from
+//! the Store): Windows gives it a private copy of the data folder, so its calls must run in
+//! the app, and while Sequill is closed each one says so.
 
 use crate::pipe;
 use crate::server::{self, SequillServer};
@@ -14,7 +18,7 @@ use rmcp::{ErrorData, RoleClient, RoleServer, ServerHandler, ServiceError, Servi
 use std::path::PathBuf;
 use tokio::sync::Mutex;
 
-pub const APP_CLOSED_MESSAGE: &str = "Sequill isn't open, and the tools run in the app. Ask the user to open Sequill, then try again.";
+pub const APP_CLOSED_MESSAGE: &str = "Sequill isn't open, and this assistant has to reach the databases through the app. Ask the user to open Sequill, then try again.";
 
 /// The app went away mid-call, so a change may or may not have been made.
 pub const CLOSED_DURING_CALL_MESSAGE: &str = "Sequill closed during the call, so it may or may not have finished. Ask the user to open Sequill, then check before trying again.";
@@ -24,6 +28,9 @@ pub struct Relay {
     tools: Vec<Tool>,
     /// The connection to the app, made on the first call and again after the app restarts.
     app: Mutex<Option<RunningService<RoleClient, ()>>>,
+    /// Runs calls on the data folder while the app is closed; None inside a Windows app
+    /// package, where the data folder this process sees is a private copy.
+    local: Option<SequillServer>,
 }
 
 fn error_result(message: &str) -> CallToolResponse {
@@ -37,10 +44,12 @@ fn unreachable_app(error: impl std::fmt::Display) -> ErrorData {
 impl Relay {
     /// A relay to the app serving `data_dir`.
     pub fn new(data_dir: PathBuf) -> Self {
+        let local = (!in_app_package()).then(|| SequillServer::new(data_dir.clone()));
         Self {
             data_dir,
             tools: SequillServer::tools(),
             app: Mutex::new(None),
+            local,
         }
     }
 
@@ -70,10 +79,13 @@ impl ServerHandler for Relay {
     async fn call_tool(
         &self,
         request: CallToolRequestParams,
-        _context: RequestContext<RoleServer>,
+        context: RequestContext<RoleServer>,
     ) -> Result<CallToolResponse, ErrorData> {
         let Some(app) = self.app().await? else {
-            return Ok(error_result(APP_CLOSED_MESSAGE));
+            return match &self.local {
+                Some(local) => local.call_tool(request, context).await,
+                None => Ok(error_result(APP_CLOSED_MESSAGE)),
+            };
         };
         match app.call_tool_once(request).await {
             Ok(response) => Ok(response),
@@ -103,6 +115,27 @@ impl ServerHandler for Relay {
     }
 }
 
+/// Whether this process runs inside a Windows app package (MSIX), whose writes to the data
+/// folder Windows would redirect to a private copy.
+#[cfg(windows)]
+fn in_app_package() -> bool {
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn GetCurrentPackageFullName(length: *mut u32, name: *mut u16) -> i32;
+    }
+    const APPMODEL_ERROR_NO_PACKAGE: i32 = 15700;
+    let mut length = 0;
+    // SAFETY: a zero length with a null buffer only asks for the size; nothing is written.
+    unsafe {
+        GetCurrentPackageFullName(&mut length, std::ptr::null_mut()) != APPMODEL_ERROR_NO_PACKAGE
+    }
+}
+
+#[cfg(not(windows))]
+fn in_app_package() -> bool {
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,10 +146,14 @@ mod tests {
     use serde_json::{Value, json};
     use std::path::Path;
 
-    /// An assistant connected to a relay for `dir`, over an in-memory pipe.
-    async fn assistant(dir: &Path) -> RunningService<RoleClient, ()> {
+    /// An assistant connected to a relay for `dir`, over an in-memory pipe. `app_only` is the
+    /// relay of an assistant in a Windows app package, which never runs calls itself.
+    async fn assistant(dir: &Path, app_only: bool) -> RunningService<RoleClient, ()> {
         let (assistant_end, relay_end) = tokio::io::duplex(64 * 1024);
-        let relay = Relay::new(dir.to_owned());
+        let mut relay = Relay::new(dir.to_owned());
+        if app_only {
+            relay.local = None;
+        }
         tokio::spawn(async move {
             relay
                 .serve(relay_end)
@@ -161,7 +198,7 @@ mod tests {
     async fn calls_run_in_the_app_and_show_in_its_history() {
         let (dir, _) = store_with_shop();
         let app = open_app(dir.path()).await;
-        let assistant = assistant(dir.path()).await;
+        let assistant = assistant(dir.path(), false).await;
 
         let result = assistant
             .call_tool(call(
@@ -183,10 +220,41 @@ mod tests {
         app.abort();
     }
 
+    #[test]
+    fn tests_run_outside_an_app_package() {
+        assert!(!in_app_package());
+    }
+
     #[tokio::test(flavor = "multi_thread")]
-    async fn lists_every_tool_and_says_when_the_app_is_closed() {
+    async fn runs_calls_itself_while_the_app_is_closed() {
+        let (dir, id) = store_with_shop();
+        let assistant = assistant(dir.path(), false).await;
+
+        let result = assistant
+            .call_tool(call("list_databases", json!({})))
+            .await
+            .unwrap();
+        assert_ne!(result.is_error, Some(true), "{}", text(&result));
+        assert!(text(&result).contains(&id), "{}", text(&result));
+        let renamed = assistant
+            .call_tool(call(
+                "rename_database",
+                json!({ "database": "Shop", "name": "Store" }),
+            ))
+            .await
+            .unwrap();
+        assert_ne!(renamed.is_error, Some(true), "{}", text(&renamed));
+
+        // The app finds the change, and the calls in its history, when it opens.
+        let store = Store::open(dir.path()).unwrap();
+        assert_eq!(store.info(&id).unwrap().name, "Store");
+        assert_eq!(store.mcp_activity(10).unwrap().len(), 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn in_an_app_package_lists_every_tool_and_says_when_the_app_is_closed() {
         let (dir, _) = store_with_shop();
-        let assistant = assistant(dir.path()).await;
+        let assistant = assistant(dir.path(), true).await;
 
         let tools = assistant.list_all_tools().await.unwrap();
         assert_eq!(tools.len(), SequillServer::tools().len());
@@ -210,7 +278,7 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn reaches_the_app_once_it_opens_and_again_after_a_restart() {
         let (dir, id) = store_with_shop();
-        let assistant = assistant(dir.path()).await;
+        let assistant = assistant(dir.path(), true).await;
         let list = || assistant.call_tool(call("list_databases", json!({})));
 
         assert_eq!(text(&list().await.unwrap()), APP_CLOSED_MESSAGE);

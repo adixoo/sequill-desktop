@@ -21,7 +21,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 const INSTRUCTIONS: &str = "Sequill keeps the user's SQLite databases; these tools do what its \
-editor does, and run in the Sequill app, so it must be open. Start with list_databases, then \
+editor does, and work whether or not the Sequill app is open (show_in_app needs it open). \
+Start with list_databases, then \
 get_schema or describe_table. Read rows with find_rows (filters, search, sort, paging) or \
 query (one read-only SELECT; use ? and params). Use show_in_app to put a table (with filters), a query or the schema diagram on the user's \
 screen. Tools that change things (rows, tables, indexes, triggers, views, databases, saved \
