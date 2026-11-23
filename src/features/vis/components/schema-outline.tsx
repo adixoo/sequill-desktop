@@ -237,7 +237,7 @@ export function SchemaOutline({
               </div>
               {open && (columns.length > 0 || isEditableTable(table)) && (
                 <ul
-                  className="mb-1 ml-[1.375rem] border-l-2 border-hairline"
+                  className="mb-1 ml-5.5 border-l-2 border-hairline"
                   aria-label={`${table.name} columns`}
                 >
                   {columns.map((c) => {

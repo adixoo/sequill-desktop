@@ -101,7 +101,7 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
           }
         >
           <div className="overflow-x-auto rounded-sm bg-surface ring-2 ring-hairline ring-inset">
-            <table className="w-full min-w-[40rem] border-collapse text-sm">
+            <table className="w-full min-w-160 border-collapse text-sm">
               <thead>
                 <tr>
                   <th className={th}>Name</th>

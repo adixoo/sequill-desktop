@@ -441,7 +441,7 @@ export function DataGrid({
                             tabIndex={-1}
                             onClick={(e) => toggleRow(r, e.shiftKey)}
                             aria-label={`Select row ${rowOffset + r + 1}`}
-                            className="flex h-full w-full items-center justify-end gap-2 font-mono text-[0.6875rem] text-ink-muted"
+                            className="flex size-full items-center justify-end gap-2 font-mono text-[0.6875rem] text-ink-muted"
                           >
                             <span
                               aria-hidden
@@ -476,8 +476,8 @@ export function DataGrid({
                             onDoubleClick={() => startEdit({ row: r, col: c })}
                             className={cn(
                               "relative flex min-w-0 shrink-0 items-center border-r border-hairline px-3",
-                              col.pinned && "sticky z-[5] bg-inherit",
-                              isActive && "z-[6] shadow-[inset_0_0_0_2px_var(--sky-ink)]",
+                              col.pinned && "sticky z-5 bg-inherit",
+                              isActive && "z-6 shadow-[inset_0_0_0_2px_var(--sky-ink)]",
                             )}
                             style={{
                               width: col.width,

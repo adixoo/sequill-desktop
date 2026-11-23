@@ -68,7 +68,7 @@ export function AppBoot({ load, name }: AppBootProps) {
     <div className="flex min-h-dvh items-center justify-center bg-canvas p-6">
       {error ? (
         <div role="alert" className="flex max-w-md flex-col items-start gap-4">
-          <h1 className="text-3xl font-semibold tracking-[-0.025em] text-ink">
+          <h1 className="text-3xl font-semibold tracking-tight text-ink">
             {name.charAt(0).toUpperCase() + name.slice(1)} could not load
           </h1>
           <p className="text-sm leading-relaxed text-ink-soft">{error}</p>

@@ -252,7 +252,7 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
 
         {view.mode === "data" && (
           <>
-            <InputGroup className="order-last h-8 basis-full sm:order-none sm:w-56 sm:shrink-0 sm:basis-auto">
+            <InputGroup className="order-last h-8 basis-full sm:order-0 sm:w-56 sm:shrink-0 sm:basis-auto">
               <InputGroupAddon>
                 <Search />
               </InputGroupAddon>

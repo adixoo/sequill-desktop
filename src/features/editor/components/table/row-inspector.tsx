@@ -160,7 +160,7 @@ function InspectorForm({
       </SheetHeader>
       <form
         id="row-inspector"
-        className="flex-1 overflow-y-auto px-4 py-4"
+        className="flex-1 overflow-y-auto p-4"
         onSubmit={(e) => {
           e.preventDefault();
           void save();

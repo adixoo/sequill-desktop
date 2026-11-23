@@ -143,7 +143,7 @@ function ActivityRow({
       {other.length > 0 && (
         <details className="pl-4 text-xs text-ink-muted">
           <summary className="cursor-pointer select-none hover:text-ink-soft">Arguments</summary>
-          <pre className="mt-1 max-h-40 overflow-auto rounded-sm bg-raised p-2 font-mono text-[0.6875rem] [overflow-wrap:anywhere] whitespace-pre-wrap text-ink-soft">
+          <pre className="mt-1 max-h-40 overflow-auto rounded-sm bg-raised p-2 font-mono text-[0.6875rem] wrap-anywhere whitespace-pre-wrap text-ink-soft">
             {JSON.stringify(Object.fromEntries(other.map((k) => [k, details[k]])), null, 2)}
           </pre>
         </details>

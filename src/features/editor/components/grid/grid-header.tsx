@@ -135,7 +135,7 @@ export function GridHeaderCell({
         </span>
         {info.type && (
           // Shrinks away before the column name does.
-          <span className="min-w-0 shrink-[100] truncate font-mono text-[0.625rem] tracking-[0.04em] text-ink-muted uppercase">
+          <span className="min-w-0 shrink-100 truncate font-mono text-[0.625rem] tracking-[0.04em] text-ink-muted uppercase">
             {info.type.toLowerCase()}
           </span>
         )}

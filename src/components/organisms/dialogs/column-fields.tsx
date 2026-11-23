@@ -87,7 +87,7 @@ export function ColumnFields({
 
   if (!compact) {
     return (
-      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-x-3 gap-y-3">
+      <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3">
         <FieldLabel>Name</FieldLabel>
         {name}
         <FieldLabel>Type</FieldLabel>

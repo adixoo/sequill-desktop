@@ -533,7 +533,7 @@ function DesignerCanvas({
             pannable
             zoomable
             position="bottom-right"
-            className="max-md:!hidden"
+            className="max-md:hidden!"
             nodeColor={(n) => {
               const c = colors[n.id];
               return c ? colorFill(c) : "";
@@ -669,7 +669,7 @@ function DesignerCanvas({
       {hasDetails && (
         <aside
           aria-label="Details"
-          className="relative w-[22rem] shrink-0 overflow-y-auto border-l-2 border-hairline bg-surface p-4 max-md:hidden"
+          className="relative w-88 shrink-0 overflow-y-auto border-l-2 border-hairline bg-surface p-4 max-md:hidden"
         >
           <Button
             variant="ghost"

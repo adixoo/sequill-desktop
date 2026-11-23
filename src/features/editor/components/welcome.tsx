@@ -80,7 +80,7 @@ export function NoTab({ schema }: { schema: Schema | undefined }) {
   return (
     <div className="flex flex-1 items-center justify-center overflow-y-auto bg-canvas p-6">
       <m.div {...enter()} className="flex max-w-md flex-col items-start gap-5">
-        <h2 className="text-3xl leading-tight font-semibold tracking-[-0.025em] text-ink">
+        <h2 className="text-3xl leading-tight font-semibold tracking-tight text-ink">
           Pick a table, or ask the data a question
         </h2>
         <div className="flex flex-wrap gap-2">

@@ -323,7 +323,7 @@ export function ImportDialog({
                         {source.columns.map((c, i) => (
                           <th
                             key={i}
-                            className="border-r border-b-2 border-hairline px-2 py-2 text-left align-top"
+                            className="border-r border-b-2 border-hairline p-2 text-left align-top"
                           >
                             <div className="flex min-w-32 flex-col gap-1.5">
                               <span className="font-mono text-[0.6875rem] text-ink-muted">{c}</span>

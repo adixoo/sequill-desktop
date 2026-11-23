@@ -108,7 +108,7 @@ export function DatabaseSwitcher({
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="start"
-        className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-64"
+        className="w-(--radix-dropdown-menu-trigger-width) min-w-64"
       >
         <DropdownMenuLabel className="pn-eyebrow text-ink-muted">
           {isDesktop() ? "On this computer" : "In this browser"}
