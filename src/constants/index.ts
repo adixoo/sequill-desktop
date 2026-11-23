@@ -70,6 +70,8 @@ export const STORAGE_KEYS = {
   visShowViews: "sbe:vis-views",
   /** Whether the schema page's tables sidebar is shown (wide screens). */
   visOutline: "sbe:vis-outline",
+  /** The first-run guide was shown (it opens once, on the first start). */
+  guideSeen: "sbe:guide-seen",
 } as const;
 
 export const SQLITE_TYPES = ["INTEGER", "REAL", "TEXT", "BLOB", "NUMERIC", "ANY"] as const;

@@ -14,6 +14,16 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     baseURL: `http://localhost:${PORT}`,
+    // Tests start past the first-run guide; the guide's own test clears this.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: `http://localhost:${PORT}`,
+          localStorage: [{ name: "sbe:guide-seen", value: "true" }],
+        },
+      ],
+    },
     launchOptions: { executablePath: BRAVE_PATH },
     trace: "retain-on-failure",
   },

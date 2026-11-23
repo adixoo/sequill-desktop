@@ -11,6 +11,7 @@ export type DialogSpec =
   | { kind: "renameDatabase"; dbId: string; name: string }
   | { kind: "newDatabase" }
   | { kind: "mcp" }
+  | { kind: "guide" }
   | { kind: "mcpActivity" }
   | { kind: "deleteDatabase"; db: DbInfo }
   | { kind: "import"; file?: File; table?: string }

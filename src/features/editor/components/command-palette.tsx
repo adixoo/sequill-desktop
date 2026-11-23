@@ -4,6 +4,7 @@ import {
   Eye,
   FileCode,
   FolderOpen,
+  Lightbulb,
   Moon,
   Network,
   Plus,
@@ -167,6 +168,12 @@ export default function CommandPalette({ open, onOpenChange, schema }: CommandPa
               >
                 {theme === "dark" ? <Sun /> : <Moon />} Switch to{" "}
                 {theme === "dark" ? "light" : "dark"} mode
+              </CommandItem>
+            </CommandGroup>
+            <CommandSeparator />
+            <CommandGroup heading="Help">
+              <CommandItem onSelect={runAndClose(() => openDialog({ kind: "guide" }))}>
+                <Lightbulb /> Show the welcome guide
               </CommandItem>
             </CommandGroup>
           </CommandList>

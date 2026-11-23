@@ -7,6 +7,7 @@ import { storagePlace } from "@/lib/platform";
 import { buildRenameColumn, buildRenameTable } from "@/lib/sqlite/ddl";
 import { useDialogs } from "@/store/dialogs";
 import { McpActivitySheet } from "@/components/organisms/mcp-activity";
+import { GuideDialog, useFirstRunGuide } from "./guide-dialog";
 import { McpDialog } from "./mcp-dialog";
 import { ConfirmSqlDialog, DdlDialog, DeleteDatabaseDialog, NameDialog } from "./simple-dialogs";
 
@@ -40,6 +41,7 @@ export function DialogHost() {
   const run = useRunStatements();
   const actions = useDbActions();
   const savedQueries = useSavedQueryActions();
+  useFirstRunGuide();
 
   if (!dialog) return null;
   switch (dialog.kind) {
@@ -49,6 +51,8 @@ export function DialogHost() {
       return <DdlDialog title={dialog.title} sql={dialog.sql} onClose={close} />;
     case "mcp":
       return <McpDialog onClose={close} />;
+    case "guide":
+      return <GuideDialog onClose={close} />;
     case "mcpActivity":
       return <McpActivitySheet onClose={close} />;
     case "deleteDatabase":
