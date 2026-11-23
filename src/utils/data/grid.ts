@@ -100,7 +100,8 @@ export function parseTsv(text: string): string[][] {
   let row: string[] = [];
   let field = "";
   let quoted = false;
-  const input = text.replace(/\r\n?/g, "\n").replace(/\n$/, "");
+  // Line breaks end rows (\n, \r\n or \r); inside a quoted cell they are kept as they are.
+  const input = text.replace(/(\r\n|\n|\r)$/, "");
   for (let i = 0; i < input.length; i++) {
     const ch = input[i];
     if (quoted) {
@@ -113,7 +114,8 @@ export function parseTsv(text: string): string[][] {
     else if (ch === "\t") {
       row.push(field);
       field = "";
-    } else if (ch === "\n") {
+    } else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && input[i + 1] === "\n") i++;
       row.push(field);
       rows.push(row);
       row = [];
