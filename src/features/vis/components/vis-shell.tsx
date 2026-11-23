@@ -1,6 +1,8 @@
 import { Table } from "@/components/atoms/icons";
 import { navigate, ROUTES } from "@/lib/router";
+import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 import { AppProviders } from "@/app/app-providers";
 import { DatabaseSwitcher } from "@/components/organisms/database-switcher";
 import { DialogHost } from "@/components/organisms/dialogs/dialog-host";
@@ -17,7 +19,8 @@ import {
   AlertDialogTitle,
 } from "@/components/atoms/alert-dialog";
 import { Button } from "@/components/atoms/button";
-import { useDatabases, useRestoreLastDatabase, useSchema } from "@/hooks/use-db";
+import { queryKeys, useDatabases, useRestoreLastDatabase, useSchema } from "@/hooks/use-db";
+import { isDesktop } from "@/lib/platform";
 import { useWorkspace } from "@/store/workspace";
 import {
   BLANK_DESIGN,
@@ -27,6 +30,7 @@ import {
 } from "@/features/vis/lib/drafts";
 import { EMPTY_DRAFT } from "@/features/vis/lib/model";
 import { Designer } from "./designer";
+import { ImportSchemaDialog } from "./import-schema-dialog";
 
 /** Somewhere to go that would leave the current design: another database, a blank design, the editor. */
 type Leave = { kind: "db"; id: string } | { kind: "blank" } | { kind: "editor" };
@@ -47,6 +51,8 @@ function Visualizer() {
   const storageKey = blank ? BLANK_DESIGN : activeDb;
   const [pending, setPending] = useState<Leave | null>(null);
   const [badgeSlot, setBadgeSlot] = useState<HTMLDivElement | null>(null);
+  const [importing, setImporting] = useState(false);
+  const queryClient = useQueryClient();
 
   const go = (to: Leave) => {
     if (to.kind === "editor") navigate(ROUTES.editor);
@@ -80,6 +86,7 @@ function Visualizer() {
           dbId={activeDb}
           onSwitch={(id) => leave({ kind: "db", id })}
           blankDesign={{ active: blank, onSelect: () => leave({ kind: "blank" }) }}
+          onImportSchema={isDesktop() ? () => setImporting(true) : undefined}
         />
         {/* The designer shows its save state here: "Unsaved" (click to save), "Saved". */}
         <div ref={setBadgeSlot} className="flex items-center" />
@@ -149,6 +156,20 @@ function Visualizer() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {importing && (
+        <ImportSchemaDialog
+          onClose={() => setImporting(false)}
+          onImported={async (database, skipped) => {
+            await queryClient.invalidateQueries({ queryKey: queryKeys.dbs });
+            leave({ kind: "db", id: database.id });
+            toast.success(`Imported ${database.name}`, {
+              description: skipped.length
+                ? `Left out (no SQLite equivalent): ${skipped.join(", ")}`
+                : undefined,
+            });
+          }}
+        />
+      )}
       <DialogHost />
     </div>
   );

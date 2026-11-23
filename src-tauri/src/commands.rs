@@ -2,10 +2,11 @@
 //! (`src/lib/sqlite/worker.ts`). The frontend side is `src/lib/sqlite/desktop.ts`.
 
 use percent_encoding::percent_decode_str;
+use sequill_core::dialects::{self, Target};
 use sequill_core::store::SavedQuery;
 use sequill_core::{
-    CellValue, DbInfo, DesignPreview, McpActivity, QueryResult, Row, Schema, SqlStatement,
-    StatementResult, Store, StoredDesign,
+    CellValue, DbInfo, DesignPreview, ImportedSchema, McpActivity, QueryResult, Row, Schema,
+    SqlStatement, StatementResult, Store, StoredDesign,
 };
 use serde::Serialize;
 use std::sync::{Arc, Mutex, PoisonError};
@@ -15,6 +16,8 @@ use tauri_plugin_dialog::DialogExt;
 
 /// Header carrying the imported file's name (percent-encoded), next to its raw bytes.
 const NAME_HEADER: &str = "x-sequill-name";
+/// Header carrying an imported script's database, such as "postgresql".
+const DIALECT_HEADER: &str = "x-sequill-dialect";
 /// The file picker's database types; matches `DB_FILE_ACCEPT` in `src/constants/index.ts`.
 const DB_EXTENSIONS: &[&str] = &["sqlite", "sqlite3", "db", "db3", "s3db", "sl3"];
 
@@ -68,14 +71,44 @@ pub async fn import_database(
         return Err("Expected the file's bytes".into());
     };
     let bytes = bytes.clone();
-    let name = request
+    let name = header(&request, NAME_HEADER).unwrap_or_else(|| "Untitled".into());
+    with_store(&state, move |s| s.import(&name, &bytes)).await
+}
+
+/// A percent-encoded header's text, if it is there and not blank.
+fn header(request: &Request<'_>, name: &str) -> Option<String> {
+    request
         .headers()
-        .get(NAME_HEADER)
+        .get(name)
         .and_then(|v| v.to_str().ok())
         .map(|v| percent_decode_str(v).decode_utf8_lossy().into_owned())
-        .filter(|n| !n.trim().is_empty())
-        .unwrap_or_else(|| "Untitled".into());
-    with_store(&state, move |s| s.import(&name, &bytes)).await
+        .filter(|v| !v.trim().is_empty())
+}
+
+/// A new database with the structure of a SQLite file or a SQL script (raw body), not
+/// linked to it. The script's database ("postgresql", "mysql"…) comes in `DIALECT_HEADER`.
+#[tauri::command]
+pub async fn import_schema(
+    state: State<'_, AppState>,
+    request: Request<'_>,
+) -> CmdResult<ImportedSchema> {
+    let InvokeBody::Raw(bytes) = request.body() else {
+        return Err("Expected the file's bytes".into());
+    };
+    let bytes = bytes.clone();
+    let name = header(&request, NAME_HEADER).unwrap_or_else(|| "Untitled".into());
+    let dialect = header(&request, DIALECT_HEADER).unwrap_or_else(|| "generic".into());
+    with_store(&state, move |s| s.import_schema(&name, &dialect, &bytes)).await
+}
+
+/// A design's schema (its SQLite statements) as another database's CREATE statements.
+#[tauri::command]
+pub async fn export_schema(statements: Vec<String>, target: Target) -> CmdResult<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        dialects::export_schema(&statements, target).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Asks for a database file with the system's file picker and adds it to the list, to be

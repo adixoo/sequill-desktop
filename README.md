@@ -26,6 +26,11 @@ Contributions are welcome; see [Contributing](#contributing) to get started.
   rebuild the table and keep its rows. Unsaved designs are kept until you save or discard them;
   in the desktop app assistants can read and edit them over MCP (`get_design`, `set_design`), and you
   see their edits live.
+- **Schemas from other databases** (desktop app): import a SQL script written for PostgreSQL, MySQL /
+  MariaDB, SQL Server, Oracle or standard SQL, or a SQLite file, as a new database with its tables,
+  keys and indexes and no rows. It isn't linked to the file. Export any design as `CREATE` statements
+  for PostgreSQL, MySQL, SQL Server or SQLite. Declared types are kept as written; what has no
+  equivalent (functions, sequences, partial indexes, views across databases) is listed, not guessed.
 - **Import / export**: CSV, TSV and JSON import with type detection and column mapping; export tables,
   filtered views, selections or query results as CSV, JSON or SQL INSERTs.
 - **MCP server**: AI assistants can read, show and (when allowed) change the databases; see

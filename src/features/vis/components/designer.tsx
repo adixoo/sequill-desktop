@@ -78,8 +78,11 @@ import {
   updateDraftTable,
   validateDraft,
   type Draft,
+  newDatabaseStatements,
 } from "@/features/vis/lib/model";
+import { isDesktop } from "@/lib/platform";
 import { SaveMenu } from "./save-menu";
+import { ExportSchemaMenu } from "./export-schema-menu";
 import { readDraft, useStoredDraft, writeDraft } from "@/features/vis/lib/drafts";
 import { Inspector, type Selection } from "./inspector";
 import { SaveAsDialog } from "./save-as-dialog";
@@ -438,14 +441,15 @@ function DesignerCanvas({
   return (
     <div className="flex min-h-0 flex-1">
       {badgeSlot &&
-        saveState &&
         createPortal(
           <span className="flex items-center gap-0.5">
-            <UnsavedBadge
-              state={saveState}
-              dbName={dbId ? dbName : null}
-              onClick={() => void saveNow()}
-            />
+            {saveState && (
+              <UnsavedBadge
+                state={saveState}
+                dbName={dbId ? dbName : null}
+                onClick={() => void saveNow()}
+              />
+            )}
             {!isDraftEmpty(draft) && (
               <SaveMenu
                 draft={draft}
@@ -465,6 +469,12 @@ function DesignerCanvas({
                   setDraft(EMPTY_DRAFT);
                   setSelection(null);
                 }}
+              />
+            )}
+            {isDesktop() && (
+              <ExportSchemaMenu
+                statements={() => newDatabaseStatements(schema, draft)}
+                name={dbName}
               />
             )}
           </span>,

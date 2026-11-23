@@ -13,6 +13,8 @@ import type { DbInfo, QueryResult, StatementResult } from "./types";
 
 /** Matches `NAME_HEADER` in `src-tauri/src/commands.rs`. */
 const NAME_HEADER = "x-sequill-name";
+/** Matches `DIALECT_HEADER` in `src-tauri/src/commands.rs`. */
+const DIALECT_HEADER = "x-sequill-dialect";
 /** Matches `EXTERNAL_CHANGE_EVENT` in `src-tauri/src/watch.rs`. */
 const EXTERNAL_CHANGE_EVENT = "sequill://external-change";
 /** Matches `SHOW_EVENT` in `src-tauri/src/watch.rs`. */
@@ -143,6 +145,22 @@ export const desktopDesigns = {
   save: (key: string, draft: unknown, version: number) =>
     invoke<number | null>("save_design", { key, draft, version }),
 };
+
+/** A new database with only the structure of a SQLite file or a SQL script, not linked to it. */
+export function importSchema(
+  name: string,
+  dialect: string,
+  bytes: Uint8Array,
+): Promise<{ database: DbInfo; skipped: string[] }> {
+  return invoke("import_schema", bytes, {
+    headers: { [NAME_HEADER]: encodeURIComponent(name), [DIALECT_HEADER]: dialect },
+  });
+}
+
+/** The schema SQLite `statements` make, as CREATE statements for `target`. */
+export function exportSchema(statements: string[], target: string): Promise<string> {
+  return invoke("export_schema", { statements, target });
+}
 
 /** Calls `listener` when an assistant asks the app to show something; returns a stop function. */
 export function watchShowRequests(listener: (request: ShowRequest) => void): () => void {

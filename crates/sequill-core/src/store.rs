@@ -4,6 +4,7 @@
 //! (`src/lib/sqlite/worker.ts`), with real files that other processes (the MCP
 //! server) can open too.
 
+use crate::dialects;
 use crate::error::{Error, Result};
 use crate::session::DesignCopy;
 use crate::session::Session;
@@ -81,6 +82,14 @@ pub struct StoredDesign {
     pub draft: serde_json::Value,
     /// Goes up by one on every save, so a save based on an older read can be refused.
     pub version: i64,
+}
+
+/// What `import_schema` made, and what it left out (such as "CREATE FUNCTION (2)").
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedSchema {
+    pub database: DbInfo,
+    pub skipped: Vec<String>,
 }
 
 /// The key of the design that isn't tied to a database (it becomes a new one).
@@ -411,6 +420,54 @@ impl Store {
         }
         fs::rename(&partial, &path)?;
         self.register(&id, name, bytes.len() as u64)
+    }
+
+    /// A new database with only the structure (no rows) of `bytes`, and no link back to them:
+    /// a SQLite file, or a SQL script written for `dialect` (see [`dialects::to_sqlite`]).
+    pub fn import_schema(
+        &mut self,
+        name: &str,
+        dialect: &str,
+        bytes: &[u8],
+    ) -> Result<ImportedSchema> {
+        let name = required_name(name)?;
+        let (structure, skipped) = if bytes.starts_with(SQLITE_HEADER) {
+            (self.structure_of_file(bytes)?, Vec::new())
+        } else {
+            let script = std::str::from_utf8(bytes).map_err(|_| {
+                Error::msg("This file is neither a SQLite database nor a SQL script")
+            })?;
+            let converted = dialects::to_sqlite(dialect, script)?;
+            let scratch = Session::memory()?;
+            let mut skipped = converted.skipped;
+            for sql in &converted.statements {
+                if let Err(error) = scratch.connection().execute_batch(sql) {
+                    let start: String =
+                        sql.split_whitespace().take(4).collect::<Vec<_>>().join(" ");
+                    skipped.push(format!("{start}… ({error})"));
+                }
+            }
+            // Rows a SQLite script inserted stay behind.
+            (scratch.schema_only_copy()?, skipped)
+        };
+        if structure.schema()?.tables.is_empty() {
+            return Err(Error::msg("No tables were found in this file"));
+        }
+        let database = self.create(name, Some(&structure.dump()?))?;
+        Ok(ImportedSchema { database, skipped })
+    }
+
+    /// The structure of a SQLite file's bytes, read from a temporary copy.
+    fn structure_of_file(&self, bytes: &[u8]) -> Result<Session> {
+        let partial = self
+            .dir
+            .join(DATABASES_DIR)
+            .join(format!("import-{}.sqlite3.part", uuid::Uuid::new_v4()));
+        fs::write(&partial, bytes)?;
+        let copied = Session::open_read_only(&partial).and_then(|s| s.schema_only_copy());
+        drop_side_files(&partial);
+        let _ = fs::remove_file(&partial);
+        copied.map_err(|e| not_sqlite(&e.to_string()))
     }
 
     /// Adds a file on the user's computer to the list without copying it: every change is
@@ -1421,6 +1478,40 @@ mod tests {
                 base: None,
                 error: None
             }
+        );
+    }
+
+    #[test]
+    fn imports_only_the_structure_of_a_file_or_script() {
+        let (_dir, mut store) = store();
+        let source = store
+            .create(
+                "Src",
+                Some("CREATE TABLE t(a PRIMARY KEY); INSERT INTO t VALUES (1), (2);"),
+            )
+            .unwrap();
+        let bytes = store.export(&source.id).unwrap();
+        let from_file = store.import_schema("Copy", "sqlite", &bytes).unwrap();
+        assert!(from_file.skipped.is_empty());
+        let copy = store.session(&from_file.database.id).unwrap();
+        assert_eq!(copy.count("SELECT count(*) FROM t", &[]).unwrap(), 0);
+
+        let script =
+            b"CREATE TABLE p (id serial PRIMARY KEY, at timestamptz); CREATE VIEW v AS SELECT 1;";
+        let from_sql = store.import_schema("Pg", "postgresql", script).unwrap();
+        assert_eq!(from_sql.skipped, ["CREATE VIEW"]);
+        let schema = store
+            .session(&from_sql.database.id)
+            .unwrap()
+            .schema()
+            .unwrap();
+        assert_eq!(schema.tables[0].columns[1].type_name, "TIMESTAMPTZ");
+
+        assert!(store.import_schema("None", "mysql", b"SET x = 1;").is_err());
+        assert_eq!(
+            store.list().unwrap().len(),
+            3,
+            "a failed import adds nothing"
         );
     }
 

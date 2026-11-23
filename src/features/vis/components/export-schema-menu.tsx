@@ -1,0 +1,53 @@
+import { toast } from "sonner";
+import { Button } from "@/components/atoms/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/atoms/dropdown-menu";
+import { FileDown } from "@/components/atoms/icons";
+import { exportSchema } from "@/lib/sqlite/desktop";
+import { errorMessage } from "@/lib/sqlite/errors";
+import { downloadBlob, safeFileName } from "@/utils/data/export";
+import { EXPORT_TARGETS } from "@/features/vis/lib/dialects";
+
+interface ExportSchemaMenuProps {
+  /** The whole design as SQLite statements (the schema with unsaved changes); may throw
+   * while the design has problems. Built only when exporting. */
+  statements(): string[];
+  /** Names the downloaded file. */
+  name: string;
+}
+
+/** Downloads the design's schema as CREATE statements for another database. */
+export function ExportSchemaMenu({ statements, name }: ExportSchemaMenuProps) {
+  const download = async (target: (typeof EXPORT_TARGETS)[number]) => {
+    try {
+      const sql = await exportSchema(statements(), target.value);
+      downloadBlob(sql, `${safeFileName(name)}-${target.value}.sql`, "application/sql");
+    } catch (error) {
+      toast.error(`The schema couldn't be exported: ${errorMessage(error)}`);
+    }
+  };
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="sm" title="Export the schema for another database">
+          <FileDown /> <span className="max-sm:sr-only">Export</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuLabel className="text-xs font-normal text-ink-muted">
+          Schema as SQL for
+        </DropdownMenuLabel>
+        {EXPORT_TARGETS.map((target) => (
+          <DropdownMenuItem key={target.value} onSelect={() => void download(target)}>
+            {target.label}
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

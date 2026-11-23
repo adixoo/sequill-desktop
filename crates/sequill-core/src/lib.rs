@@ -3,6 +3,7 @@
 
 pub mod ddl;
 pub mod design;
+pub mod dialects;
 pub mod dump;
 pub mod error;
 pub mod filter;
@@ -17,8 +18,8 @@ pub use error::{Error, Result};
 pub use schema::Schema;
 pub use session::{QueryResult, Session, SqlStatement, StatementResult};
 pub use store::{
-    BLANK_DESIGN, DbInfo, DesignPreview, ExternalChanges, McpActivity, NewMcpActivity, Store,
-    StoredDesign, default_data_dir,
+    BLANK_DESIGN, DbInfo, DesignPreview, ExternalChanges, ImportedSchema, McpActivity,
+    NewMcpActivity, Store, StoredDesign, default_data_dir,
 };
 pub use value::{CellValue, Row};
 

@@ -3,6 +3,7 @@ import {
   Database,
   Download,
   FileCode,
+  FileUp,
   FolderOpen,
   PencilRuler,
   Pencil,
@@ -37,6 +38,8 @@ interface DatabaseSwitcherProps {
   onSwitch?(dbId: string): void;
   /** The schema page also offers a design that isn't tied to any database. */
   blankDesign?: { active: boolean; onSelect(): void };
+  /** The schema page can also make a database from another database's schema. */
+  onImportSchema?(): void;
   /** "panel" fills a sidebar; "inline" is a single-line header control. */
   variant?: "panel" | "inline";
   className?: string;
@@ -50,6 +53,7 @@ export function DatabaseSwitcher({
   dbId,
   onSwitch,
   blankDesign,
+  onImportSchema,
   variant = "panel",
   className,
 }: DatabaseSwitcherProps) {
@@ -141,6 +145,11 @@ export function DatabaseSwitcher({
             {hasUnsavedDesign(BLANK_DESIGN) && (
               <span className="pn-table-head ml-auto text-peach-ink">draft</span>
             )}
+          </DropdownMenuItem>
+        )}
+        {onImportSchema && (
+          <DropdownMenuItem onSelect={onImportSchema}>
+            <FileUp /> Import a schema…
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
