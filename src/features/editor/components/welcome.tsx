@@ -122,18 +122,16 @@ function RelationRow({
   const count = useTableCount(dbId, relation.name, relation.kind !== "virtual");
   const Icon = relation.kind === "view" ? Eye : Table;
   return (
-    <li>
+    <li className="-mx-2">
       <button
         type="button"
         onClick={onOpen}
-        className="group flex w-full items-center gap-4 rounded-lg py-2 text-left outline-none focus-visible:ring-3 focus-visible:ring-ink/15"
+        className="group flex w-full items-center gap-4 rounded-xl p-2 text-left transition-colors duration-150 outline-none hover:bg-raised focus-visible:bg-raised focus-visible:ring-3 focus-visible:ring-ink/15"
       >
         <span className="grid size-8 shrink-0 place-items-center rounded-md border border-hairline text-ink-muted transition-colors duration-150 group-hover:text-ink">
           <Icon className="size-4" />
         </span>
-        <span className="truncate text-sm font-medium text-ink group-hover:underline group-hover:underline-offset-4">
-          {relation.name}
-        </span>
+        <span className="truncate text-sm font-medium text-ink">{relation.name}</span>
         <span aria-hidden className="h-px min-w-6 flex-1 bg-hairline" />
         <span className="shrink-0 text-sm text-ink-muted">
           {relation.kind === "view" && "view"}
