@@ -27,7 +27,7 @@ import {
   textToValue,
   valueToText,
 } from "@/utils/data/format";
-import { isWritableColumn, visibleColumns } from "@/lib/sqlite/introspect";
+import { defaultValueText, isWritableColumn, visibleColumns } from "@/lib/sqlite/introspect";
 import type { CellValue, ColumnInfo, RelationInfo, Row } from "@/lib/sqlite/types";
 import { cn } from "@/utils";
 
@@ -81,12 +81,31 @@ function BlobPreview({ bytes }: { bytes: Uint8Array }) {
   );
 }
 
+/** A new row's fields filled from the columns' defaults, where the form can show the value. */
+function defaultFields(columns: ColumnInfo[]): Record<string, string> {
+  const now = new Date();
+  return Object.fromEntries(
+    columns.flatMap((c) => {
+      const text = isWritableColumn(c) ? defaultValueText(c.defaultValue, now) : null;
+      return text === null ? [] : [[c.name, text]];
+    }),
+  );
+}
+
 function initialFields(
   relation: RelationInfo,
   columns: ColumnInfo[],
   target: InspectorTarget,
+  defaults: Record<string, string>,
 ): Record<string, FieldState> {
-  if (target.kind !== "new" || !target.initial) return {};
+  if (target.kind !== "new") return {};
+  if (!target.initial)
+    return Object.fromEntries(
+      Object.entries(defaults).map(([name, text]): [string, FieldState] => [
+        name,
+        { mode: "text", text },
+      ]),
+    );
   const initial = target.initial;
   return Object.fromEntries(
     columns.map((c, i): [string, FieldState] => {
@@ -120,8 +139,10 @@ function InspectorForm({
   onFollowForeignKey,
 }: RowInspectorProps & { target: InspectorTarget }) {
   const columns = useMemo(() => visibleColumns(relation), [relation]);
+  // Fixed for this opening, so a filled-in default doesn't count as the user's change.
+  const [defaults] = useState(() => (target.kind === "new" ? defaultFields(columns) : {}));
   const [fields, setFields] = useState<Record<string, FieldState>>(() =>
-    initialFields(relation, columns, target),
+    initialFields(relation, columns, target, defaults),
   );
   const [saving, setSaving] = useState(false);
 
@@ -135,6 +156,11 @@ function InspectorForm({
       f.mode === "null" ? null : f.mode === "blob" ? f.bytes : textToValue(f.text, c.type);
     return [{ column: c.name, value }];
   });
+  const isDefault = (column: string) => {
+    const f = fields[column];
+    return f?.mode === "text" && f.text === defaults[column];
+  };
+  const edited = changed.filter((c) => !isDefault(c.column)).length;
 
   const save = async () => {
     setSaving(true);
@@ -166,7 +192,7 @@ function InspectorForm({
           void save();
         }}
       >
-        <ul className="flex flex-col gap-5">
+        <ul className="flex flex-col gap-4">
           {columns.map((c, i) => {
             const original = current(i);
             const f = fields[c.name] ?? { mode: "keep" };
@@ -186,136 +212,154 @@ function InspectorForm({
               f.mode === "text" ? f.text : f.mode === "keep" && !isNew ? valueToText(original) : "";
             const id = `field-${i}`;
             return (
-              <li key={c.name} className="flex flex-col gap-1.5">
-                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                  {c.pk > 0 && (
-                    <KeyRound className="size-3.5 text-butter-ink" aria-label="Primary key" />
-                  )}
-                  <Label htmlFor={id} className="font-semibold text-ink">
-                    {c.name}
-                  </Label>
-                  <span className="font-mono text-[0.6875rem] text-ink-muted lowercase">
-                    {c.type || "any"}
-                  </span>
-                  {c.notNull && <span className="q-table-head">not null</span>}
-                  {c.hidden >= 2 && <span className="q-table-head">generated</span>}
+              <li
+                key={c.name}
+                className="grid gap-x-4 gap-y-1.5 sm:grid-cols-[7.5rem_minmax(0,1fr)]"
+              >
+                {/* Label on the left, aligned with the first line of the field. */}
+                <div className="flex min-w-0 flex-col gap-1 sm:pt-1.5">
+                  <div className="flex min-w-0 items-center gap-1.5">
+                    {c.pk > 0 && (
+                      <KeyRound
+                        className="size-3.5 shrink-0 text-butter-ink"
+                        aria-label="Primary key"
+                      />
+                    )}
+                    <Label htmlFor={id} className="min-w-0 font-semibold break-all text-ink">
+                      {c.name}
+                    </Label>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                    <span className="font-mono text-[0.6875rem] text-ink-muted lowercase">
+                      {c.type || "any"}
+                    </span>
+                    {c.notNull && <span className="q-table-head">not null</span>}
+                    {c.hidden >= 2 && <span className="q-table-head">generated</span>}
+                  </div>
                   {fk && shown !== null && onFollowForeignKey && (
                     <Button
                       type="button"
                       variant="link"
                       size="xs"
-                      className="ml-auto h-auto p-0 text-sky-ink"
+                      className="h-auto self-start p-0 text-sky-ink"
                       onClick={() => onFollowForeignKey(c.name, shown)}
                     >
                       <CornerDownRight /> {fk.table}
                     </Button>
                   )}
                 </div>
-                {isBlob ? (
-                  <div className="flex flex-col gap-2 rounded-sm bg-raised p-3">
-                    <BlobPreview bytes={shown as Uint8Array} />
-                    <p className="font-mono text-xs text-ink-muted">
-                      {formatBytes((shown as Uint8Array).byteLength)}
-                    </p>
-                  </div>
-                ) : (
-                  <Textarea
-                    id={id}
-                    value={text}
-                    readOnly={!writable}
-                    disabled={isNull && !isNew}
-                    placeholder={
-                      isNew && f.mode === "keep"
-                        ? c.defaultValue !== null
-                          ? `Default: ${c.defaultValue}`
-                          : c.pk > 0
-                            ? "Assigned automatically"
-                            : "NULL"
-                        : isNull
-                          ? "NULL"
-                          : ""
-                    }
-                    onChange={(e) =>
-                      setFields((s) => ({ ...s, [c.name]: { mode: "text", text: e.target.value } }))
-                    }
-                    rows={Math.min(8, Math.max(1, text.split("\n").length))}
-                    className={cn(
-                      "min-h-9 resize-y font-mono text-[0.8125rem] max-md:text-base",
-                      isNull && "italic",
-                    )}
-                  />
-                )}
-                {writable && (
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
-                    <label className="flex items-center gap-1.5">
-                      <Checkbox
-                        checked={isNull}
-                        onCheckedChange={(v) =>
-                          setFields((s) => ({
-                            ...s,
-                            [c.name]: v ? { mode: "null" } : { mode: "text", text: "" },
-                          }))
-                        }
-                      />
-                      NULL
-                    </label>
-                    {isNew && f.mode !== "keep" && (
-                      <button
-                        type="button"
-                        className="underline-offset-2 hover:underline"
-                        onClick={() => setFields((s) => ({ ...s, [c.name]: { mode: "keep" } }))}
-                      >
-                        Use default
-                      </button>
-                    )}
-                    {!isBlob && looksLikeJson(text) && (
-                      <button
-                        type="button"
-                        className="flex items-center gap-1 underline-offset-2 hover:underline"
-                        onClick={() =>
-                          setFields((s) => ({
-                            ...s,
-                            [c.name]: {
-                              mode: "text",
-                              text: JSON.stringify(JSON.parse(text), null, 2),
-                            },
-                          }))
-                        }
-                      >
-                        <Braces className="size-3" /> Format JSON
-                      </button>
-                    )}
-                    <label className="flex cursor-pointer items-center gap-1 underline-offset-2 hover:underline">
-                      <Upload className="size-3" /> Upload file
-                      <input
-                        type="file"
-                        className="sr-only"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const bytes = new Uint8Array(await file.arrayBuffer());
-                            setFields((s) => ({ ...s, [c.name]: { mode: "blob", bytes } }));
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  {isBlob ? (
+                    <div className="flex flex-col gap-2 rounded-sm bg-raised p-3">
+                      <BlobPreview bytes={shown as Uint8Array} />
+                      <p className="font-mono text-xs text-ink-muted">
+                        {formatBytes((shown as Uint8Array).byteLength)}
+                      </p>
+                    </div>
+                  ) : (
+                    <Textarea
+                      id={id}
+                      value={text}
+                      readOnly={!writable}
+                      disabled={isNull && !isNew}
+                      placeholder={
+                        isNew && f.mode === "keep"
+                          ? c.defaultValue !== null
+                            ? `Default: ${c.defaultValue}`
+                            : c.pk > 0
+                              ? "Assigned automatically"
+                              : c.notNull
+                                ? "Required"
+                                : "NULL"
+                          : isNull
+                            ? "NULL"
+                            : ""
+                      }
+                      onChange={(e) =>
+                        setFields((s) => ({
+                          ...s,
+                          [c.name]: { mode: "text", text: e.target.value },
+                        }))
+                      }
+                      rows={Math.min(8, Math.max(1, text.split("\n").length))}
+                      className={cn(
+                        "min-h-(--control-sm) resize-y py-1.5 font-mono text-[0.8125rem] max-md:text-base",
+                        isNull && "italic",
+                      )}
+                    />
+                  )}
+                  {writable && (
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
+                      <label className="flex items-center gap-1.5">
+                        <Checkbox
+                          checked={isNull}
+                          onCheckedChange={(v) =>
+                            setFields((s) => ({
+                              ...s,
+                              [c.name]: v ? { mode: "null" } : { mode: "text", text: "" },
+                            }))
                           }
-                        }}
-                      />
-                    </label>
-                    {isBlob && (
-                      <button
-                        type="button"
-                        className="flex items-center gap-1 underline-offset-2 hover:underline"
-                        onClick={() =>
-                          downloadBlob(
-                            shown as BlobPart,
-                            `${safeFileName(`${relation.name}-${c.name}`)}.bin`,
-                            blobImageType(shown as Uint8Array) ?? "application/octet-stream",
-                          )
-                        }
-                      >
-                        <Download className="size-3" /> Download
-                      </button>
-                    )}
-                  </div>
-                )}
+                        />
+                        NULL
+                      </label>
+                      {isNew && f.mode !== "keep" && !isDefault(c.name) && (
+                        <button
+                          type="button"
+                          className="underline-offset-2 hover:underline"
+                          onClick={() => setFields((s) => ({ ...s, [c.name]: { mode: "keep" } }))}
+                        >
+                          Use default
+                        </button>
+                      )}
+                      {!isBlob && looksLikeJson(text) && (
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 underline-offset-2 hover:underline"
+                          onClick={() =>
+                            setFields((s) => ({
+                              ...s,
+                              [c.name]: {
+                                mode: "text",
+                                text: JSON.stringify(JSON.parse(text), null, 2),
+                              },
+                            }))
+                          }
+                        >
+                          <Braces className="size-3" /> Format JSON
+                        </button>
+                      )}
+                      <label className="flex cursor-pointer items-center gap-1 underline-offset-2 hover:underline">
+                        <Upload className="size-3" /> Upload file
+                        <input
+                          type="file"
+                          className="sr-only"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const bytes = new Uint8Array(await file.arrayBuffer());
+                              setFields((s) => ({ ...s, [c.name]: { mode: "blob", bytes } }));
+                            }
+                          }}
+                        />
+                      </label>
+                      {isBlob && (
+                        <button
+                          type="button"
+                          className="flex items-center gap-1 underline-offset-2 hover:underline"
+                          onClick={() =>
+                            downloadBlob(
+                              shown as BlobPart,
+                              `${safeFileName(`${relation.name}-${c.name}`)}.bin`,
+                              blobImageType(shown as Uint8Array) ?? "application/octet-stream",
+                            )
+                          }
+                        >
+                          <Download className="size-3" /> Download
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
               </li>
             );
           })}
@@ -329,11 +373,7 @@ function InspectorForm({
             </Button>
           )}
           <span className="ml-auto text-xs text-ink-muted">
-            {changed.length > 0
-              ? `${changed.length} changed`
-              : isNew
-                ? "All defaults"
-                : "No changes"}
+            {edited > 0 ? `${edited} changed` : isNew ? "All defaults" : "No changes"}
           </span>
           <Button
             type="submit"

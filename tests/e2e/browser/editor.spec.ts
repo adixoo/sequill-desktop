@@ -76,8 +76,13 @@ test("adds a row from the inspector and deletes it", async ({ page }) => {
   await expectRowCount(page, 60);
 
   await page.getByRole("button", { name: "Add row" }).click();
+  // Defaults the form can show are filled in: a literal, and date('now') as today's date.
+  await expect(page.getByLabel("vip", { exact: true })).toHaveValue("0");
+  await expect(page.getByLabel("joined_on", { exact: true })).toHaveValue(/^\d{4}-\d{2}-\d{2}$/);
+  await expect(page.getByText("All defaults")).toBeVisible();
   await page.getByLabel("name", { exact: true }).fill("Zoe Test");
   await page.getByLabel("email", { exact: true }).fill("zoe@example.com");
+  await expect(page.getByText("2 changed")).toBeVisible();
   await page.getByRole("button", { name: "Insert row" }).click();
   await expectRowCount(page, 61);
 
@@ -135,11 +140,6 @@ test("imports a CSV file into a new table with detected types", async ({ page })
   await expect(page.getByRole("grid", { name: "people rows" })).toContainText("02903");
 });
 
-test("exports CSV and downloads the database file", async ({ page }) => {
-  await createSample(page);
-  await openTable(page, "products");
-  await page.getByRole("button", { name: "Export" }).click();
-  const csv = page.waitForEvent("download");
 test("imports pasted spreadsheet rows (tab separated)", async ({ page }) => {
   await createSample(page);
   await openImport(page);
@@ -172,6 +172,11 @@ test("a file dropped on the import dialog is read, without opening another dialo
   await expectRowCount(page, 2);
 });
 
+test("exports CSV and downloads the database file", async ({ page }) => {
+  await createSample(page);
+  await openTable(page, "products");
+  await page.getByRole("button", { name: "Export" }).click();
+  const csv = page.waitForEvent("download");
   await page.getByRole("menuitem", { name: /^CSV/ }).click();
   const csvFile = await csv;
   expect(csvFile.suggestedFilename()).toBe("products.csv");
