@@ -2948,7 +2948,7 @@ dependencies = [
 
 [[package]]
 name = "sequill-core"
-version = "1.1.2"
+version = "1.2.0"
 dependencies = [
  "base64 0.23.1",
  "dirs",
@@ -2964,7 +2964,7 @@ dependencies = [
 
 [[package]]
 name = "sequill-desktop"
-version = "1.1.2"
+version = "1.2.0"
 dependencies = [
  "percent-encoding",
  "sequill-core",
@@ -2978,7 +2978,7 @@ dependencies = [
 
 [[package]]
 name = "sequill-mcp"
-version = "1.1.2"
+version = "1.2.0"
 dependencies = [
  "rmcp",
  "rusqlite",
