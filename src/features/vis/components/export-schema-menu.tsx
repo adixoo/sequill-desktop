@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
 import { FileDown } from "@/components/atoms/icons";
+import { DialectIcon } from "@/components/molecules/dialect-icon";
 import { exportSchema } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { downloadBlob, safeFileName } from "@/utils/data/export";
@@ -39,12 +40,13 @@ export function ExportSchemaMenu({ statements, name }: ExportSchemaMenuProps) {
           <FileDown /> <span className="max-sm:sr-only">Export</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
+      <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="text-xs font-normal text-ink-muted">
           Schema as SQL for
         </DropdownMenuLabel>
         {IMPORT_DIALECTS.map((target) => (
           <DropdownMenuItem key={target.value} onSelect={() => void download(target)}>
+            <DialectIcon dialect={target.value} className="size-(--icon)" />
             {target.label}
           </DropdownMenuItem>
         ))}
