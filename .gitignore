@@ -47,6 +47,7 @@ yarn-error.log*
 
 # rust / tauri build output
 /target/
+/src-tauri/target/
 
 # claude code local settings
 /.claude/
