@@ -5,7 +5,6 @@ import {
   ExternalLink,
   Eye,
   MoreHorizontal,
-  PanelLeftClose,
   Pencil,
   Plus,
   RotateCcw,
@@ -48,8 +47,6 @@ interface SchemaOutlineProps {
   selectedId: string | null;
   onSelect(id: string): void;
   editor: SchemaEditor;
-  /** Hides the sidebar; when omitted (inside a sheet, which has its own close) no button shows. */
-  onClose?(): void;
 }
 
 const KIND_ORDER: Record<DiagramTable["kind"], number> = {
@@ -71,7 +68,6 @@ export function SchemaOutline({
   selectedId,
   onSelect,
   editor,
-  onClose,
 }: SchemaOutlineProps) {
   // Tables start collapsed; track the ones the user opens.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -115,7 +111,7 @@ export function SchemaOutline({
   return (
     <nav aria-label="Tables and columns" className="flex h-full min-h-0 flex-col">
       <div className="flex items-center gap-1 border-b-2 border-hairline p-2">
-        <InputGroup className="h-8 flex-1">
+        <InputGroup className="flex-1">
           <InputGroupAddon>
             <Search />
           </InputGroupAddon>
@@ -125,7 +121,6 @@ export function SchemaOutline({
             aria-label="Find a table or column"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="max-md:text-base"
           />
         </InputGroup>
         <Button
@@ -137,17 +132,6 @@ export function SchemaOutline({
         >
           {allCollapsed ? <ChevronsUpDown /> : <ChevronsDownUp />}
         </Button>
-        {onClose && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Hide tables sidebar"
-            title="Hide sidebar"
-            onClick={onClose}
-          >
-            <PanelLeftClose />
-          </Button>
-        )}
       </div>
 
       <ul className="min-h-0 flex-1 overflow-y-auto p-1.5">

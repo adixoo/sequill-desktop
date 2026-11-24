@@ -1,6 +1,7 @@
 import { useId, type ReactNode } from "react";
 import { Checkbox } from "@/components/atoms/checkbox";
 import { Input } from "@/components/atoms/input";
+import { Label } from "@/components/atoms/label";
 import {
   Select,
   SelectContent,
@@ -8,9 +9,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/atoms/select";
-import { FK_ACTIONS, SQLITE_TYPES } from "@/constants";
+import { FK_ACTIONS } from "@/constants";
 import type { ColumnDef, DefaultKind } from "@/lib/sqlite/ddl";
 import { cn } from "@/utils";
+import { TypePicker, type TypeChoices } from "./type-picker";
 
 /** Column definition editor shared by the schema dialogs and the visualizer. */
 const NONE = "__none__";
@@ -49,7 +51,13 @@ export function Check({
 }
 
 type Tables = { name: string; columns: string[] }[];
-type FieldProps = { col: ColumnDef; set(patch: Partial<ColumnDef>): void; compact: boolean };
+type FieldProps = {
+  col: ColumnDef;
+  set(patch: Partial<ColumnDef>): void;
+  compact: boolean;
+  /** Prefix for the control ids the row labels point at. */
+  id: string;
+};
 
 /** Editor for one column definition. `mode` hides options SQLite can't add later. */
 export function ColumnFields({
@@ -69,48 +77,51 @@ export function ColumnFields({
   actions?: ReactNode;
   /** "compact": wrapping rows, for lists of columns. "form": labeled rows, for one column. */
   layout?: "compact" | "form";
-  /**
-   * Types to suggest for another database's schema (any type can be typed); SQLite's own
-   * types, from a list, when omitted.
-   */
-  types?: readonly string[];
+  /** Types to choose from for another database's schema; SQLite's own types when omitted. */
+  types?: TypeChoices;
 }) {
   const set = (patch: Partial<ColumnDef>) => onChange({ ...col, ...patch });
   const compact = layout === "compact";
-  const field = { col, set, compact };
+  const id = useId();
+  const field = { col, set, compact, id };
   const name = (
     <Input
-      aria-label="Column name"
+      id={`${id}-name`}
+      aria-label={compact ? "Column name" : undefined}
       placeholder="column_name"
       value={col.name}
       onChange={(e) => set({ name: e.target.value })}
-      className={cn(
-        "h-8 bg-surface font-mono text-sm max-md:text-base",
-        compact ? "basis-full @sm:min-w-36 @sm:flex-1 @sm:basis-0" : "w-full",
-      )}
+      className={compact ? "basis-full @sm:min-w-36 @sm:flex-1 @sm:basis-0" : "w-full"}
     />
   );
 
   if (!compact) {
     return (
       <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3">
-        <FieldLabel>Name</FieldLabel>
+        <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
         {name}
-        <FieldLabel>Type</FieldLabel>
-        <TypeSelect {...field} types={types} />
-        <FieldLabel className="self-start pt-px">Rules</FieldLabel>
+        <FieldLabel htmlFor={`${id}-type`}>Type</FieldLabel>
+        <TypePicker
+          id={`${id}-type`}
+          value={col.type}
+          onChange={(type) => set({ type })}
+          choices={types}
+          aria-label={compact ? "Type" : undefined}
+          className={compact ? "min-w-0 flex-1 @sm:w-36 @sm:flex-none" : "w-full"}
+        />
+        <RulesLabel id={id} className="self-start pt-px" />
         <ConstraintChecks {...field} mode={mode} />
-        <FieldLabel>Default</FieldLabel>
+        <FieldLabel htmlFor={`${id}-default`}>Default</FieldLabel>
         <DefaultFields {...field} />
         {tables.length > 0 && (
           <>
-            <FieldLabel>References</FieldLabel>
+            <FieldLabel htmlFor={`${id}-references`}>References</FieldLabel>
             <ReferenceTable {...field} tables={tables} />
             {col.references && tables.some((t) => t.name === col.references?.table) && (
               <>
-                <FieldLabel>Column</FieldLabel>
+                <FieldLabel htmlFor={`${id}-ref-column`}>Column</FieldLabel>
                 <ReferenceColumn {...field} tables={tables} />
-                <FieldLabel>On delete</FieldLabel>
+                <FieldLabel htmlFor={`${id}-on-delete`}>On delete</FieldLabel>
                 <OnDelete {...field} />
               </>
             )}
@@ -127,19 +138,26 @@ export function ColumnFields({
     <div className="@container flex flex-col gap-3 rounded-sm bg-raised p-3 ring-2 ring-hairline ring-inset">
       <div className="flex flex-wrap items-center gap-2">
         {name}
-        <TypeSelect {...field} types={types} />
+        <TypePicker
+          id={`${id}-type`}
+          value={col.type}
+          onChange={(type) => set({ type })}
+          choices={types}
+          aria-label={compact ? "Type" : undefined}
+          className={compact ? "min-w-0 flex-1 @sm:w-36 @sm:flex-none" : "w-full"}
+        />
         {actions}
       </div>
-      <CompactRow label="Rules">
+      <CompactRow label={<RulesLabel id={id} />}>
         <ConstraintChecks {...field} mode={mode} />
       </CompactRow>
-      <CompactRow label="Default">
+      <CompactRow label={<FieldLabel htmlFor={`${id}-default`}>Default</FieldLabel>}>
         <div className="flex flex-wrap items-center gap-2">
           <DefaultFields {...field} />
         </div>
       </CompactRow>
       {tables.length > 0 && (
-        <CompactRow label="References">
+        <CompactRow label={<FieldLabel htmlFor={`${id}-references`}>References</FieldLabel>}>
           <div className="flex flex-wrap items-center gap-2">
             <ReferenceTable {...field} tables={tables} />
             {col.references && tables.some((t) => t.name === col.references?.table) && (
@@ -155,75 +173,46 @@ export function ColumnFields({
   );
 }
 
-function FieldLabel({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={cn("text-xs text-ink-muted", className)}>{children}</span>;
+const LABEL = "text-xs text-ink-muted";
+
+function FieldLabel({ htmlFor, children }: { htmlFor: string; children: ReactNode }) {
+  return (
+    <Label htmlFor={htmlFor} className={LABEL}>
+      {children}
+    </Label>
+  );
+}
+
+/** Names the group of rule checkboxes, which has no single control for a label to point at. */
+function RulesLabel({ id, className }: { id: string; className?: string }) {
+  return (
+    <span id={`${id}-rules`} className={cn(LABEL, "font-medium", className)}>
+      Rules
+    </span>
+  );
 }
 
 /** A label beside its field in a wide card, above it in a narrow one. */
-function CompactRow({ label, children }: { label: string; children: ReactNode }) {
+function CompactRow({ label, children }: { label: ReactNode; children: ReactNode }) {
   return (
     <div className="grid gap-1.5 @sm:grid-cols-[4.5rem_minmax(0,1fr)] @sm:items-center @sm:gap-x-3">
-      <FieldLabel>{label}</FieldLabel>
+      {label}
       {children}
     </div>
   );
 }
 
-function TypeSelect({ col, set, compact, types }: FieldProps & { types?: readonly string[] }) {
-  const id = useId();
-  const width = compact ? "min-w-0 flex-1 @sm:w-32 @sm:flex-none" : "w-full";
-  if (types) {
-    return (
-      <>
-        <Input
-          role="combobox"
-          aria-label="Type"
-          list={id}
-          value={col.type}
-          onChange={(e) => set({ type: e.target.value })}
-          spellCheck={false}
-          className={cn("h-8 bg-surface font-mono text-sm max-md:text-base", width)}
-        />
-        <datalist id={id}>
-          {types.map((t) => (
-            <option key={t} value={t} />
-          ))}
-        </datalist>
-      </>
-    );
-  }
-  return (
-    <Select
-      value={col.type || NONE}
-      onValueChange={(type) => set({ type: type === NONE ? "" : type })}
-    >
-      <SelectTrigger
-        size="sm"
-        className={cn(
-          "bg-surface font-mono",
-          compact ? "min-w-0 flex-1 @sm:w-32 @sm:flex-none" : "w-full",
-        )}
-        aria-label="Type"
-      >
-        <SelectValue />
-      </SelectTrigger>
-      <SelectContent>
-        {SQLITE_TYPES.map((t) => (
-          <SelectItem key={t} value={t} className="font-mono">
-            {t}
-          </SelectItem>
-        ))}
-        <SelectItem value={NONE} className="font-mono">
-          (none)
-        </SelectItem>
-      </SelectContent>
-    </Select>
-  );
-}
-
-function ConstraintChecks({ col, set, compact, mode }: FieldProps & { mode: "create" | "add" }) {
+function ConstraintChecks({
+  col,
+  set,
+  compact,
+  id,
+  mode,
+}: FieldProps & { mode: "create" | "add" }) {
   return (
     <div
+      role="group"
+      aria-labelledby={`${id}-rules`}
       className={
         compact
           ? "grid grid-cols-2 gap-x-3 gap-y-2 @sm:flex @sm:flex-wrap @sm:items-center @sm:gap-x-4"
@@ -261,16 +250,12 @@ function ConstraintChecks({ col, set, compact, mode }: FieldProps & { mode: "cre
 }
 
 /** The default's kind, plus a value field when the kind needs one. */
-function DefaultFields({ col, set, compact }: FieldProps) {
+function DefaultFields({ col, set, compact, id }: FieldProps) {
   const needsValue =
     col.defaultKind === "text" || col.defaultKind === "number" || col.defaultKind === "expression";
   const kind = (
     <Select value={col.defaultKind} onValueChange={(v) => set({ defaultKind: v as DefaultKind })}>
-      <SelectTrigger
-        size="sm"
-        className={cn("bg-surface", compact ? "w-full @sm:w-36" : "w-full")}
-        aria-label="Default value kind"
-      >
+      <SelectTrigger id={`${id}-default`} className={compact ? "w-full @sm:w-36" : "w-full"}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -288,10 +273,7 @@ function DefaultFields({ col, set, compact }: FieldProps) {
       placeholder={col.defaultKind === "expression" ? "datetime('now')" : "value"}
       value={col.defaultValue}
       onChange={(e) => set({ defaultValue: e.target.value })}
-      className={cn(
-        "h-8 bg-surface font-mono text-sm max-md:text-base",
-        compact ? "min-w-32 flex-1" : "w-full",
-      )}
+      className={compact ? "min-w-32 flex-1" : "w-full"}
     />
   );
   if (compact) {
@@ -310,7 +292,7 @@ function DefaultFields({ col, set, compact }: FieldProps) {
   );
 }
 
-function ReferenceTable({ col, set, compact, tables }: FieldProps & { tables: Tables }) {
+function ReferenceTable({ col, set, compact, id, tables }: FieldProps & { tables: Tables }) {
   return (
     <Select
       value={col.references?.table ?? NONE}
@@ -323,11 +305,7 @@ function ReferenceTable({ col, set, compact, tables }: FieldProps & { tables: Ta
         })
       }
     >
-      <SelectTrigger
-        size="sm"
-        className={cn("bg-surface", compact ? "w-full @sm:w-36" : "w-full")}
-        aria-label="Referenced table"
-      >
+      <SelectTrigger id={`${id}-references`} className={compact ? "w-full @sm:w-36" : "w-full"}>
         <SelectValue />
       </SelectTrigger>
       <SelectContent>
@@ -343,7 +321,7 @@ function ReferenceTable({ col, set, compact, tables }: FieldProps & { tables: Ta
 }
 
 /** The referenced column (blank means the table's primary key). */
-function ReferenceColumn({ col, set, compact, tables }: FieldProps & { tables: Tables }) {
+function ReferenceColumn({ col, set, compact, id, tables }: FieldProps & { tables: Tables }) {
   const references = col.references;
   const refTable = tables.find((t) => t.name === references?.table);
   if (!references || !refTable) return null;
@@ -355,9 +333,9 @@ function ReferenceColumn({ col, set, compact, tables }: FieldProps & { tables: T
       }
     >
       <SelectTrigger
-        size="sm"
-        className={cn("bg-surface", compact ? "w-full @sm:w-32" : "w-full")}
-        aria-label="Referenced column"
+        id={`${id}-ref-column`}
+        className={compact ? "w-full @sm:w-32" : "w-full"}
+        aria-label={compact ? "Referenced column" : undefined}
       >
         <SelectValue />
       </SelectTrigger>
@@ -374,7 +352,7 @@ function ReferenceColumn({ col, set, compact, tables }: FieldProps & { tables: T
 }
 
 /** What happens to this row when the referenced row is deleted. */
-function OnDelete({ col, set, compact }: FieldProps) {
+function OnDelete({ col, set, compact, id }: FieldProps) {
   const references = col.references;
   if (!references) return null;
   return (
@@ -383,9 +361,9 @@ function OnDelete({ col, set, compact }: FieldProps) {
       onValueChange={(onDelete) => set({ references: { ...references, onDelete } })}
     >
       <SelectTrigger
-        size="sm"
-        className={cn("bg-surface", compact ? "w-full @sm:w-44" : "w-full")}
-        aria-label="On delete"
+        id={`${id}-on-delete`}
+        className={compact ? "w-full @sm:w-44" : "w-full"}
+        aria-label={compact ? "On delete" : undefined}
       >
         <SelectValue />
       </SelectTrigger>

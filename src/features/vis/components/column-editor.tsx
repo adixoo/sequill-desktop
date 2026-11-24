@@ -1,3 +1,4 @@
+import type { TypeChoices } from "@/components/organisms/dialogs/type-picker";
 import { Pencil, RotateCcw, Trash, Undo } from "@/components/atoms/icons";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ColumnFields } from "@/components/organisms/dialogs/column-fields";
@@ -23,8 +24,8 @@ export interface SchemaEditor {
   dbId: string | null;
   /** Tables a column can reference, with their columns. */
   refTables: { name: string; columns: string[] }[];
-  /** For a schema imported from another database: its types and enums to suggest. */
-  types?: readonly string[];
+  /** For a schema imported from another database: its types and enums to choose from. */
+  types?: TypeChoices;
   onChange(draft: Draft): void;
 }
 
@@ -39,20 +40,18 @@ const swap = "transition-opacity duration-150";
  * it) carries the `group/col` class.
  */
 export function ColumnType({ column, editable }: { column: DiagramColumn; editable?: boolean }) {
+  const hide =
+    editable &&
+    cn(
+      swap,
+      "group-hover/col:opacity-0 group-focus-visible/col:opacity-0 group-data-[state=open]/col:opacity-0",
+    );
   return (
-    <span className="relative ml-auto flex shrink-0 items-center">
-      <span
-        className={cn(
-          "font-mono text-[0.625rem] text-ink-muted lowercase",
-          editable &&
-            cn(
-              swap,
-              "group-hover/col:opacity-0 group-focus-visible/col:opacity-0 group-data-[state=open]/col:opacity-0",
-            ),
-        )}
-      >
+    // Shrinks and truncates only when a card hits its widest size, and before the column name
+    // does (shrink-100), so a long type can't hide the name; a few characters always show.
+    <span className="relative ml-auto flex min-w-12 shrink-100 items-center justify-end font-mono text-(length:--text-small) text-ink-muted">
+      <span title={column.type || "any"} className={cn("truncate lowercase", hide)}>
         {column.type || "any"}
-        {column.notNull && !column.pk && <span aria-label="not null">*</span>}
       </span>
       {editable && (
         <Pencil

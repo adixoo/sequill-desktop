@@ -6,7 +6,7 @@ import {
   handleId,
   TABLE_HEADER_HEIGHT,
   TABLE_ROW_HEIGHT,
-  TABLE_WIDTH,
+  tableWidth,
 } from "@/features/vis/lib/layout";
 import { TABLE_HANDLE, type DiagramTable } from "@/features/vis/lib/model";
 import { cn } from "@/utils";
@@ -76,7 +76,7 @@ export const TableNode = memo(function TableNode({ id, data, selected }: NodePro
         (dimmed || dropped) && "opacity-40",
         dropped && selected && "opacity-70",
       )}
-      style={{ width: TABLE_WIDTH }}
+      style={{ width: tableWidth(table) }}
     >
       <div
         className="relative flex items-center gap-2 rounded-t-[calc(var(--radius-md)-2px)] border-b-2 border-hairline bg-raised px-3"

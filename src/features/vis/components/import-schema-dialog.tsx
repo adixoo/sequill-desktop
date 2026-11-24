@@ -46,7 +46,7 @@ export function ImportSchemaDialog({ onImported, onClose }: ImportSchemaDialogPr
   const [busy, setBusy] = useState(false);
   return (
     <ResponsiveDialog open onOpenChange={(open) => !open && !busy && onClose()}>
-      <ResponsiveDialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg">
+      <ResponsiveDialogContent className="max-h-[92dvh] overflow-y-auto md:flex md:h-[min(36rem,92dvh)] md:max-w-3xl md:flex-col md:gap-6 md:p-6">
         {dialect ? (
           <SchemaStep
             dialect={dialect}
@@ -68,14 +68,17 @@ export function ImportSchemaDialog({ onImported, onClose }: ImportSchemaDialogPr
               </DialogDescription>
             </DialogHeader>
             {/* Wrapping rows, centred, so a short last row sits in the middle instead of the left. */}
-            <ul aria-label="Database types" className="flex flex-wrap justify-center gap-2">
+            <ul
+              aria-label="Database types"
+              className="flex flex-wrap justify-center gap-2 md:flex-1 md:content-center md:gap-3"
+            >
               {IMPORT_DIALECTS.map((d) => (
                 <li
                   key={d.value}
-                  className="basis-[calc((100%-0.5rem)/2)] sm:basis-[calc((100%-1rem)/3)]"
+                  className="basis-[calc((100%-0.5rem)/2)] sm:basis-[calc((100%-1rem)/3)] md:basis-[calc((100%-1.5rem)/3)]"
                 >
                   <Tile
-                    icon={<DialectIcon dialect={d.value} className="size-9" />}
+                    icon={<DialectIcon dialect={d.value} className="size-9 md:size-12" />}
                     label={d.label}
                     onClick={() => setDialect(d)}
                   />
@@ -105,7 +108,7 @@ function Tile({
     <button
       type="button"
       onClick={onClick}
-      className="group flex size-full flex-col items-center justify-center gap-3 rounded-lg px-3 py-5 text-center ring-1 ring-hairline transition-colors duration-150 outline-none hover:bg-active hover:ring-strong focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+      className="group flex size-full flex-col items-center justify-center gap-3 rounded-lg px-3 py-5 text-center ring-1 ring-hairline transition-colors duration-150 outline-none hover:bg-active hover:ring-strong focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none md:py-8"
     >
       <span className="text-ink-soft transition-colors duration-150 group-hover:text-ink group-focus-visible:text-ink motion-reduce:transition-none">
         {icon}
@@ -196,7 +199,7 @@ function SchemaStep({
 
   return (
     <form
-      className="flex flex-col gap-4"
+      className="flex flex-col gap-4 md:min-h-0 md:flex-1"
       {...drop.props}
       onSubmit={(e) => {
         e.preventDefault();
@@ -216,9 +219,9 @@ function SchemaStep({
       </DialogHeader>
 
       {stage === "choose" && (
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-2 md:flex-1 md:content-center md:gap-3">
           <Tile
-            icon={<FileCode className="size-7" />}
+            icon={<FileCode className="size-7 md:size-10" />}
             label="I have the schema"
             hint="Paste it or drop the file"
             onClick={() => {
@@ -227,7 +230,7 @@ function SchemaStep({
             }}
           />
           <Tile
-            icon={<SquareTerminal className="size-7" />}
+            icon={<SquareTerminal className="size-7 md:size-10" />}
             label="Get the schema"
             hint="One command prints it"
             onClick={() => {
@@ -243,12 +246,12 @@ function SchemaStep({
       )}
       {stage === "command" && dialect.command && dialect.query && (
         // SQL editors (Supabase, pgAdmin…) can't run a terminal command, so the query comes first.
-        <Tabs defaultValue="editor" className="min-w-0 gap-3">
+        <Tabs defaultValue="editor" className="min-w-0 gap-3 md:min-h-0 md:flex-1">
           <TabsList className="w-full">
             <TabsTrigger value="editor">In a SQL editor</TabsTrigger>
             <TabsTrigger value="terminal">In a terminal</TabsTrigger>
           </TabsList>
-          <TabsContent value="editor" className="flex min-w-0 flex-col gap-2.5">
+          <TabsContent value="editor" className="flex min-h-0 min-w-0 flex-col gap-2.5">
             <p className="text-sm text-ink-soft">
               Run this query in Supabase, pgAdmin, DBeaver or psql. It only reads; copy the one cell
               it returns.
@@ -258,7 +261,7 @@ function SchemaStep({
               code={dialect.query}
               copyable
               wrap
-              className="max-h-56 overflow-y-auto"
+              className="max-h-56 overflow-y-auto md:max-h-none md:min-h-0 md:flex-1 [&>figcaption]:sticky [&>figcaption]:top-0 [&>figcaption]:z-10"
             />
           </TabsContent>
           <TabsContent value="terminal" className="flex flex-col gap-2.5">
@@ -270,7 +273,7 @@ function SchemaStep({
 
       {stage === "schema" && (
         <>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-2 md:min-h-0 md:flex-1">
             <Label htmlFor={file ? undefined : "schema-sql"}>
               {file ? "Schema file" : "Paste the schema"}
             </Label>
@@ -298,7 +301,7 @@ function SchemaStep({
                 </Button>
               </div>
             ) : (
-              <div className="relative">
+              <div className="relative md:min-h-0 md:flex-1">
                 <Textarea
                   id="schema-sql"
                   value={pasted}
@@ -309,7 +312,7 @@ function SchemaStep({
                   placeholder="CREATE TABLE …"
                   spellCheck={false}
                   className={cn(
-                    "h-44 font-mono text-xs max-md:text-base",
+                    "h-44 font-mono text-xs max-md:text-base md:h-full md:resize-none",
                     drop.over && "ring-2 ring-ring",
                   )}
                 />
@@ -356,14 +359,14 @@ function SchemaStep({
                   setName(e.target.value);
                   setNameTyped(true);
                 }}
-                className="max-md:text-base"
               />
             </div>
           )}
         </>
       )}
 
-      <DialogFooter>
+      {/* Pinned to the bottom edge; the margins match the dialog's wider desktop padding. */}
+      <DialogFooter className="md:-mx-6 md:mt-auto md:-mb-6 md:px-6">
         <Button type="button" variant="ghost" onClick={back} disabled={busy}>
           Back
         </Button>

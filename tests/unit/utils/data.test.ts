@@ -5,6 +5,7 @@ import {
   formatBytes,
   textToValue,
   typeAffinity,
+  typeKind,
   valueKind,
 } from "@/utils/data/format";
 import {
@@ -33,6 +34,33 @@ describe("format", () => {
     expect(formatBytes(5 * 1024 * 1024)).toBe("5.0 MB");
     expect(cellPreview("a\nb")).toBe("a ⏎ b");
     expect(cellPreview(new Uint8Array(2048))).toBe("BLOB · 2.0 KB");
+  });
+
+  test("typeKind sorts types from any dialect", () => {
+    const cases: [string, string][] = [
+      ["INTEGER", "number"],
+      ["bigserial", "number"],
+      ["numeric(10,2)", "number"],
+      ["double precision", "number"],
+      ["varchar(255)", "text"],
+      ["TEXT", "text"],
+      ["boolean", "boolean"],
+      ["TINYINT(1)", "boolean"],
+      ["timestamp with time zone", "date"],
+      ["DATETIME2", "date"],
+      ["time", "time"],
+      ["interval", "time"],
+      ["jsonb", "json"],
+      ["bytea", "binary"],
+      ["BLOB", "binary"],
+      ["uuid", "uuid"],
+      ["inet", "network"],
+      ["text[]", "array"],
+      ["point", "other"],
+      ["ANY", "other"],
+      ["", "other"],
+    ];
+    for (const [type, kind] of cases) expect([type, typeKind(type)]).toEqual([type, kind]);
   });
 
   test("affinity and textToValue follow SQLite rules", () => {

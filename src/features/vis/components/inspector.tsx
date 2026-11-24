@@ -1,15 +1,11 @@
-import { ArrowRight, ExternalLink, Plus, Trash, Unlink } from "@/components/atoms/icons";
-import { Link } from "@/components/atoms/link";
-import { editorHref } from "@/lib/router";
+import type { TypeChoices } from "@/components/organisms/dialogs/type-picker";
+import { ArrowRight, Plus, Trash, Unlink } from "@/components/atoms/icons";
 import type { ReactNode } from "react";
 import { Check, ColumnFields } from "@/components/organisms/dialogs/column-fields";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import { useTableCount } from "@/hooks/use-db";
-import { ColumnIcon, ColumnName } from "./change-marks";
 import { ColorSwatches } from "./color-picker";
-import { formatCount } from "@/utils/data/format";
 import type { TableColor } from "@/features/vis/lib/colors";
 import { emptyColumn, type ColumnDef } from "@/lib/sqlite/ddl";
 import {
@@ -45,20 +41,18 @@ function Section({
   );
 }
 
-/** Column editors with add / remove, shared by new tables and new columns on existing tables. */
+/** Column editors with add / remove for a new table. */
 function ColumnList({
   columns,
   onChange,
   tables,
-  mode,
   types,
 }: {
   columns: ColumnDef[];
   onChange(columns: ColumnDef[]): void;
   tables: { name: string; columns: string[] }[];
-  mode: "create" | "add";
   /** Another database's types and enums to suggest (see ColumnFields). */
-  types?: readonly string[];
+  types?: TypeChoices;
 }) {
   return (
     <div className="flex flex-col gap-2">
@@ -66,7 +60,7 @@ function ColumnList({
         <ColumnFields
           key={i}
           col={col}
-          mode={mode}
+          mode="create"
           tables={tables}
           types={types}
           onChange={(c) => onChange(columns.map((x, j) => (j === i ? c : x)))}
@@ -95,46 +89,6 @@ function ColumnList({
   );
 }
 
-function ExistingTableDetails({ table, dbId }: { table: DiagramTable; dbId: string | null }) {
-  // Counted under the name it has in the database now.
-  const dbName = table.originalName ?? table.name;
-  const count = useTableCount(dbId ?? "", dbName, !!dbId && table.kind !== "virtual");
-  return (
-    <>
-      <p className="text-sm text-ink-soft">
-        {table.kind === "view" ? "View" : "Table"}
-        {count.data !== undefined &&
-          ` · ${formatCount(count.data)} ${count.data === 1 ? "row" : "rows"}`}
-      </p>
-      <ul className="flex flex-col divide-y divide-hairline rounded-sm bg-surface ring-2 ring-hairline ring-inset">
-        {table.columns
-          .filter((c) => !c.draft)
-          .map((c) => (
-            <li key={c.key} className="flex items-center gap-2 px-3 py-1.5 text-sm">
-              <span className="flex w-3 shrink-0 justify-center">
-                <ColumnIcon column={c} />
-              </span>
-              <ColumnName column={c} />
-              <span className="ml-auto font-mono text-[0.6875rem] text-ink-muted lowercase">
-                {c.type || "any"}
-              </span>
-            </li>
-          ))}
-      </ul>
-      {table.change === "dropped" && (
-        <p className="text-sm text-rose-ink">Deleted when you save, with its rows.</p>
-      )}
-      {dbId && table.change !== "dropped" && (
-        <Button variant="outline" asChild className="self-start">
-          <Link href={editorHref(dbName)}>
-            <ExternalLink /> Open in editor
-          </Link>
-        </Button>
-      )}
-    </>
-  );
-}
-
 function ColorSection({
   table,
   colors,
@@ -159,15 +113,13 @@ interface InspectorProps {
   selection: Selection;
   diagram: Diagram;
   draft: Draft;
-  dbId: string | null;
   colors: Record<string, TableColor>;
   onColorChange(id: string, color: TableColor | null): void;
   onDraftTableChange(table: DraftTable): void;
   onRemoveDraftTable(id: string): void;
-  onAddedColumnsChange(table: string, columns: ColumnDef[]): void;
   onDisconnect(edge: DiagramEdge): void;
   /** Another database's types and enums to suggest in column editors. */
-  types?: readonly string[];
+  types?: TypeChoices;
 }
 
 /** Details for the selected table or relationship; renders nothing when nothing is selected. */
@@ -239,7 +191,7 @@ export function Inspector(props: InspectorProps) {
               id="draft-table-name"
               value={def.name}
               onChange={(e) => props.onDraftTableChange({ ...def, name: e.target.value })}
-              className="font-mono max-md:text-base"
+              className="font-mono"
             />
           </div>
         </Section>
@@ -253,7 +205,6 @@ export function Inspector(props: InspectorProps) {
             columns={def.columns}
             tables={refTables}
             types={props.types}
-            mode="create"
             onChange={(columns) => props.onDraftTableChange({ ...def, columns })}
           />
           <div className="flex flex-wrap gap-4">
@@ -269,31 +220,6 @@ export function Inspector(props: InspectorProps) {
             />
           </div>
         </Section>
-      </div>
-    );
-  }
-
-  if (table) {
-    // New columns are keyed by the table's name in the database, which a pending rename doesn't change.
-    const original = table.originalName ?? table.name;
-    const added = draft.addedColumns[original] ?? [];
-    return (
-      <div className="flex flex-col gap-5">
-        <Section title={table.name}>
-          <ExistingTableDetails table={table} dbId={props.dbId} />
-        </Section>
-        <ColorSection table={table} {...props} />
-        {table.kind === "table" && table.change !== "dropped" && (
-          <Section title="New columns">
-            <ColumnList
-              columns={added}
-              tables={refTables}
-              types={props.types}
-              mode="add"
-              onChange={(columns) => props.onAddedColumnsChange(original, columns)}
-            />
-          </Section>
-        )}
       </div>
     );
   }

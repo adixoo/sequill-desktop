@@ -59,6 +59,7 @@ import {
   nextFreePosition,
   tableHeight,
   TABLE_WIDTH,
+  tableWidth,
   type Point,
 } from "@/features/vis/lib/layout";
 import {
@@ -75,7 +76,6 @@ import {
   referenceTargets,
   removeDraftTable,
   saveWarnings,
-  setAddedColumns,
   updateDraftTable,
   validateDraft,
   type Draft,
@@ -83,7 +83,9 @@ import {
   changeDetails,
   currentObjects,
 } from "@/features/vis/lib/model";
-import { DIALECT_TYPES } from "@/features/vis/lib/dialects";
+import { dialectOf } from "@/features/vis/lib/dialects";
+import { DATA_TYPES } from "@/constants/data-types";
+import type { TypeChoices } from "@/components/organisms/dialogs/type-picker";
 import { isDesktop } from "@/lib/platform";
 import { SaveMenu } from "./save-menu";
 import { ExportSchemaMenu } from "./export-schema-menu";
@@ -186,7 +188,7 @@ function DesignerCanvas({
   const fallback = useMemo(
     () =>
       autoLayout(
-        diagram.tables.map((t) => ({ id: t.id, columns: t.columns.length })),
+        diagram.tables.map((t) => ({ id: t.id, columns: t.columns.length, width: tableWidth(t) })),
         diagram.edges,
       ),
     [diagram],
@@ -206,34 +208,60 @@ function DesignerCanvas({
 
   // One editor for the outline and the table cards; both edit the same draft.
   // A schema imported from another database: its own types and enums in the type pickers.
-  const dialectTypes = schema?.dialect
-    ? [
-        ...currentObjects(schema, draft)
-          .filter((o) => o.kind === "enum")
-          .map((o) => o.name),
-        ...(DIALECT_TYPES[schema.dialect] ?? []),
-      ]
-    : undefined;
-  const schemaEditor: SchemaEditor = {
-    draft,
-    schema,
-    dbId,
-    refTables: referenceTargets(diagram),
-    types: dialectTypes,
-    onChange: setDraft,
-  };
+  const dialectTypes = useMemo<TypeChoices | undefined>(
+    () =>
+      schema?.dialect
+        ? {
+            label: dialectOf(schema.dialect)?.label ?? schema.dialect,
+            types: DATA_TYPES[schema.dialect] ?? [],
+            enums: currentObjects(schema, draft)
+              .filter((o) => o.kind === "enum")
+              .map((o) => o.name),
+          }
+        : undefined,
+    [schema, draft],
+  );
+  const schemaEditor = useMemo<SchemaEditor>(
+    () => ({
+      draft,
+      schema,
+      dbId,
+      refTables: referenceTargets(diagram),
+      types: dialectTypes,
+      onChange: setDraft,
+    }),
+    [draft, schema, dbId, diagram, dialectTypes],
+  );
+
+  const widths = useMemo(
+    () => Object.fromEntries(shown.tables.map((t) => [t.id, tableWidth(t)])),
+    [shown.tables],
+  );
+  const widthOf = (id: string) => widths[id] ?? TABLE_WIDTH;
+
+  // Kept apart from positions: a drag frame re-renders only the card being moved, not every card.
+  const nodeData = useMemo(
+    () =>
+      new Map(
+        shown.tables.map((t) => [
+          t.id,
+          {
+            table: t,
+            dimmed: !!focus && !focus.has(t.id),
+            color: colors[t.id] ?? null,
+            editor: schemaEditor,
+            readOnly: viewingOriginal,
+          },
+        ]),
+      ),
+    [shown.tables, focus, colors, schemaEditor, viewingOriginal],
+  );
 
   const nodes: TableNodeType[] = shown.tables.map((t) => ({
     id: t.id,
     type: "table",
     position: positionOf(t.id),
-    data: {
-      table: t,
-      dimmed: !!focus && !focus.has(t.id),
-      color: colors[t.id] ?? null,
-      editor: schemaEditor,
-      readOnly: viewingOriginal,
-    },
+    data: nodeData.get(t.id)!,
     measured: sizes[t.id],
     selected: selection?.kind === "table" && selection.id === t.id,
     ariaLabel: `${t.kind === "draft" ? "New table" : t.kind === "view" ? "View" : "Table"} ${t.name}`,
@@ -246,7 +274,10 @@ function DesignerCanvas({
         ? selection.id === e.id
         : selection?.kind === "table" && (e.source === selection.id || e.target === selection.id);
     // Leave and enter on the sides that face each other, wherever the cards are dragged.
-    const sides = edgeSides(positionOf(e.source), positionOf(e.target), e.source === e.target);
+    const sides = edgeSides(positionOf(e.source), positionOf(e.target), e.source === e.target, {
+      source: widthOf(e.source),
+      target: widthOf(e.target),
+    });
     return {
       id: e.id,
       source: e.source,
@@ -296,7 +327,7 @@ function DesignerCanvas({
   const focusTable = (id: string, at: Point, columns: number) => {
     setSelection({ kind: "table", id });
     requestAnimationFrame(() =>
-      flow.setCenter(at.x + TABLE_WIDTH / 2, at.y + tableHeight(columns) / 2, {
+      flow.setCenter(at.x + widthOf(id) / 2, at.y + tableHeight(columns) / 2, {
         zoom: Math.max(flow.getZoom(), 0.8),
         duration: 400,
       }),
@@ -307,7 +338,7 @@ function DesignerCanvas({
     const { draft: next, table } = createDraftTable(draft, schema);
     const id = `d:${table.id}`;
     const all = Object.fromEntries(diagram.tables.map((t) => [t.id, positionOf(t.id)]));
-    const at = nextFreePosition(all);
+    const at = nextFreePosition(all, widths);
     setDraft(next);
     setPositions((p) => ({ ...p, [id]: at }));
     focusTable(id, at, table.columns.length);
@@ -423,7 +454,6 @@ function DesignerCanvas({
       selection={selection}
       diagram={diagram}
       draft={draft}
-      dbId={dbId}
       colors={colors}
       onColorChange={changeColor}
       onDraftTableChange={(t) => setDraft((d) => updateDraftTable(d, t.id, t))}
@@ -431,23 +461,21 @@ function DesignerCanvas({
         setDraft((d) => removeDraftTable(d, id));
         setSelection(null);
       }}
-      onAddedColumnsChange={(table, cols) => setDraft((d) => setAddedColumns(d, table, cols))}
       onDisconnect={(edge) => {
         setDraft((d) => disconnectColumn(d, diagram, edge, schema));
         setSelection(null);
       }}
     />
   );
-  // The details panel only exists while a table or relationship is selected.
+  // The details panel only exists while a new table or a relationship is selected.
   const hasDetails =
     !viewingOriginal &&
     (selection?.kind === "table"
-      ? diagram.tables.some((t) => t.id === selection.id)
+      ? diagram.tables.some((t) => t.id === selection.id && t.kind === "draft")
       : selection?.kind === "edge" && diagram.edges.some((e) => e.id === selection.id));
 
-  const outline = (onClose?: () => void) => (
+  const outline = (
     <SchemaOutline
-      onClose={onClose}
       tables={diagram.tables}
       colors={colors}
       onColorChange={changeColor}
@@ -457,7 +485,8 @@ function DesignerCanvas({
         const t = diagram.tables.find((x) => x.id === id);
         if (!t) return;
         setOutlineOpen(false);
-        focusTable(id, positionOf(id), t.columns.length);
+        // Read from React Flow, not `positions`, so dragging doesn't re-render the outline.
+        focusTable(id, flow.getNode(id)?.position ?? { x: 0, y: 0 }, t.columns.length);
       }}
     />
   );
@@ -511,7 +540,7 @@ function DesignerCanvas({
           (!outlineShown || viewingOriginal) && "lg:hidden",
         )}
       >
-        {outline(() => showOutline(false))}
+        {outline}
       </aside>
       <Sheet open={outlineOpen} onOpenChange={setOutlineOpen}>
         <SheetContent
@@ -520,7 +549,7 @@ function DesignerCanvas({
           aria-describedby={undefined}
         >
           <SheetTitle className="sr-only">Tables and columns</SheetTitle>
-          {outline()}
+          {outline}
         </SheetContent>
       </Sheet>
       <div className="relative min-w-0 flex-1">
@@ -683,8 +712,9 @@ function DesignerCanvas({
       {hasDetails && (
         <aside
           aria-label="Details"
-          className="relative w-88 shrink-0 overflow-y-auto border-l-2 border-hairline bg-surface p-4 max-md:hidden"
+          className="relative w-88 shrink-0 overflow-y-auto border-l-2 border-hairline bg-surface p-4 max-md:hidden [&>div>section:first-child>div:first-child]:pr-8"
         >
+          {/* The pr-8 above keeps the first section's header row clear of this button. */}
           <Button
             variant="ghost"
             size="icon-sm"

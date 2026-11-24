@@ -83,6 +83,35 @@ export function typeAffinity(declared: string): "INTEGER" | "TEXT" | "BLOB" | "R
   return "NUMERIC";
 }
 
+export type TypeKind =
+  | "number"
+  | "text"
+  | "boolean"
+  | "date"
+  | "time"
+  | "json"
+  | "binary"
+  | "uuid"
+  | "network"
+  | "array"
+  | "other";
+
+/** What kind of value a declared type holds, in any SQL dialect, for picking an icon. */
+export function typeKind(declared: string): TypeKind {
+  const t = declared.trim().toLowerCase();
+  if (t.endsWith("]")) return "array";
+  if (/^(bool|boolean|bit|tinyint\(1\))$/.test(t)) return "boolean";
+  if (t.includes("uuid") || t === "uniqueidentifier") return "uuid";
+  if (t.startsWith("json")) return "json";
+  if (/^(inet|cidr|macaddr)/.test(t)) return "network";
+  if (/^(bytea|blob|longblob|binary|varbinary|image)/.test(t)) return "binary";
+  if (/date|timestamp/.test(t)) return "date";
+  if (/^(time|interval)/.test(t)) return "time";
+  if (/char|text|clob|string|enum/.test(t)) return "text";
+  if (/^(tiny|small|medium|big)?int|serial|real|float|doub|dec|num|money/.test(t)) return "number";
+  return "other";
+}
+
 /**
  * Turns edited text into a value for a column. Numeric affinities get numbers
  * when the text is numeric; `\x…` hex becomes a BLOB.

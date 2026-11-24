@@ -56,7 +56,6 @@ export const OBJECTS_TABLE = "_sequill_objects";
 /** Name prefix of the temporary table a schema design rebuilds into (see draftStatements). */
 export const REBUILD_TABLE_PREFIX = "__sbe_rebuild_";
 
-export const SQLITE_TYPES = ["INTEGER", "REAL", "TEXT", "BLOB", "NUMERIC", "ANY"] as const;
 export const FK_ACTIONS = ["NO ACTION", "RESTRICT", "SET NULL", "SET DEFAULT", "CASCADE"] as const;
 
 /** Media query for users who asked the OS for less motion. */

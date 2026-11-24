@@ -10,7 +10,11 @@ import {
   ArrowUp01Icon,
   ArrowUp02Icon,
   Bookmark02Icon,
+  BinaryCodeIcon,
   BracesIcon,
+  BracketsIcon,
+  Calendar03Icon,
+  Clock01Icon,
   BulbIcon,
   Cancel01Icon,
   CancelCircleIcon,
@@ -52,7 +56,12 @@ import {
   MinusSignIcon,
   Moon02Icon,
   MoreHorizontalIcon,
+  FingerPrintIcon,
+  HashtagIcon,
+  LeftToRightListBulletIcon,
   NetworkIcon,
+  TextFontIcon,
+  ToggleOnIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PanelRightIcon,
@@ -111,7 +120,16 @@ export const ArrowRight = icon(ArrowRight02Icon, "ArrowRight");
 export const ArrowUp = icon(ArrowUp02Icon, "ArrowUp");
 export const Ban = icon(UnavailableIcon, "Ban");
 export const Bookmark = icon(Bookmark02Icon, "Bookmark");
+export const Binary = icon(BinaryCodeIcon, "Binary");
 export const Braces = icon(BracesIcon, "Braces");
+export const Brackets = icon(BracketsIcon, "Brackets");
+export const Calendar = icon(Calendar03Icon, "Calendar");
+export const Clock = icon(Clock01Icon, "Clock");
+export const Fingerprint = icon(FingerPrintIcon, "Fingerprint");
+export const Hash = icon(HashtagIcon, "Hash");
+export const ListBullet = icon(LeftToRightListBulletIcon, "ListBullet");
+export const TextFont = icon(TextFontIcon, "TextFont");
+export const ToggleOn = icon(ToggleOnIcon, "ToggleOn");
 export const Check = icon(Tick02Icon, "Check");
 export const CheckCircle = icon(CheckmarkCircle02Icon, "CheckCircle");
 export const ChevronDown = icon(ArrowDown01Icon, "ChevronDown");
