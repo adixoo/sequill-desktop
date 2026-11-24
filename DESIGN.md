@@ -9,7 +9,7 @@ This is Sequill's only design system. The live app still runs on the older token
 
 - **Covers:** the site (`/`, `/download`, the not-found page), the editor (`/app`) and the schema designer (`/vis`), in light and dark, from phone width to desktop.
 - **Fixed inputs** (not reopened here): the six pastels and their meanings; DM Sans, JetBrains Mono and Caveat; the free Hugeicons set drawn through `Icon`; Tailwind 4 with shadcn/ui on Radix in `src/components/ui`; the `.dark` class from `next-themes`.
-- **Constraints:** WCAG 2.2 AA (text 4.5:1; control edges and focus 3:1; targets 24px; nothing by colour, pointer or motion alone; everything by keyboard). The landing page ships none of the editor's code, so the system is CSS only. The data grid is virtualised, so row heights are fixed per density. End-to-end tests run in Brave.
+- **Constraints:** WCAG 2.2 AA (text 4.5:1; control edges and focus 3:1; targets 24px; nothing by colour, pointer or motion alone; everything by keyboard). The landing page ships none of the editor's code, so the system is CSS only. The data grid is virtualised, so row heights are fixed per density. End-to-end tests run in the Tauri desktop app.
 - **Judgement calls** (recorded in the Decision log, section 9): the "bright orderly workroom" tone, how little colour counts as meaningful, and where compact density applies.
 
 ## 1. Visual Theme & Atmosphere
@@ -225,7 +225,7 @@ Atomic levels, used as a sorting aid rather than a rule.
 
 ### Status
 
-Where each family stands (checked against the code on 2026-11-24). There is no Figma file: this document and `/test/components` are the design source. No family has visual-regression or automated accessibility tests yet; the Brave e2e suite covers behaviour only.
+Where each family stands (checked against the code on 2026-11-24). There is no Figma file: this document and `/test/components` are the design source. No family has visual-regression or automated accessibility tests yet; the desktop e2e suite covers behaviour only.
 
 | Family                            | Spec | `quill.css`                                               | Preview            | Live app           | Open gaps                                                                               |
 | --------------------------------- | ---- | --------------------------------------------------------- | ------------------ | ------------------ | --------------------------------------------------------------------------------------- |
@@ -819,7 +819,7 @@ The light theme barely moves; the dark theme moves off near-black to neutral cha
 3. Set `data-density` on the app shells.
 4. Replace the `pn-*` and `ln-*` classes and the components in the table above; remove eyebrows.
 5. Retire the old tokens once a search finds no readers.
-6. Check: typecheck, lint, unit tests, the Brave e2e suite, and the page inspector on `/`, `/app`, `/vis` and `/download` in both themes.
+6. Check: typecheck, lint, unit tests, the desktop e2e suite (`bun run test:e2e`), and the page inspector on `/`, `/app`, `/vis` and `/download` in both themes.
 7. Keep `/test/components` as the living reference (or move it to a permanent route); delete the other `/test` pages.
 
 ### Release stages

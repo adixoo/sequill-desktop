@@ -43,7 +43,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: bun install --frozen-lockfile
       - run: bun run desktop:build:debug
-      - run: bun run test:e2e:desktop
+      - run: bun run test:e2e
 
   rust:
     name: Rust

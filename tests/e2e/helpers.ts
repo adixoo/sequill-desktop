@@ -1,22 +1,5 @@
 import { expect, type Page } from "@playwright/test";
 
-/** Opens the editor and waits for SQLite to finish booting. */
-export async function openEditor(page: Page): Promise<void> {
-  await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: /Open a database to begin|Pick a table/ }),
-  ).toBeVisible({ timeout: 30_000 });
-}
-
-export async function createSample(page: Page): Promise<void> {
-  await openEditor(page);
-  await page.getByRole("button", { name: "Try the sample" }).click();
-  // Building the sample writes a few thousand rows; with every worker busy it can take a while.
-  await expect(page.getByRole("heading", { name: /Pick a table/ })).toBeVisible({
-    timeout: 30_000,
-  });
-}
-
 export async function openTable(page: Page, name: string): Promise<void> {
   await page
     .getByRole("navigation", { name: "Database" })
@@ -39,15 +22,6 @@ export async function expectRowCount(page: Page, n: number): Promise<void> {
   await expect(page.locator("footer p").first()).toHaveText(
     new RegExp(`^${n.toLocaleString("en")} rows?( ·|$)`),
   );
-}
-
-/** Opens the CSV/JSON import dialog from the command palette. */
-export async function openImport(page: Page): Promise<void> {
-  await page.keyboard.press("Control+k");
-  await page
-    .getByRole("dialog", { name: "Jump to" })
-    .getByRole("option", { name: "Import CSV or JSON" })
-    .click();
 }
 
 /** Types SQL into a new console tab and runs it (Ctrl+Enter). */

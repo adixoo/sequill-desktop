@@ -68,8 +68,7 @@ That opens the app with hot reload. `bun run desktop:build` makes a release buil
 | `bun run lint`                | ESLint.                                                                                |
 | `bun run format`              | Prettier; `format:check` to verify.                                                    |
 | `bun run test`                | Vitest: all unit and integration tests (`test:unit`, `test:integration`).              |
-| `bun run test:e2e`            | Playwright on the browser build (run `bun run build` first).                           |
-| `bun run test:e2e:desktop`    | Playwright on the real desktop app (run `bun run desktop:build:debug` first; Windows). |
+| `bun run test:e2e`            | Playwright on the real desktop app (run `bun run desktop:build:debug` first; Windows). |
 
 ## Tests
 
@@ -80,21 +79,17 @@ Every JavaScript test lives in `tests/` and runs with [Vitest](https://vitest.de
 tests/
   unit/          one function or module at a time, no SQLite (Vitest)
   integration/   modules together on a real SQLite (the WASM build, in memory) (Vitest)
-  e2e/browser/   the browser build, driven like a person would (Playwright, in Brave)
   e2e/desktop/   the compiled desktop app: UI, Tauri IPC, Rust engine and MCP (Playwright)
   helpers/       shared test code: SQLite sessions, seeded randomness
-  fixtures/      files the tests open and import
 ```
 
-Each layer has stress tests (`*.stress.test.ts`, `stress.spec.ts` and the desktop "stress" test):
+Each layer has stress tests (`*.stress.test.ts` and the desktop "stress" test):
 100,000–200,000-row tables, 120–150-table schemas, 30,000-row imports, thousands of seeded random
 filters and edits checked against plain-JS answers, and assistants writing over MCP while a person
 runs large SQL. Random inputs come from a fixed seed, printed in each test's name; set `STRESS_SEED`
 to try others.
 
-Browser end-to-end tests run in the installed Brave browser. If Brave is not at
-`C:/Program Files/BraveSoftware/Brave-Browser/Application/brave.exe`, set `BRAVE_PATH`. Desktop
-end-to-end tests start `target/debug/sequill.exe` with WebView2's DevTools port open and attach
+End-to-end tests start `target/debug/sequill.exe` with WebView2's DevTools port open and attach
 Playwright to it (no WebDriver), on a fresh data folder (`SEQUILL_DATA_DIR`) and WebView2 profile,
 so your own databases and settings are never touched. WebView2 makes them Windows only.
 
@@ -257,7 +252,7 @@ Found a security problem? Please don't open a public issue; report it privately 
 4. Add or update tests:
    - Rust: unit tests sit next to the code in `crates/` and `src-tauri/` (`bun run test:rust`).
    - Frontend: `tests/unit/` and `tests/integration/` (`bun run test`), see [Tests](#tests).
-   - User flows: Playwright specs in `tests/e2e/` (`bun run test:e2e`, `test:e2e:desktop`).
+   - User flows: Playwright specs in `tests/e2e/` (`bun run test:e2e`).
 5. Run the same checks CI runs before you push:
 
    ```bash
