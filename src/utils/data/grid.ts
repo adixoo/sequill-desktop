@@ -84,6 +84,13 @@ export function reorder(order: string[], from: string, to: string): string[] {
   return next;
 }
 
+/** `list` with the item at index `from` moved to index `to`. */
+export function moveItem<T>(list: readonly T[], from: number, to: number): T[] {
+  const next = list.slice();
+  next.splice(to, 0, ...next.splice(from, 1));
+  return next;
+}
+
 function tsvField(value: CellValue): string {
   const text = valueToText(value);
   return /[\t\n\r"]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;

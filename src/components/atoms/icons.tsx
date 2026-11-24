@@ -57,6 +57,7 @@ import {
   Moon02Icon,
   MoreHorizontalIcon,
   FingerPrintIcon,
+  DragDropVerticalIcon,
   HashtagIcon,
   LeftToRightListBulletIcon,
   NetworkIcon,
@@ -126,6 +127,7 @@ export const Brackets = icon(BracketsIcon, "Brackets");
 export const Calendar = icon(Calendar03Icon, "Calendar");
 export const Clock = icon(Clock01Icon, "Clock");
 export const Fingerprint = icon(FingerPrintIcon, "Fingerprint");
+export const GripVertical = icon(DragDropVerticalIcon, "GripVertical");
 export const Hash = icon(HashtagIcon, "Hash");
 export const ListBullet = icon(LeftToRightListBulletIcon, "ListBullet");
 export const TextFont = icon(TextFontIcon, "TextFont");

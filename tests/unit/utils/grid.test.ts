@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 import { MAX_COLUMN_WIDTH, ROWID_ALIAS } from "@/constants";
-import { alignRows, layoutColumns, parseTsv, reorder, toTsv } from "@/utils/data/grid";
+import { alignRows, layoutColumns, moveItem, parseTsv, reorder, toTsv } from "@/utils/data/grid";
 
 const cols = [
   { name: "id", type: "INTEGER" },
@@ -96,5 +96,19 @@ describe("alignRows", () => {
   test("results without a rowid have no keys", () => {
     const plain = { columns: ["a"], rows: [["x"]] };
     expect(alignRows(plain, ["a"])).toEqual({ rows: [["x"]], keys: [] });
+  });
+});
+
+describe("moveItem", () => {
+  test("moves an item to another index, both ways", () => {
+    expect(moveItem(["a", "b", "c"], 0, 1)).toEqual(["b", "a", "c"]);
+    expect(moveItem(["a", "b", "c"], 2, 0)).toEqual(["c", "a", "b"]);
+    expect(moveItem(["a", "b", "c"], 1, 1)).toEqual(["a", "b", "c"]);
+  });
+
+  test("leaves the input alone", () => {
+    const list = ["a", "b"];
+    moveItem(list, 0, 1);
+    expect(list).toEqual(["a", "b"]);
   });
 });

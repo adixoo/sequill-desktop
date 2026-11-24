@@ -523,6 +523,17 @@ export function changeSummary(draft: Draft): string[] {
 const kindLabel = (kind: string) => kind.charAt(0).toUpperCase() + kind.slice(1);
 
 /** An enum's values, from its stored body (a JSON array); [] if unreadable. */
+/** Non-empty values that appear more than once. */
+export function duplicateValues(values: readonly string[]): Set<string> {
+  const seen = new Set<string>();
+  const dupes = new Set<string>();
+  for (const v of values) {
+    if (v && seen.has(v)) dupes.add(v);
+    seen.add(v);
+  }
+  return dupes;
+}
+
 export function enumValues(object: Pick<ExtraObject, "body">): string[] {
   try {
     const values: unknown = JSON.parse(object.body);
