@@ -169,7 +169,7 @@ export default function QueryConsole({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-wrap items-center gap-1 border-b-2 border-hairline bg-surface px-2 py-1.5">
-        <Button size="sm" onClick={() => void run()} disabled={running || !sql.trim()}>
+        <Button onClick={() => void run()} disabled={running || !sql.trim()}>
           <Play /> Run
           <Kbd className="ml-1 bg-transparent text-current max-sm:hidden">Ctrl ↵</Kbd>
         </Button>
@@ -183,7 +183,7 @@ export default function QueryConsole({
         </Toggle>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" disabled={history.length === 0}>
+            <Button variant="ghost" disabled={history.length === 0}>
               <History /> <span className="max-sm:sr-only">History</span>
             </Button>
           </DropdownMenuTrigger>
@@ -212,7 +212,6 @@ export default function QueryConsole({
         </DropdownMenu>
         <Button
           variant="ghost"
-          size="sm"
           disabled={!sql.trim() || upToDate}
           onClick={() => savedQueries.save(tabId)}
           aria-label={upToDate ? "Saved" : "Save query"}

@@ -61,7 +61,6 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
           {isTable && (
             <Button
               variant="outline"
-              size="sm"
               onClick={() => open({ kind: "renameTable", table: relation.name })}
             >
               <Pencil /> Rename
@@ -70,7 +69,6 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
           {relation.kind !== "virtual" && (
             <Button
               variant="destructive"
-              size="sm"
               onClick={() =>
                 confirmDrop(
                   relation.kind === "view" ? "view" : "table",
@@ -92,7 +90,6 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
             isTable && (
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => open({ kind: "addColumn", table: relation.name })}
               >
                 <Plus /> Add column
@@ -223,7 +220,6 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
             action={
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => open({ kind: "createIndex", table: relation.name })}
               >
                 <ListPlus /> Create index

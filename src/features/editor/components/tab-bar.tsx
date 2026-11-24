@@ -181,7 +181,6 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
       <McpHistoryButton className="my-2" />
       <Button
         variant="outline"
-        size="sm"
         className="m-2 gap-2 text-ink-muted"
         onClick={onOpenPalette}
         aria-label="Command palette"

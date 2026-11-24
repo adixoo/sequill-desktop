@@ -20,7 +20,6 @@ export function McpButton({ className }: { className?: string }) {
   return (
     <Button
       variant="ghost"
-      size="sm"
       className={cn("gap-2", className)}
       aria-label={`MCP: ${meaning}. Open the AI assistant settings`}
       title={`MCP: ${meaning}`}
@@ -40,7 +39,6 @@ export function McpHistoryButton({ className }: { className?: string }) {
   return (
     <Button
       variant="ghost"
-      size="sm"
       className={cn("gap-1.5", className)}
       aria-label="Assistant history"
       title="What assistants did over MCP"

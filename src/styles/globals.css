@@ -159,6 +159,8 @@
   --control-gap: 8px;
   --control-fs: 0.875rem;
   --control-weight: 600;
+  /* default button height: comfortable areas (dialogs, empty states) use the sm control */
+  --button: var(--control-sm);
   --icon: 16px;
   --check: 16px;
   --switch-h: 20px;
@@ -183,6 +185,7 @@
   --control-gap: 6px;
   --control-fs: 0.8125rem;
   --control-weight: 500;
+  --button: var(--control);
   --icon: 14px;
   --check: 14px;
   --switch-h: 16px;
@@ -205,6 +208,10 @@
     --control-sm: 32px;
     --control: 40px;
     --control-lg: 40px;
+  }
+  /* fields and calm-area buttons are comfortable sm, so it carries the touch target too */
+  [data-density="comfortable"] {
+    --control-sm: 40px;
   }
 }
 

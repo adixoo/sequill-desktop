@@ -22,11 +22,7 @@ export function ColumnsMenu({ columns, layout, onChange }: ColumnsMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant={layout.hidden.length > 0 ? "secondary" : "ghost"}
-          size="sm"
-          aria-label="Columns"
-        >
+        <Button variant={layout.hidden.length > 0 ? "secondary" : "ghost"} aria-label="Columns">
           <Columns3 />
           <span>Columns</span>
           {layout.hidden.length > 0 && (

@@ -86,7 +86,6 @@ function ColumnList({
       <Button
         type="button"
         variant="outline"
-        size="sm"
         className="self-start"
         onClick={() => onChange([...columns, emptyColumn(`column_${columns.length + 1}`)])}
       >
@@ -126,7 +125,7 @@ function ExistingTableDetails({ table, dbId }: { table: DiagramTable; dbId: stri
         <p className="text-sm text-rose-ink">Deleted when you save, with its rows.</p>
       )}
       {dbId && table.change !== "dropped" && (
-        <Button variant="outline" size="sm" asChild className="self-start">
+        <Button variant="outline" asChild className="self-start">
           <Link href={editorHref(dbName)}>
             <ExternalLink /> Open in editor
           </Link>
@@ -202,7 +201,6 @@ export function Inspector(props: InspectorProps) {
             {edge.draft ? (
               <Button
                 variant="outline"
-                size="sm"
                 className="self-start"
                 onClick={() => props.onDisconnect(edge)}
               >
@@ -230,7 +228,7 @@ export function Inspector(props: InspectorProps) {
         <Section
           title="New table"
           action={
-            <Button variant="ghost" size="sm" onClick={() => props.onRemoveDraftTable(def.id)}>
+            <Button variant="ghost" onClick={() => props.onRemoveDraftTable(def.id)}>
               <Trash /> Remove
             </Button>
           }

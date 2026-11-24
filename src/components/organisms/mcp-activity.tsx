@@ -176,7 +176,7 @@ function HistorySettings({ count }: { count: number }) {
         disabled={!status.data || setDays.isPending}
         onValueChange={(v) => setDays.mutate(fromChoice(v))}
       >
-        <SelectTrigger size="sm" aria-label="Keep history for" className="w-32">
+        <SelectTrigger aria-label="Keep history for" className="w-32">
           <span className="text-ink-muted">Keep</span>
           <SelectValue placeholder="…" />
         </SelectTrigger>
@@ -191,12 +191,11 @@ function HistorySettings({ count }: { count: number }) {
       {confirming ? (
         <div className="flex items-center gap-1">
           <span className="text-xs text-ink-soft">Clear all?</span>
-          <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
+          <Button variant="ghost" onClick={() => setConfirming(false)}>
             Cancel
           </Button>
           <Button
             variant="destructive"
-            size="sm"
             disabled={clear.isPending}
             onClick={() => clear.mutate(undefined, { onSettled: () => setConfirming(false) })}
           >
@@ -206,7 +205,6 @@ function HistorySettings({ count }: { count: number }) {
       ) : (
         <Button
           variant="ghost"
-          size="sm"
           className="text-rose-ink"
           disabled={count === 0}
           onClick={() => setConfirming(true)}

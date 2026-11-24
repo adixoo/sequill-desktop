@@ -56,7 +56,7 @@ export function ExportMenu({ name, sources, disabled }: ExportMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" disabled={disabled} aria-label="Export">
+        <Button variant="ghost" disabled={disabled} aria-label="Export">
           <Download />
           <span>Export</span>
         </Button>

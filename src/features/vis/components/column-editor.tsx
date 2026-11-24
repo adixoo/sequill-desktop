@@ -145,7 +145,6 @@ function ColumnEditor({
         </p>
         <Button
           variant="outline"
-          size="sm"
           className="self-start"
           onClick={() => editor.onChange(revertColumn(draft, table, column.key))}
         >
@@ -198,7 +197,6 @@ function ColumnEditor({
           {column.change === "edited" && (
             <Button
               variant="ghost"
-              size="sm"
               className="ml-auto shrink-0"
               onClick={() => editor.onChange(revertColumn(draft, table, column.key))}
             >

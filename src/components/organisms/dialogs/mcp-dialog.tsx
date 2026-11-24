@@ -257,7 +257,6 @@ export function McpDialog({ onClose }: { onClose(): void }) {
                   Everything they do is listed under History, next to MCP in the top bar.
                   <Button
                     variant="outline"
-                    size="sm"
                     onClick={() => useDialogs.getState().open({ kind: "mcpActivity" })}
                   >
                     <History /> Open history

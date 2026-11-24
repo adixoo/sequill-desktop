@@ -582,7 +582,7 @@ function DesignerCanvas({
               <PanelLeftOpen />
             </Button>
             {!viewingOriginal && (
-              <Button size="sm" onClick={addTable}>
+              <Button onClick={addTable}>
                 <Plus /> Add table
               </Button>
             )}
@@ -666,7 +666,7 @@ function DesignerCanvas({
               className="flex items-center gap-2 rounded-sm bg-sky-wash px-3 py-1.5 text-sm text-ink ring-2 ring-hairline max-md:mt-14"
             >
               <span>The schema as saved, without your changes</span>
-              <Button size="sm" variant="ghost" onClick={() => setShowOriginal(false)}>
+              <Button variant="ghost" onClick={() => setShowOriginal(false)}>
                 Back to your design
               </Button>
             </Panel>

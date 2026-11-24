@@ -34,7 +34,7 @@ export function ExportSchemaMenu({ statements, name }: ExportSchemaMenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="sm" title="Export the schema for another database">
+        <Button variant="ghost" title="Export the schema for another database">
           <FileDown /> <span className="max-sm:sr-only">Export</span>
         </Button>
       </DropdownMenuTrigger>

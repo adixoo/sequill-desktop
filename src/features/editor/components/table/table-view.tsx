@@ -283,7 +283,6 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
               <ColumnsMenu columns={columnNames} layout={view} onChange={patch} />
               <Button
                 variant="ghost"
-                size="sm"
                 onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
               >
                 {density === "compact" ? <Rows3 /> : <Rows2 />}
@@ -291,7 +290,6 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
               </Button>
               <Button
                 variant="ghost"
-                size="sm"
                 onClick={() => {
                   void rowsQuery.refetch();
                   void countQuery.refetch();
@@ -303,18 +301,13 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
 
               <div className="ml-auto flex items-center gap-1 *:shrink-0">
                 {selectedCount > 0 && relation.editable && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => confirmDelete([...selection])}
-                  >
+                  <Button variant="destructive" onClick={() => confirmDelete([...selection])}>
                     <Trash /> Delete {formatCount(selectedCount)}
                   </Button>
                 )}
                 {relation.editable && (
                   <Button
                     variant="ghost"
-                    size="sm"
                     onClick={() => openDialog({ kind: "import", table: relation.name })}
                   >
                     <Upload /> Import
@@ -322,10 +315,7 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
                 )}
                 <ExportMenu name={relation.name} sources={exportSources} disabled={total === 0} />
                 {relation.editable && (
-                  <Button
-                    size="sm"
-                    onClick={() => setInspector({ kind: "new", id: ++inspectorSeq })}
-                  >
+                  <Button onClick={() => setInspector({ kind: "new", id: ++inspectorSeq })}>
                     <Plus /> Add row
                   </Button>
                 )}

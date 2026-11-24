@@ -96,7 +96,7 @@ function Visualizer() {
         {/* The designer shows its save state here: "Unsaved" (click to save), "Saved". */}
         <div ref={setBadgeSlot} className="flex items-center" />
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="sm" onClick={() => leave({ kind: "editor" })}>
+          <Button variant="ghost" onClick={() => leave({ kind: "editor" })}>
             <Table /> <span className="max-sm:sr-only">Editor</span>
           </Button>
           <ThemeToggle />

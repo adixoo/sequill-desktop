@@ -219,7 +219,6 @@ export function CreateTableDialog({ onClose }: { onClose(): void }) {
         <Button
           type="button"
           variant="outline"
-          size="sm"
           className="self-start"
           onClick={() => setColumns((c) => [...c, emptyColumn("")])}
         >

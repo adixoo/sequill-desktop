@@ -63,7 +63,7 @@ export function FilterBuilder({
   return (
     <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger asChild>
-        <Button variant={filters.length > 0 ? "secondary" : "ghost"} size="sm" aria-label="Filters">
+        <Button variant={filters.length > 0 ? "secondary" : "ghost"} aria-label="Filters">
           <FilterIcon />
           <span>Filter</span>
           {filters.length > 0 && (
@@ -106,7 +106,7 @@ export function FilterBuilder({
                   className="grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[9rem_9rem_1fr_auto]"
                 >
                   <Select value={f.column} onValueChange={(column) => update(f.id, { column })}>
-                    <SelectTrigger size="sm" className="w-full" aria-label="Column">
+                    <SelectTrigger className="w-full" aria-label="Column">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -128,7 +128,7 @@ export function FilterBuilder({
                     <X />
                   </Button>
                   <Select value={f.op} onValueChange={(op) => update(f.id, { op: op as FilterOp })}>
-                    <SelectTrigger size="sm" className="w-full" aria-label="Condition">
+                    <SelectTrigger className="w-full" aria-label="Condition">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -167,7 +167,6 @@ export function FilterBuilder({
             <Button
               type="button"
               variant="ghost"
-              size="sm"
               onClick={() => setDraft((d) => [...d, newFilter(columns[0])])}
             >
               <Plus /> Add filter
@@ -177,7 +176,6 @@ export function FilterBuilder({
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
                   onClick={() => {
                     onChange([], match);
                     onOpenChange?.(false);
@@ -186,9 +184,7 @@ export function FilterBuilder({
                   Clear all
                 </Button>
               )}
-              <Button type="submit" size="sm">
-                Apply
-              </Button>
+              <Button type="submit">Apply</Button>
             </div>
           </div>
         </form>

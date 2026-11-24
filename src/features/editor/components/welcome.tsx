@@ -16,7 +16,10 @@ export function NoDatabase() {
   const actions = useDbActions();
   const openDialog = useDialogs((s) => s.open);
   return (
-    <div className="flex flex-1 items-center justify-center overflow-y-auto bg-canvas p-6">
+    <div
+      data-density="comfortable"
+      className="flex flex-1 items-center justify-center overflow-y-auto bg-canvas p-6"
+    >
       <m.div {...enter()} className="flex max-w-lg flex-col items-start gap-6">
         <h1 className="text-4xl leading-none font-bold tracking-[-0.035em] text-ink md:text-5xl">
           Open a database to begin
@@ -28,11 +31,11 @@ export function NoDatabase() {
         <div className="flex flex-wrap gap-2">
           {isDesktop() ? (
             // The system's file picker: the file is edited where it is, never copied.
-            <Button size="lg" onClick={() => actions.pickFile(null)}>
+            <Button onClick={() => actions.pickFile(null)}>
               <FolderOpen /> Open a .sqlite file
             </Button>
           ) : (
-            <Button size="lg" asChild>
+            <Button asChild>
               <label className="cursor-pointer">
                 <FolderOpen /> Open a .sqlite file
                 <input
@@ -48,10 +51,10 @@ export function NoDatabase() {
               </label>
             </Button>
           )}
-          <Button size="lg" variant="outline" onClick={() => openDialog({ kind: "newDatabase" })}>
+          <Button variant="outline" onClick={() => openDialog({ kind: "newDatabase" })}>
             <Plus /> New empty
           </Button>
-          <Button size="lg" variant="ghost" onClick={() => void actions.createSample()}>
+          <Button variant="ghost" onClick={() => void actions.createSample()}>
             <Sparkles /> Try the sample
           </Button>
         </div>
@@ -78,7 +81,10 @@ export function NoTab({ schema }: { schema: Schema | undefined }) {
   const openDialog = useDialogs((s) => s.open);
   const first = schema?.tables[0] ?? schema?.views[0];
   return (
-    <div className="flex flex-1 items-center justify-center overflow-y-auto bg-canvas p-6">
+    <div
+      data-density="comfortable"
+      className="flex flex-1 items-center justify-center overflow-y-auto bg-canvas p-6"
+    >
       <m.div {...enter()} className="flex max-w-md flex-col items-start gap-5">
         <h2 className="text-3xl leading-tight font-semibold tracking-tight text-ink">
           Pick a table, or ask the data a question

@@ -185,6 +185,7 @@ Two densities share every colour and radius; only size changes. **Comfortable** 
 | Token                        | Comfortable    | Compact        | Drives                                          |
 | ---------------------------- | -------------- | -------------- | ----------------------------------------------- |
 | `--control` (sm / lg)        | 36px (32 / 40) | 30px (26 / 34) | Buttons, inputs, selects, segmented, menu items |
+| `--button`                   | 32px (= sm)    | 30px           | A default button's height                       |
 | `--control-px`               | 14px           | 12px           | Horizontal padding inside controls              |
 | `--control-fs` / weight      | 14px / 600     | 13px / 500     | Control labels                                  |
 | `--icon`                     | 16px           | 14px           | Icons in controls, tabs, nav                    |
@@ -198,6 +199,11 @@ Two densities share every colour and radius; only size changes. **Comfortable** 
 | `--gap`                      | 16px           | 12px           | Gaps between blocks                             |
 | `--text-ui` / `--text-small` | 14 / 12px      | 13 / 11px      | Body and meta text in the app                   |
 | `--title-app`                | 22px           | 18px           | The app screen's h1                             |
+
+Sizing rules for controls:
+
+- **Fields** (input, textarea, input group, select) are comfortable sm (32px, 14px text) in every density. The components set this themselves; only a dense toolbar picker, such as rows per page, uses a `size="sm"` select in the area's density.
+- **Buttons** take the default size and follow their area. Busy, dashboard screens (the editor, the schema designer, their toolbars, sheets and inspectors) are compact, so a button is compact default (30px). Calm areas with few elements (dialogs, empty and welcome screens, the boot error) set `data-density="comfortable"`, where a default button is comfortable sm (32px). Use `lg` only for a marketing call to action.
 
 Rules: nothing under 11px in either density; phone fields stay 16px; compact is a desktop density (phone touch targets stay at least 40px). The marketing call to action always uses the large button (40px).
 
@@ -257,7 +263,7 @@ Nothing above 16px.
 
 ### Buttons (`q-btn`)
 
-- **Primary** (`q-btn-primary`): Ink fill, Canvas label. One per screen or band. Hover lightens 14%; press nudges down 1px.
+- **Primary** (`q-btn-primary`): Ink fill, Canvas label. One per screen or band. Hover lightens 14%; press scales down to 96% and springs back on release.
 - **Secondary** (`q-btn-secondary`): Surface fill, 1px Strong border, Ink label. Every other action.
 - **Soft** (`q-btn-soft`): Raised fill, no border. Grouped or repeated commands.
 - **Ghost** (`q-btn-ghost`): no fill until hover (Raised); Ink Soft label. Toolbars and icon actions.
@@ -279,7 +285,7 @@ A wrapping row of controls with the control gap, panel side padding and 1px vert
 
 ### Fields
 
-- **Input, select, textarea** (`q-input`, `q-select` inside `q-select-wrap`, `q-textarea`): Surface fill, 1px Strong border, 8px corners, control height. Focus: Cobalt border plus ring. Invalid (`aria-invalid`): Raspberry border with a rose-wash ring. Disabled: Raised fill, Ink Muted text, still readable.
+- **Input, select, textarea** (`q-input`, `q-select` inside `q-select-wrap`, `q-textarea`): Surface fill, 1px Strong border, 8px corners, control height. Focus: Ink border plus a soft 3px Ink ring at 15%. Invalid (`aria-invalid`): Raspberry border with a rose-wash ring. Disabled: Raised fill, Ink Muted text, still readable.
 - **Leading icon** (`q-input-icon`): icon at the control padding, text indented past it.
 - **Field** (`q-field`): label above (`q-label`, 500), the control, then a hint (`q-hint`, Ink Muted) or an error (`q-error`, Raspberry), 6px apart.
 
@@ -384,7 +390,7 @@ What each interactive class draws. "Spec only" marks a state this document defin
 
 | Class                               | Hover                    | Focus                  | Pressed / selected                                      | Disabled                           | Invalid        | Loading           |
 | ----------------------------------- | ------------------------ | ---------------------- | ------------------------------------------------------- | ---------------------------------- | -------------- | ----------------- |
-| `q-btn`                             | Per variant              | Ring                   | `aria-pressed`: Active fill; press 1px down             | 50% (`:disabled`, `aria-disabled`) | n/a            | Spec only (below) |
+| `q-btn`                             | Per variant              | Ring                   | `aria-pressed`: Active fill; press scales to 96%        | 50% (`:disabled`, `aria-disabled`) | n/a            | Spec only (below) |
 | `q-chip`                            | Raised fill, Ink label   | Ring                   | `aria-pressed`: Sky wash, Cobalt label                  | Spec only: 50%, `aria-disabled`    | n/a            | n/a               |
 | `q-segment`, `q-tab`                | Tab: Ink label           | 2px Cobalt outline     | `aria-pressed` / `aria-selected`                        | Spec only: 50%, `aria-disabled`    | n/a            | n/a               |
 | `q-input`, `q-select`, `q-textarea` | none                     | Cobalt border and ring | n/a                                                     | Raised fill, Ink Muted text        | `aria-invalid` | n/a               |

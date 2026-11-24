@@ -73,6 +73,7 @@ function DrawerContent({
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
+        data-density="comfortable"
         data-variant="drawer"
         data-dragging={drag.dragging || undefined}
         style={drag.offset ? { transform: `translateY(${drag.offset}px)` } : undefined}

@@ -274,7 +274,7 @@ export function Sidebar({ dbId, schema, onNavigate, className }: SidebarProps) {
       <div className="flex h-12 items-center gap-2 border-b-2 border-hairline px-3">
         <span className="font-semibold tracking-[-0.015em] text-ink">Editor</span>
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="sm" asChild>
+          <Button variant="ghost" asChild>
             <Link href={ROUTES.vis}>
               <Network /> Schema
             </Link>

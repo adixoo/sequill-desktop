@@ -287,7 +287,7 @@ export function ImportDialog({
                         setMapping({});
                       }}
                     >
-                      <SelectTrigger size="sm" className="w-56" aria-label="Target table">
+                      <SelectTrigger className="w-56" aria-label="Target table">
                         <SelectValue placeholder="Pick a table" />
                       </SelectTrigger>
                       <SelectContent>
