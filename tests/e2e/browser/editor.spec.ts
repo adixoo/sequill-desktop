@@ -163,6 +163,25 @@ test("theme toggle switches between light and dark", async ({ page }) => {
   await expect(html).toHaveClass(/dark/);
 });
 
+test("grid rows stay stacked edge to edge when the density changes", async ({ page }) => {
+  await createSample(page);
+  await openTable(page, "customers");
+  const grid = page.getByRole("grid", { name: "customers rows" });
+  // Space between the first data row's bottom and the second's top: 0 when stacked edge to edge.
+  const gap = () =>
+    grid
+      .getByRole("row")
+      .nth(2)
+      .evaluate((row) => {
+        const prev = row.previousElementSibling!.getBoundingClientRect();
+        return Math.round(row.getBoundingClientRect().top - prev.bottom);
+      });
+  for (const density of ["Comfortable", "Compact", "Comfortable"]) {
+    await page.getByRole("button", { name: density }).click();
+    await expect.poll(gap).toBe(0);
+  }
+});
+
 test("the command palette opens with Ctrl+K and jumps to a table", async ({ page }) => {
   await createSample(page);
   await page.keyboard.press("Control+k");

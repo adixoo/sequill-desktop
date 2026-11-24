@@ -11,6 +11,7 @@ import {
   Trash,
 } from "@/components/atoms/icons";
 import {
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -130,6 +131,9 @@ export function DataGrid({
     scrollMargin: HEADER_HEIGHT,
     scrollPaddingStart: HEADER_HEIGHT,
   });
+  // The virtualizer keeps the row sizes it measured first; a density change must drop them,
+  // or rows keep the old spacing (gaps in compact, overlap in comfortable).
+  useLayoutEffect(() => virtualizer.measure(), [virtualizer, rowHeight]);
 
   const canEditColumn = (col: number) =>
     !!onEdit && (infoByName.get(laid[col]?.name)?.editable ?? false);
