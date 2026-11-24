@@ -524,121 +524,153 @@
       <span class="chip">sqlite-browser-editor · code map</span>
       <h1 style="margin-top: 14px">Sequill: how the code is laid out</h1>
       <p class="lede">
-        An offline SQLite browser and editor that runs entirely in the browser. SQLite (official
-        WASM build) runs in a Web Worker and keeps databases in the Origin Private File System, so
-        nothing is uploaded. Three routes: a landing page at <code>/</code>, the editor at
-        <code>/app</code>, and a schema visualizer and designer at <code>/vis</code>. The site ships
-        as a static export with an offline service worker.
+        A SQLite browser, editor and schema designer. The desktop app is a Tauri window over a
+        native SQLite engine written in Rust, with an MCP server so AI assistants can use the same
+        databases. The same React UI also runs in a browser on the official SQLite WASM build. Two
+        pages: the editor at <code>/</code> and the schema designer at <code>/vis</code>.
       </p>
 
       <div class="stats" id="stats"></div>
       <div class="stack">
-        <span class="chip">Next.js 16 · App Router · static export</span
-        ><span class="chip">React 19 + React Compiler</span> <span class="chip">Bun</span
+        <span class="chip">Tauri 2</span><span class="chip">Rust · rusqlite · rmcp · sqlparser</span
+        ><span class="chip">React 19 + React Compiler</span><span class="chip">Vite</span
         ><span class="chip">TypeScript</span><span class="chip">Tailwind CSS 4</span
-        ><span class="chip">shadcn/ui (Radix)</span>
-        <span class="chip">@sqlite.org/sqlite-wasm + Comlink</span
-        ><span class="chip">TanStack Query &amp; Virtual</span><span class="chip">Zustand</span>
-        <span class="chip">CodeMirror 6</span><span class="chip">React Flow + dagre</span
-        ><span class="chip">PapaParse</span><span class="chip">Motion · Lenis</span>
-        <span class="chip">Serwist for Next.js (PWA)</span
-        ><span class="chip">bun test · Playwright (Brave)</span><span class="chip">Changesets</span>
+        ><span class="chip">shadcn/ui (Radix)</span
+        ><span class="chip">TanStack Query &amp; Virtual</span><span class="chip">Zustand</span
+        ><span class="chip">CodeMirror 6</span><span class="chip">React Flow + dagre</span
+        ><span class="chip">sqlite-wasm + Comlink (browser build)</span
+        ><span class="chip">Motion</span><span class="chip">bun test · cargo test · Playwright</span
+        ><span class="chip">Changesets</span>
       </div>
 
       <h2>How a page reaches SQLite</h2>
       <p class="sub">
-        The path from opening <code>/app</code> or <code>/vis</code> to a query running on a file in
-        OPFS. The landing page loads none of this.
+        From opening the app to a query running on a database file. Pages never touch SQLite
+        directly: they go through one client that picks the engine for the build.
       </p>
       <div class="flow">
         <div class="step sky">
-          <h3>Route</h3>
+          <h3>Entry</h3>
           <p>
-            <code>src/app/app/page.tsx</code> and <code>src/app/vis/page.tsx</code> only render
-            <code>EditorBoot</code> / <code>VisBoot</code>.
+            <code>app/main.tsx</code> renders <code>app/app.tsx</code>, which picks the page for the
+            path (<code>lib/router.ts</code>): <code>pages/editor-page.tsx</code> or
+            <code>pages/vis-page.tsx</code>.
           </p>
         </div>
         <div class="step peach">
           <h3>Boot</h3>
           <p>
-            <code>components/common/app-boot.tsx</code> starts SQLite and downloads the UI chunk in
-            parallel, showing stages: engine → storage → interface.
+            <code>components/templates/app-boot.tsx</code> starts SQLite and downloads the page's UI
+            in parallel, showing each stage.
           </p>
         </div>
         <div class="step mint">
-          <h3>Shell</h3>
+          <h3>Feature</h3>
           <p>
-            <code>components/app/editor-shell.tsx</code> or
-            <code>components/vis/vis-shell.tsx</code>: the lazily loaded page UI (sidebar, tabs,
-            grid, console / diagram, outline).
+            <code>features/editor/…/editor-shell.tsx</code> or
+            <code>features/vis/…/vis-shell.tsx</code>: sidebar, tabs, grid and console, or the
+            diagram, outline and inspector.
           </p>
         </div>
         <div class="step lilac">
           <h3>Hooks &amp; stores</h3>
           <p>
-            <code>hooks/use-db.ts</code> wraps worker calls in React Query; Zustand stores in
-            <code>lib/store/</code> hold tabs, dialogs and saved queries.
+            <code>hooks/use-db.ts</code> wraps SQLite calls in React Query; Zustand stores in
+            <code>store/</code> hold tabs, dialogs and saved queries.
           </p>
         </div>
         <div class="step butter">
-          <h3>Client → worker</h3>
+          <h3>Client</h3>
           <p>
-            <code>lib/sqlite/client.ts</code> creates the worker once and talks to it through
-            Comlink.
+            <code>lib/sqlite/client.ts</code>: in the desktop app <code>desktop.ts</code> calls
+            Tauri commands; in a browser <code>worker.ts</code> runs SQLite WASM on OPFS.
           </p>
         </div>
         <div class="step rose">
-          <h3>Worker &amp; session</h3>
+          <h3>Engine</h3>
           <p>
-            <code>lib/sqlite/worker.ts</code> loads WASM from <code>public/sqlite/</code>, installs
-            the opfs-sahpool VFS; <code>session.ts</code> runs SQL with bound parameters.
+            <code>src-tauri/src/commands.rs</code> hands each call to
+            <code>crates/sequill-core</code> (<code>Store</code>, <code>Session</code>), which works
+            on the real files.
+          </p>
+        </div>
+      </div>
+
+      <h2>How an assistant reaches it (MCP)</h2>
+      <p class="sub">
+        One executable: <code>sequill</code> opens the window, <code>sequill mcp</code> is what an
+        assistant starts over stdio.
+      </p>
+      <div class="flow">
+        <div class="step sky">
+          <h3>Assistant</h3>
+          <p>Claude, Cursor, VS Code and others start <code>sequill mcp</code> over stdio.</p>
+        </div>
+        <div class="step peach">
+          <h3>Relay</h3>
+          <p>
+            <code>crates/sequill-mcp/src/relay.rs</code> passes each call to the open app over a
+            local pipe (<code>pipe.rs</code>).
+          </p>
+        </div>
+        <div class="step mint">
+          <h3>App host</h3>
+          <p>
+            <code>host.rs</code> runs the tool in the app with
+            <code>SequillServer</code> (<code>server.rs</code>, <code>tools/</code>), checking the
+            MCP switches on every call.
+          </p>
+        </div>
+        <div class="step lilac">
+          <h3>App closed</h3>
+          <p>
+            The relay runs the tool itself on the same data folder; the app's watcher
+            (<code>src-tauri/src/watch.rs</code>) shows the change when it opens. Windows app
+            packages wait for the app instead.
           </p>
         </div>
       </div>
 
       <h2>Layers</h2>
       <p class="sub">
-        Arrows point at what each layer imports. Pure logic in <code>lib/</code> has no React and is
-        what the unit tests cover.
+        Each layer may import the ones below it, never one above. Shared components follow atomic
+        design (<code>atomic.config.json</code>): atoms → molecules → organisms → templates → pages.
       </p>
       <div class="layers">
         <div class="layer">
-          <div class="name">Routes<small>Next.js App Router</small></div>
+          <div class="name">App &amp; pages<small>entry and routes</small></div>
           <div>
-            <div class="dirs"><code>src/app/</code></div>
+            <div class="dirs"><code>src/app/</code><code>src/pages/</code></div>
             <p>
-              Root layout (fonts, metadata, providers), global CSS with the design tokens, the
-              landing page, the two boot pages, web manifest, icons and the share image.
+              Entry point, providers, the page switch, and the app-wide listeners that render
+              nothing (outside changes, assistant show requests). One small file per route.
             </p>
           </div>
         </div>
         <div class="arrow">▼</div>
         <div class="layer">
-          <div class="name">Feature UI<small>client components</small></div>
+          <div class="name">Features<small>one folder per page</small></div>
           <div>
-            <div class="dirs">
-              <code>components/landing/</code><code>components/app/</code
-              ><code>components/vis/</code><code>components/common/</code>
-            </div>
+            <div class="dirs"><code>features/editor/</code><code>features/vis/</code></div>
             <p>
-              The landing board, the editor (grid, table view, SQL console, dialogs, palette), the
-              schema designer (React Flow canvas, outline, inspector, save flow), and, in
-              <code>common/</code>, everything two pages share: boot screen, database switcher,
-              dialogs, logo, theme toggle.
+              The editor (grid, table view, SQL console, palette) and the schema designer (React
+              Flow canvas, outline, inspector, drafts, import/export), each with its own
+              <code>components/</code>, <code>hooks/</code> and <code>lib/</code>.
             </p>
           </div>
         </div>
         <div class="arrow">▼</div>
         <div class="layer">
-          <div class="name">Design system<small>Pastel Noir + shadcn</small></div>
+          <div class="name">Shared components<small>atomic design</small></div>
           <div>
             <div class="dirs">
-              <code>components/common/pastel/</code><code>components/ui/</code
-              ><code>app/globals.css</code>
+              <code>components/templates/</code><code>components/organisms/</code
+              ><code>components/molecules/</code><code>components/atoms/</code>
             </div>
             <p>
-              Branded pieces (chips, hand-drawn marks, loader, code block), shadcn/Radix primitives,
-              and the colour, radius and motion tokens in <code>globals.css</code>.
+              The boot screen; the database switcher, dialogs and MCP panels; Pastel Noir pieces
+              (chips, marks, loader, code block), the theme toggle and step badges; shadcn/Radix
+              primitives, the logo and links.
             </p>
           </div>
         </div>
@@ -646,41 +678,39 @@
         <div class="layer">
           <div class="name">State &amp; hooks<small>React Query + Zustand</small></div>
           <div>
-            <div class="dirs"><code>hooks/</code><code>lib/store/</code></div>
+            <div class="dirs"><code>hooks/</code><code>store/</code></div>
             <p>
-              Query bindings for the worker, database actions shared by several screens, workspace
-              tabs, dialogs, saved queries.
+              Query bindings for SQLite and MCP, database actions shared by several screens,
+              workspace tabs, dialogs, saved queries.
             </p>
           </div>
         </div>
         <div class="arrow">▼</div>
         <div class="layer">
-          <div class="name">Pure logic<small>no React</small></div>
+          <div class="name">Logic<small>no React</small></div>
           <div>
             <div class="dirs">
-              <code>lib/sqlite/</code><code>lib/data/</code><code>lib/vis/</code
-              ><code>lib/*.ts</code>
+              <code>lib/</code><code>utils/</code><code>constants/</code><code>styles/</code>
             </div>
             <p>
-              SQL and DDL builders, schema introspection, dumps, the file-header reader, import type
-              inference, export serialisers, grid layout, the diagram model and draft-to-SQL logic,
-              colours, constants.
+              The SQLite client for both builds, SQL and DDL builders, introspection, dumps,
+              platform, storage, router, theme and MCP settings; pure helpers for formatting, grids,
+              import and export; constants and the design tokens.
             </p>
           </div>
         </div>
         <div class="arrow">▼</div>
         <div class="layer">
-          <div class="name">Runtime<small>browser workers</small></div>
+          <div class="name">Native<small>Rust</small></div>
           <div>
             <div class="dirs">
-              <code>lib/sqlite/worker.ts</code><code>sw/sw.ts</code><code>serwist.config.mjs</code>
+              <code>src-tauri/</code><code>crates/sequill-core/</code
+              ><code>crates/sequill-mcp/</code>
             </div>
             <p>
-              The SQLite Web Worker (WASM + OPFS + a catalog database of names) and the service
-              worker that precaches the whole export for offline use, built after
-              <code>next build</code> by Serwist's Next.js configurator mode (<code
-                >serwist build</code
-              >).
+              The desktop app's commands and change watcher; the engine (catalog, sessions, schema,
+              filters, DDL, dumps, designs, schemas for other databases); the MCP server, relay and
+              tools.
             </p>
           </div>
         </div>
@@ -688,16 +718,16 @@
 
       <h2>Full file tree</h2>
       <p class="sub">
-        Every file in the repository, with what it does. Click a folder to open it, or search by
-        name or description. Line counts are for text files. Not shown: generated or ignored folders
-        (<code>node_modules/</code>, <code>.next/</code>, <code>out/</code>,
-        <code>test-results/</code>, <code>public/sqlite/</code>).
+        Every tracked file, with what it does (from its own header comment where it has one). Click
+        a folder to open it, or search by name or description. Not shown: generated or ignored
+        folders (<code>node_modules/</code>, <code>dist/</code>, <code>target/</code>,
+        <code>src-tauri/gen/</code>, <code>public/sqlite/</code>).
       </p>
       <div class="toolbar">
         <input
           id="q"
           type="search"
-          placeholder="Search files, e.g. worker, filter, test…"
+          placeholder="Search files, e.g. relay, drafts, test…"
           aria-label="Search files"
         />
         <button id="expand" type="button">Expand all</button>
@@ -707,9 +737,7 @@
       <div class="tree" id="tree"></div>
 
       <h2>Where the code is</h2>
-      <p class="sub">
-        Lines of TypeScript / TSX / CSS per folder under <code>src/</code> (tests included).
-      </p>
+      <p class="sub">Lines of TypeScript, TSX, CSS and Rust per folder (tests included).</p>
       <div class="bars" id="bars"></div>
 
       <h2>Largest files</h2>
@@ -727,57 +755,58 @@
           </thead>
           <tbody>
             <tr>
-              <td><code>bun run dev</code></td>
+              <td><code>bun run desktop:dev</code></td>
+              <td>The desktop app with hot reload (Tauri around the Vite dev server).</td>
+            </tr>
+            <tr>
+              <td><code>bun run desktop:build</code></td>
+              <td>Release build and installers in <code>target/release/bundle</code>.</td>
+            </tr>
+            <tr>
+              <td><code>bun run dev</code> · <code>build</code> · <code>preview</code></td>
               <td>
-                Copies the SQLite WASM into <code>public/sqlite/</code>, then starts the Next.js dev
-                server (no service worker in dev).
+                The browser build: Vite dev server, a production build in <code>dist/</code>, and a
+                local server for it. Each first copies the SQLite WASM into
+                <code>public/sqlite/</code>.
               </td>
             </tr>
             <tr>
-              <td><code>bun run build</code></td>
+              <td><code>bun run mcp -- [--data-dir &lt;path&gt;]</code></td>
+              <td>The MCP relay from source (<code>cargo run -p sequill-mcp</code>).</td>
+            </tr>
+            <tr>
+              <td><code>bun run typecheck</code> · <code>lint</code> · <code>format</code></td>
+              <td><code>tsc</code> · ESLint with the React Compiler rules · Prettier.</td>
+            </tr>
+            <tr>
+              <td><code>bun run test</code> · <code>test:rust</code></td>
               <td>
-                Static export to <code>out/</code>, then <code>serwist build</code> writes the
-                service worker to <code>out/sw.js</code>.
-              </td>
-            </tr>
-            <tr>
-              <td><code>bun run start</code></td>
-              <td>Serves <code>out/</code> like a static host.</td>
-            </tr>
-            <tr>
-              <td><code>bun run typecheck</code></td>
-              <td><code>tsc</code> for the app and for <code>src/sw</code>.</td>
-            </tr>
-            <tr>
-              <td><code>bun run lint</code> · <code>format</code></td>
-              <td>ESLint (Next rules) · Prettier with Tailwind class sorting.</td>
-            </tr>
-            <tr>
-              <td><code>bun run test</code></td>
-              <td>
-                Unit and integration tests in <code>src/</code> and <code>scripts/</code> with
-                <code>bun test</code> (SQLite in memory).
+                Frontend unit and integration tests (<code>bun test</code>, SQLite in memory) ·
+                <code>cargo test --workspace</code>.
               </td>
             </tr>
             <tr>
               <td><code>bun run test:e2e</code></td>
-              <td>Playwright in Brave against the production build (build first).</td>
+              <td>Playwright in Brave against the browser build (build first).</td>
             </tr>
             <tr>
               <td><code>bun run icons</code></td>
-              <td>Regenerates every icon and the share image from <code>src/lib/logo.ts</code>.</td>
+              <td>Regenerates every icon from <code>src/utils/logo.ts</code>.</td>
             </tr>
             <tr>
               <td><code>bun run changeset</code> · <code>version-packages</code></td>
-              <td>Records a change · bumps the version and writes the changelog.</td>
+              <td>
+                Records a change · bumps the version, writes the changelog and syncs
+                <code>Cargo.toml</code>.
+              </td>
             </tr>
           </tbody>
         </table>
       </div>
 
       <footer>
-        Generated from a scan of the repository on 30 Oct 2026 (branch <code>master</code>, commit
-        <code>ebc7085</code>).
+        Generated from a scan of the repository on 24 Nov 2026 (branch
+        <code>feat/schema-designer</code>, commit <code>5420a06</code>).
       </footer>
     </div>
 
@@ -785,750 +814,976 @@
       // Folder descriptions.
       const DIRS = {
         ".changeset": "Changesets: release notes waiting to be applied",
-        ".claude": "Claude Code project config: preview launch configs and an installed skill",
-        ".claude/skills/design-taste-frontend":
-          "Installed design skill (art direction, lint and inspection scripts) — tooling, not app code",
-        e2e: "Playwright end-to-end tests, run in Brave against the static build",
-        "e2e/fixtures": "Files the e2e tests open and import",
+        ".github": "GitHub settings",
+        ".github/workflows": "CI checks and the release pipeline",
+        crates: "Rust crates shared by the desktop app and the MCP server",
+        "crates/sequill-core":
+          "The native SQLite engine: catalog, sessions, schema, filters, DDL, dumps, designs",
+        "crates/sequill-core/src": "Engine source",
+        "crates/sequill-mcp": "The MCP server: tools, the app host, and the relay assistants start",
+        "crates/sequill-mcp/src": "MCP server source",
+        "crates/sequill-mcp/src/tools":
+          "What each MCP tool does, as plain functions over the data folder",
+        tests: "Every JavaScript test: Vitest unit and integration, Playwright end to end",
+        "tests/unit": "One function or module at a time, no SQLite (Vitest)",
+        "tests/unit/stress":
+          "Large, seeded random round trips (clipboard, CSV, wire format, type inference)",
+        "tests/integration": "Modules together on a real SQLite (WASM, in memory) (Vitest)",
+        "tests/integration/stress": "Large tables, random filters, big designs, racing saves",
+        "tests/e2e": "Playwright end-to-end tests",
+        "tests/e2e/browser": "The browser build, in Brave",
+        "tests/e2e/desktop":
+          "The compiled desktop app through WebView2: UI, IPC, Rust engine and MCP (Windows)",
+        "tests/helpers": "Shared test code: SQLite sessions, seeded randomness",
+        "tests/fixtures": "Files the tests open and import",
         public: "Static files served as-is",
-        "public/icons": "PWA manifest icons (generated by bun run icons)",
-        "public/landing": "Screenshots and a clip of the real app, used on the landing page",
-        scripts: "Build, asset and capture scripts run with Bun or Node",
-        src: "Application source",
-        "src/app":
-          "Next.js App Router: routes, root layout, global CSS with design tokens, manifest, icons",
-        "src/app/app": "/app — the editor route",
-        "src/app/vis": "/vis — the schema visualizer route",
-        "src/components": "React components, grouped by the page that uses them",
-        "src/components/app":
-          "Editor at /app: shell, sidebar, tabs, grid, table view, SQL console, palette",
-        "src/components/app/grid": "The virtualised data grid",
-        "src/components/app/query": "SQL console (CodeMirror)",
-        "src/components/app/table": "Table tab: toolbar, filters, paging, structure, row inspector",
-        "src/components/common":
-          "Shared by more than one page: boot, providers, database switcher, logo, theme, PWA, change marks",
-        "src/components/common/dialogs":
-          "Dialog host and dialogs used by /app and /vis: import, schema changes, confirmations",
-        "src/components/common/pastel": "Pastel Noir design-system components",
-        "src/components/landing": "Landing page (/) sections",
-        "src/components/ui": "shadcn/ui primitives (Radix) styled with the tokens",
-        "src/components/vis": "Schema visualizer and designer at /vis",
-        "src/hooks": "React hooks",
-        "src/lib": "Pure logic and shared modules",
-        "src/lib/data": "Formatting, import inference, export, grid helpers, saved queries",
-        "src/lib/sqlite": "SQLite worker, session, SQL/DDL builders, introspection, dump",
-        "src/lib/store": "Zustand stores",
-        "src/lib/vis": "Diagram model, draft SQL, auto-layout, colours",
-        "src/sw": "Service worker source",
+        "public/icons": "Web app icons (generated by bun run icons)",
+        scripts: "Build, version and asset scripts run with Bun",
+        "src-tauri": "The desktop app (Tauri): window, commands, change watcher, icons",
+        "src-tauri/src": "Desktop app source",
+        "src-tauri/capabilities": "What the window may call",
+        "src-tauri/icons": "App icons for every platform (generated by bun run icons)",
+        src: "The React frontend",
+        "src/app": "Entry point, providers, the page switch, app-wide listeners",
+        "src/pages": "One file per route: / and /vis",
+        "src/features": "One folder per page, each with its own components, hooks and logic",
+        "src/features/editor": "The editor at /",
+        "src/features/editor/components": "Editor UI: shell, sidebar, tabs, palette",
+        "src/features/editor/components/grid": "The virtualised data grid",
+        "src/features/editor/components/query": "SQL console (CodeMirror)",
+        "src/features/editor/components/table":
+          "Table tab: toolbar, filters, paging, structure, row inspector",
+        "src/features/vis": "The schema designer at /vis",
+        "src/features/vis/components":
+          "Designer UI: canvas, table cards, outline, inspector, save, import, export",
+        "src/features/vis/hooks": "Designer hooks",
+        "src/features/vis/lib":
+          "Diagram model, draft SQL, stored drafts, layout, colours, dialects",
+        "src/components": "Shared components by atomic level",
+        "src/components/atoms": "Single elements: shadcn/Radix primitives, icons, logo, link",
+        "src/components/molecules": "Small groups with one job: theme toggle, step badge",
+        "src/components/molecules/pastel": "Pastel Noir design-system pieces",
+        "src/components/organisms":
+          "Screen sections shared by both pages: database switcher, MCP panels, dialogs",
+        "src/components/organisms/dialogs": "Dialog host and the dialogs both pages open",
+        "src/components/templates": "Page layouts: the boot screen",
+        "src/hooks": "Shared React hooks",
+        "src/lib": "The SQLite client, platform, storage, router, theme, MCP settings",
+        "src/lib/sqlite":
+          "SQLite for both builds: desktop commands, the browser worker, SQL and DDL builders",
+        "src/store": "Zustand stores",
+        "src/utils": "Pure helpers",
+        "src/utils/data": "Formatting, grid layout, import inference, export, saved queries",
+        "src/constants": "App-wide constants and storage keys",
+        "src/styles": "Global CSS and the design tokens",
       };
 
       // [path, lines, description]. Lines 0 = binary or not counted.
       const FILES = [
-        [".changeset/README.md", 0, "Changesets' own readme for the folder"],
-        [".changeset/config.json", 0, "Changesets configuration"],
-        [".changeset/initial-release.md", 0, "Pending changeset describing the first release"],
+        [".changeset/README.md", 5, "Changesets"],
+        [".changeset/config.json", 13, "Changesets configuration"],
         [
-          ".claude/launch.json",
-          0,
-          'Preview server configs: "dev" (bun run dev) and "static" (bun run start), port 3000',
-        ],
-        [".claude/skills/design-taste-frontend/README.md", 0, "Skill readme"],
-        [".claude/skills/design-taste-frontend/SKILL.md", 0, "Skill instructions loaded by Claude"],
-        [
-          ".claude/skills/design-taste-frontend/assets/app.css",
-          0,
-          "Skill base styles for app screens",
-        ],
-        [".claude/skills/design-taste-frontend/assets/base.css", 0, "Skill base styles"],
-        [".claude/skills/design-taste-frontend/assets/base.js", 0, "Skill base script"],
-        [".claude/skills/design-taste-frontend/assets/charts.js", 0, "Skill chart helpers"],
-        [
-          ".claude/skills/design-taste-frontend/assets/scenes/stage.css",
-          0,
-          "Skill scene stage styles",
+          ".changeset/designs-in-catalog.md",
+          5,
+          "Pending release note: Unsaved schema designs now live in Sequill's catalog in the desktop app, so assistants can read and edit them over MCP with the new `get_design` and `set_design` tools…",
         ],
         [
-          ".claude/skills/design-taste-frontend/assets/scenes/stage.js",
-          0,
-          "Skill scene stage script",
-        ],
-        [".claude/skills/design-taste-frontend/evals/evals.json", 0, "Skill evaluation cases"],
-        [
-          ".claude/skills/design-taste-frontend/library/app.json",
-          0,
-          "Design library: app screen patterns",
+          ".changeset/mcp-while-closed.md",
+          5,
+          "Pending release note: Assistants keep working over MCP while Sequill is closed, or after it closes mid-conversation: `sequill mcp` runs the calls itself on the same data folder, with the sa…",
         ],
         [
-          ".claude/skills/design-taste-frontend/library/directions.json",
-          0,
-          "Design library: art directions",
+          ".changeset/schema-as-saved.md",
+          5,
+          "Pending release note: The schema designer can show the schema as saved, without your unsaved changes, read-only; one click brings your design back.",
         ],
         [
-          ".claude/skills/design-taste-frontend/library/heroes.json",
-          0,
-          "Design library: hero layouts",
+          ".changeset/schema-import-export.md",
+          5,
+          "Pending release note: The schema designer can import a schema from a SQL script for PostgreSQL, MySQL / MariaDB, SQL Server, Oracle or standard SQL, or from a SQLite file, as a new database…",
         ],
         [
-          ".claude/skills/design-taste-frontend/library/motions.json",
-          0,
-          "Design library: motion presets",
+          ".changeset/welcome-guide.md",
+          5,
+          "Pending release note: A welcome guide opens the first time Sequill starts: opening or creating a database, browsing and editing data, designing the schema (drafts, import and export) and co…",
+        ],
+        [".gitattributes", 1, "Line endings and diff settings"],
+        [".github/SECURITY.md", 59, "Security policy"],
+        [
+          ".github/workflows/ci.yml",
+          66,
+          "CI on every pull request and push: types, lint, format, unit and Rust tests",
         ],
         [
-          ".claude/skills/design-taste-frontend/library/palettes.json",
-          0,
-          "Design library: palettes",
+          ".github/workflows/release.yml",
+          154,
+          "Release: version PR via Changesets, then installers for Windows, macOS and Linux",
         ],
+        [".gitignore", 55, "Files git ignores"],
+        [".prettierignore", 11, "Files Prettier skips"],
+        [".prettierrc.json", 9, "Prettier settings, with Tailwind class sorting"],
+        ["CHANGELOG.md", 54, "Release notes written by Changesets"],
+        ["Cargo.lock", 0, ""],
+        ["Cargo.toml", 20, "Rust workspace: the core engine, the MCP server and the desktop app"],
+        ["README.md", 275, "Features, setup, scripts, MCP setup and project layout"],
         [
-          ".claude/skills/design-taste-frontend/library/photos.json",
-          0,
-          "Design library: photography",
-        ],
-        [
-          ".claude/skills/design-taste-frontend/library/sections.json",
-          0,
-          "Design library: section blueprints",
-        ],
-        [
-          ".claude/skills/design-taste-frontend/library/sites.json",
-          0,
-          "Design library: reference sites",
-        ],
-        [
-          ".claude/skills/design-taste-frontend/library/type.json",
-          0,
-          "Design library: type pairings",
-        ],
-        [
-          ".claude/skills/design-taste-frontend/references/app-screens.md",
-          0,
-          "Reference: app screens",
-        ],
-        [".claude/skills/design-taste-frontend/references/colour.md", 0, "Reference: colour"],
-        [".claude/skills/design-taste-frontend/references/copy.md", 0, "Reference: copywriting"],
-        [
-          ".claude/skills/design-taste-frontend/references/critique.md",
-          0,
-          "Reference: critique loop",
-        ],
-        [".claude/skills/design-taste-frontend/references/imagery.md", 0, "Reference: imagery"],
-        [".claude/skills/design-taste-frontend/references/layout.md", 0, "Reference: layout"],
-        [".claude/skills/design-taste-frontend/references/motion.md", 0, "Reference: motion"],
-        [".claude/skills/design-taste-frontend/references/research.md", 0, "Reference: research"],
-        [".claude/skills/design-taste-frontend/references/scenes.md", 0, "Reference: scenes"],
-        [
-          ".claude/skills/design-taste-frontend/references/tells.md",
-          0,
-          "Reference: generic-design tells to avoid",
-        ],
-        [".claude/skills/design-taste-frontend/references/type.md", 0, "Reference: typography"],
-        [".claude/skills/design-taste-frontend/scripts/assets.mjs", 0, "Skill script: assets"],
-        [".claude/skills/design-taste-frontend/scripts/draw.mjs", 0, "Skill script: drawing"],
-        [
-          ".claude/skills/design-taste-frontend/scripts/inspect.mjs",
-          0,
-          "Skill script: browser inspector",
-        ],
-        [
-          ".claude/skills/design-taste-frontend/scripts/lib/app-draw.mjs",
-          0,
-          "Skill helper: app drawing",
-        ],
-        [
-          ".claude/skills/design-taste-frontend/scripts/lib/cdp.mjs",
-          0,
-          "Skill helper: Chrome DevTools Protocol",
-        ],
-        [
-          ".claude/skills/design-taste-frontend/scripts/lib/inspection-files.mjs",
-          0,
-          "Skill helper: inspection output files",
-        ],
-        [
-          ".claude/skills/design-taste-frontend/scripts/lib/probe.mjs",
-          0,
-          "Skill helper: page probe",
-        ],
-        [
-          ".claude/skills/design-taste-frontend/scripts/lib/rules.mjs",
-          0,
-          "Skill helper: lint rules",
-        ],
-        [".claude/skills/design-taste-frontend/scripts/lint.mjs", 0, "Skill script: design lint"],
-        [".claude/skills/design-taste-frontend/scripts/scenes.mjs", 0, "Skill script: scenes"],
-        [".gitattributes", 0, "Git line-ending settings"],
-        [".gitignore", 0, "Ignored paths (build output, node_modules, public/sqlite…)"],
-        [".prettierignore", 0, "Paths Prettier skips"],
-        [".prettierrc.json", 0, "Prettier config (with the Tailwind class-sorting plugin)"],
-        ["AGENTS.md", 0, "Agent notes written by next dev: read Next 16 docs before coding"],
-        [
-          "README.md",
-          0,
-          "Features, stack, scripts, architecture, logo, design system, limitations",
+          "atomic.config.json",
+          12,
+          "atomic-design plugin config: the component levels and the token file",
         ],
         ["bun.lock", 0, "Bun lockfile"],
-        ["code-structure.html", 0, "This page: the code map (not tracked in git)"],
-        ["components.json", 0, "shadcn/ui config (radix-nova style, Hugeicons, path aliases)"],
+        ["components.json", 25, "shadcn/ui config: new primitives land in components/atoms"],
         [
-          "e2e/editor.spec.ts",
-          222,
-          "Editor flows: sample DB, grid edits, filters, console, import/export",
-        ],
-        ["e2e/fixtures/notes.sqlite", 0, "A small SQLite file to open in tests"],
-        ["e2e/fixtures/people.csv", 0, "CSV used by the import test"],
-        [
-          "e2e/helpers.ts",
-          42,
-          "Shared helpers: openEditor, createSample, openTable, cell, expectRowCount",
+          "crates/sequill-core/Cargo.toml",
+          25,
+          "Engine crate: rusqlite, sqlparser, serde (schemars behind a feature)",
         ],
         [
-          "e2e/landing.spec.ts",
-          99,
-          "Landing page: sections render, the local file reader inspects a file without sending it",
-        ],
-        ["e2e/mobile.spec.ts", 94, "Phone layout: bottom drawers, drag-to-close, sticky footers"],
-        ["e2e/offline.spec.ts", 25, "Service worker installs and the app loads with no network"],
-        [
-          "e2e/vis.spec.ts",
-          306,
-          "Schema designer: outline, table cards, drafts, Unsaved badge, save and save-as",
+          "crates/sequill-core/src/ddl.rs",
+          541,
+          "Builders for schema changes from structured definitions, with the same rules and messages as the web app's `src/lib/sqlite/ddl.ts`.",
         ],
         [
-          "e2e/windows.spec.ts",
-          47,
-          "Two windows hand the databases over: the second opens, the first offers Use here",
+          "crates/sequill-core/src/design.rs",
+          180,
+          'The schema designer\'s unsaved design (its "draft"): what the user (or an assistant) has designed but not saved to the database yet.',
         ],
-        ["eslint.config.mjs", 0, "ESLint flat config (Next rules + Prettier compatibility)"],
+        ["crates/sequill-core/src/dialects.rs", 690, "Schemas from and for other databases."],
         [
-          "next.config.ts",
-          0,
-          'output: "export" (static site), React Compiler on, Tailwind loader for Turbopack',
+          "crates/sequill-core/src/dump.rs",
+          146,
+          "SQL dump in the spirit of the sqlite3 shell's `.dump`.",
         ],
-        ["package.json", 0, "Dependencies and scripts (dev, build, test, e2e, icons, changeset…)"],
-        ["playwright.config.ts", 0, "E2E config: Brave, 1440×900, serves out/ on port 4173"],
-        ["public/icons/icon-192.png", 0, "Manifest icon 192px"],
-        ["public/icons/icon-512.png", 0, "Manifest icon 512px"],
-        ["public/icons/maskable-512.png", 0, "Maskable manifest icon 512px"],
-        ["public/landing/editor-console.webp", 0, "Screenshot: SQL console"],
-        ["public/landing/editor-filter.webp", 0, "Screenshot: filter builder"],
-        ["public/landing/editor-grid.webp", 0, "Screenshot: data grid"],
-        ["public/landing/editor-phone.webp", 0, "Screenshot: phone layout"],
-        ["public/landing/vis-design.webp", 0, "Screenshot: schema designer editing"],
-        ["public/landing/vis-diagram.webp", 0, "Screenshot: ER diagram"],
-        ["public/landing/vis-drag-poster.webp", 0, "Poster frame for the drag clip"],
-        ["public/landing/vis-drag.webm", 0, "Muted loop: dragging a table in the designer"],
+        [
+          "crates/sequill-core/src/error.rs",
+          27,
+          "Errors with messages fit to show people: SQLite's own text, without codes or the echoed SQL.",
+        ],
+        [
+          "crates/sequill-core/src/filter.rs",
+          337,
+          "Row filters and search, the same as the editor's filter builder.",
+        ],
+        [
+          "crates/sequill-core/src/lib.rs",
+          29,
+          "Sequill's SQLite engine: the same behavior as the web app's SQLite worker, on real files, shared by the desktop app (`src-tauri`) and the MCP server (`sequill-mcp`).",
+        ],
+        [
+          "crates/sequill-core/src/rows.rs",
+          376,
+          "Reading and changing rows of one table by column name, with the editor's filters.",
+        ],
+        [
+          "crates/sequill-core/src/schema.rs",
+          407,
+          "Reads the schema of an open database through PRAGMA table-valued functions.",
+        ],
+        ["crates/sequill-core/src/session.rs", 571, "Runs SQL against one open database."],
+        [
+          "crates/sequill-core/src/split.rs",
+          88,
+          "Splits a script into statements with SQLite's own `sqlite3_complete`, so strings, comments and CREATE TRIGGER bodies are handled exactly as SQLite does.",
+        ],
+        [
+          "crates/sequill-core/src/store.rs",
+          1651,
+          "The databases Sequill knows: files it keeps in a data directory, and files the user opened from their computer, which are edited where they are (never copied).",
+        ],
+        ["crates/sequill-core/src/value.rs", 257, "One SQLite value, and how it travels as JSON."],
+        ["crates/sequill-mcp/Cargo.toml", 19, "MCP crate: rmcp, tokio and the engine"],
+        [
+          "crates/sequill-mcp/src/cli.rs",
+          118,
+          "Command line for the MCP server, shared by the `sequill-mcp` binary and `sequill mcp`.",
+        ],
+        [
+          "crates/sequill-mcp/src/host.rs",
+          37,
+          "The app's side of MCP: each `sequill mcp` that connects (one per assistant session) gets its own `SequillServer`, which runs the tools on the app's data folder.",
+        ],
+        [
+          "crates/sequill-mcp/src/lib.rs",
+          10,
+          "MCP server for Sequill: lets AI assistants list, read and (when allowed) change the databases the desktop app manages.",
+        ],
+        [
+          "crates/sequill-mcp/src/main.rs",
+          4,
+          "Stand-alone sequill-mcp binary (used by bun run mcp)",
+        ],
+        [
+          "crates/sequill-mcp/src/pipe.rs",
+          206,
+          "The local connection between `sequill mcp` and the running app: a named pipe on Windows, a Unix socket elsewhere.",
+        ],
+        [
+          "crates/sequill-mcp/src/relay.rs",
+          301,
+          "What `sequill mcp` runs for an assistant: an MCP server that passes every tool call on to the running app (`host.rs`), which runs it on the databases it has.",
+        ],
+        [
+          "crates/sequill-mcp/src/server.rs",
+          762,
+          "The MCP server: the tools in `tools/`, described for AI assistants.",
+        ],
+        [
+          "crates/sequill-mcp/src/tools/app.rs",
+          387,
+          "The app around the databases: creating, renaming and deleting databases, saved queries, schema designs, and asking the open app to show a table, a query or the schema.",
+        ],
+        [
+          "crates/sequill-mcp/src/tools/data.rs",
+          177,
+          "Finding, adding, changing and deleting rows, with the editor's filters.",
+        ],
+        [
+          "crates/sequill-mcp/src/tools/mod.rs",
+          468,
+          "What each MCP tool does, as plain functions over the data directory, so they can be tested without a client.",
+        ],
+        [
+          "crates/sequill-mcp/src/tools/schema.rs",
+          217,
+          "Tables, columns, indexes, triggers and views, built from structured definitions with the editor's rules (`sequill_core::ddl`).",
+        ],
+        [
+          "eslint.config.mjs",
+          49,
+          "ESLint: recommended JS/TS rules, React Hooks and the React Compiler checks",
+        ],
+        ["index.html", 34, "The page shell; applies the saved theme before the first paint"],
+        ["package.json", 105, "Scripts and frontend dependencies; holds the app's version"],
+        [
+          "playwright.config.ts",
+          52,
+          "Playwright: runs the e2e tests in Brave against the built site",
+        ],
+        ["public/favicon.ico", 0, ""],
+        ["public/icons/icon-512.png", 0, "Web app icon (generated by bun run icons)"],
         ["public/logo.svg", 0, "The Sequill mark (generated)"],
-        ["scripts/brave.ts", 6, "Path to the installed Brave browser (override with BRAVE_PATH)"],
         [
-          "scripts/capture-landing.ts",
-          213,
-          "Captures landing screenshots and the drag clip from the running app (run with Node)",
+          "scripts/brave.ts",
+          6,
+          "The installed Brave browser that Playwright drives for e2e tests and screenshot captures.",
+        ],
+        [
+          "scripts/cargo-version.ts",
+          57,
+          "Keeps the Rust workspace on the same version as package.json, which Changesets bumps.",
         ],
         [
           "scripts/copy-sqlite-wasm.ts",
           18,
-          "Copies the SQLite WASM module into public/sqlite (bundling it breaks)",
+          "Copies the SQLite WASM build into public/sqlite so the worker can load it at runtime.",
         ],
         [
           "scripts/generate-icons.ts",
-          56,
-          "Renders the logo into every icon file and the share image",
+          33,
+          "Renders the Sequill logo (src/utils/logo.ts) into the icons the app ships: public/logo.svg and public/favicon.ico for the page, and public/icons/icon-512.png, the sour…",
         ],
-        ["scripts/ico.test.ts", 30, "Tests the .ico encoder's byte layout"],
-        ["scripts/ico.ts", 44, "Packs PNGs into one .ico file"],
-        ["scripts/og-image.tsx", 133, "Draws the 1200×630 Open Graph image with next/og"],
+        ["scripts/ico.ts", 44, "Packs PNG images into one .ico file."],
         [
-          "serwist.config.mjs",
-          0,
-          "Serwist for Next.js (configurator mode): serwist build bundles src/sw/sw.ts with the precache list into out/sw.js",
-        ],
-        ["skills-lock.json", 0, "Lock entry for the installed Claude skill"],
-        ["src/app/app/loading.tsx", 9, "Route loading state: the branded CSS loader"],
-        ["src/app/app/page.tsx", 11, "/app page: metadata + <EditorBoot />"],
-        ["src/app/apple-icon.png", 0, "Apple touch icon (generated)"],
-        ["src/app/favicon.ico", 0, "Favicon 16–48px (generated)"],
-        [
-          "src/app/globals.css",
-          468,
-          "Tailwind entry, Pastel Noir design tokens (dark + derived light), shadcn mapping, base styles",
-        ],
-        ["src/app/icon.ico", 0, "App icon 16–256px (generated)"],
-        [
-          "src/app/layout.tsx",
-          60,
-          "Root layout: fonts (only the weights used), metadata, viewport, <Providers>",
-        ],
-        [
-          "src/app/manifest.ts",
-          29,
-          "PWA web manifest, incl. a file handler that opens .sqlite/.db files in /app",
-        ],
-        ["src/app/opengraph-image.alt.txt", 0, "Alt text for the share image"],
-        ["src/app/opengraph-image.png", 0, "Share preview image (generated)"],
-        [
-          "src/app/page.tsx",
-          59,
-          "Landing page: composes the hero, intro, editor board and every section",
-        ],
-        ["src/app/vis/loading.tsx", 9, "Route loading state: the branded CSS loader"],
-        ["src/app/vis/page.tsx", 12, "/vis page: metadata + <VisBoot />"],
-        [
-          "src/components/app/command-palette.tsx",
-          192,
-          "Ctrl/Cmd+K palette: tables, saved queries, database actions",
-        ],
-        ["src/components/app/editor-boot.tsx", 9, "Wires AppBoot to lazily load editor-shell"],
-        [
-          "src/components/app/editor-shell.tsx",
-          204,
-          "Editor layout: sidebar, tab bar, active tab, drop zone, ?table= links",
-        ],
-        ["src/components/app/export-menu.tsx", 86, "Export rows as CSV, JSON or SQL INSERTs"],
-        [
-          "src/components/app/grid/cell-value.tsx",
-          44,
-          "How one value looks in a cell (NULL, BLOB, JSON, numbers…)",
-        ],
-        [
-          "src/components/app/grid/data-grid.tsx",
-          592,
-          "Virtualised grid: selection, inline editing, paste, resize/reorder/pin columns",
-        ],
-        [
-          "src/components/app/grid/grid-header.tsx",
-          212,
-          "Column header cell: sort, menu, resize and drag handles",
-        ],
-        ["src/components/app/grid/types.ts", 17, "GridColumn and CellEdit types"],
-        [
-          "src/components/app/query/editor-theme.ts",
-          54,
-          "CodeMirror theme from the Pastel Noir tokens",
-        ],
-        [
-          "src/components/app/query/query-console.tsx",
-          326,
-          "SQL console: run script/selection, EXPLAIN mode, per-statement results, history, save",
-        ],
-        [
-          "src/components/app/sidebar.tsx",
-          408,
-          "Left panel: databases, tables, views, saved queries",
-        ],
-        ["src/components/app/tab-bar.tsx", 134, "Open tabs strip (tables and queries)"],
-        ["src/components/app/table/columns-menu.tsx", 66, "Show/hide columns"],
-        [
-          "src/components/app/table/filter-builder.tsx",
-          200,
-          "Filter popover: 15 conditions, AND/OR, applies on Apply",
-        ],
-        ["src/components/app/table/pagination.tsx", 95, "Page size and paging controls"],
-        [
-          "src/components/app/table/row-inspector.tsx",
-          345,
-          "Full-row form: edit fields, BLOB upload/download, JSON formatting",
-        ],
-        [
-          "src/components/app/table/structure-view.tsx",
-          315,
-          "Table structure: columns, keys, indexes; rename/drop actions",
-        ],
-        [
-          "src/components/app/table/table-view.tsx",
-          530,
-          "A table tab: toolbar, search, filters, sort, grid, add/duplicate/delete rows",
-        ],
-        ["src/components/app/welcome.tsx", 95, "Screens for no database / no tab open"],
-        [
-          "src/components/common/app-boot.tsx",
-          105,
-          "Boots SQLite and downloads the page UI in parallel, showing each stage",
-        ],
-        [
-          "src/components/common/app-providers.tsx",
-          26,
-          "Providers for SQLite pages (React Query, tooltips, toasts)",
-        ],
-        [
-          "src/components/common/change-marks.tsx",
-          72,
-          "Added/edited/deleted styling for columns and tables",
-        ],
-        [
-          "src/components/common/database-switcher.tsx",
-          193,
-          "Database menu shared by editor and designer (open, new, sample, rename, delete, download)",
-        ],
-        [
-          "src/components/common/dialogs/column-fields.tsx",
-          376,
-          "Column definition editor shared by schema dialogs and the visualizer",
-        ],
-        [
-          "src/components/common/dialogs/dialog-host.tsx",
-          164,
-          "Renders the one open dialog; heavy dialogs load on first use",
-        ],
-        [
-          "src/components/common/dialogs/import-dialog.tsx",
-          417,
-          "CSV/TSV/JSON import: parse, preview, type detection, column mapping",
-        ],
-        [
-          "src/components/common/dialogs/schema-dialogs.tsx",
-          366,
-          "Create table, add column, create index",
-        ],
-        [
-          "src/components/common/dialogs/simple-dialogs.tsx",
-          257,
-          "SQL preview, confirm-SQL, name, DDL and delete-database dialogs",
-        ],
-        ["src/components/common/logo.tsx", 25, "The Sequill mark as a React component"],
-        ["src/components/common/pastel/accent.ts", 32, "Static class maps per accent colour"],
-        [
-          "src/components/common/pastel/annotation.tsx",
-          72,
-          "Hand-drawn strokes and notes that draw on in view",
-        ],
-        ["src/components/common/pastel/chip.tsx", 33, "Pill label"],
-        [
-          "src/components/common/pastel/code-block.tsx",
-          69,
-          "Static SQL code window with a highlighted line",
-        ],
-        ["src/components/common/pastel/highlight.tsx", 46, "Marker-wash highlight behind a phrase"],
-        ["src/components/common/pastel/loader.tsx", 79, "Branded pure-CSS loader with stage line"],
-        ["src/components/common/pastel/marks.ts", 34, "Hand-drawn mark paths"],
-        ["src/components/common/pastel/reveal.tsx", 31, "Rise-and-fade on scroll"],
-        [
-          "src/components/common/pastel/rise.tsx",
-          22,
-          "CSS-only enter animation for above-the-fold content",
-        ],
-        ["src/components/common/pastel/stat-callout.tsx", 46, "One big number per panel"],
-        ["src/components/common/pastel/step-flow.tsx", 40, "2–4 numbered steps with chevrons"],
-        ["src/components/common/pwa.tsx", 67, "Install prompt hook and Install button"],
-        [
-          "src/components/common/storage-handoff.tsx",
-          91,
-          "Releases the databases in the background, takes them back when shown, Use here notice",
-        ],
-        ["src/components/common/theme-toggle.tsx", 51, "Dark/light toggle"],
-        [
-          "src/components/landing/capability-shelf.tsx",
-          94,
-          "Grid of feature tiles keyed by product colour",
-        ],
-        [
-          "src/components/landing/close-ups.tsx",
-          209,
-          "Board of screenshot close-ups (desktop and phone placements)",
-        ],
-        [
-          "src/components/landing/closing.tsx",
-          198,
-          "Marquee tagline, closing call to action and site footer",
-        ],
-        [
-          "src/components/landing/design-strip.tsx",
-          133,
-          "The designer workflow shown as one table across steps",
-        ],
-        ["src/components/landing/faq.tsx", 71, "FAQ tiles, one answer open at a time"],
-        [
-          "src/components/landing/file-inspector.tsx",
-          199,
-          "Reads a visitor's SQLite file locally (header + schema) with no engine",
-        ],
-        [
-          "src/components/landing/hero.tsx",
-          140,
-          "First screen: name, links to both products, file reader, install",
-        ],
-        [
-          "src/components/landing/install-tile.tsx",
-          36,
-          "Install-the-app tile (or a hint for browsers without a prompt)",
-        ],
-        [
-          "src/components/landing/intro.tsx",
-          61,
-          "Privacy slogan board and how it works, beside the file reader",
-        ],
-        [
-          "src/components/landing/landing.css",
-          260,
-          "Landing board geometry, type steps and reveal moves",
-        ],
-        [
-          "src/components/landing/loop-video.tsx",
-          43,
-          "Muted looping clip; holds on the poster for reduced motion",
-        ],
-        [
-          "src/components/landing/orders-board.tsx",
-          102,
-          "Sample shop orders as clickable rows with their items",
-        ],
-        [
-          "src/components/landing/sample-data.test.ts",
-          21,
-          "Keeps landing sample values in step with the sample DB SQL",
-        ],
-        [
-          "src/components/landing/sample-data.ts",
-          153,
-          "Real sample-shop values for the landing page, without loading SQLite",
-        ],
-        [
-          "src/components/landing/scroll-reveal.tsx",
-          32,
-          "Adds .is-in to [data-reveal] elements as they scroll into view",
-        ],
-        [
-          "src/components/landing/smooth-scroll.tsx",
-          42,
-          "Lenis smooth scrolling, landing page only, off for reduced motion",
-        ],
-        [
-          "src/components/landing/tile.tsx",
-          90,
-          "Tile and Shot: filled board tiles and cropped screenshots",
-        ],
-        [
-          "src/components/landing/warm-editor.tsx",
-          32,
-          "Prefetches the editor route and SQLite runtime when idle",
-        ],
-        [
-          "src/components/providers.tsx",
+          "scripts/sync-cargo-version.ts",
           40,
-          "App-wide providers: SerwistProvider (registers /sw.js), theme, lazy Motion",
+          "Copies package.json's version (bumped by `changeset version`) into Cargo.toml's [workspace.package] and the workspace crates in Cargo.lock.",
         ],
-        ["src/components/ui/alert-dialog.tsx", 183, "shadcn AlertDialog (confirmations)"],
-        ["src/components/ui/badge.tsx", 44, "shadcn Badge"],
-        ["src/components/ui/button.tsx", 66, "shadcn Button with variants"],
-        ["src/components/ui/checkbox.tsx", 28, "shadcn Checkbox"],
-        ["src/components/ui/command.tsx", 180, "shadcn Command (cmdk) for the palette"],
-        ["src/components/ui/context-menu.tsx", 246, "shadcn ContextMenu"],
-        ["src/components/ui/dialog.tsx", 145, "shadcn Dialog"],
-        ["src/components/ui/dropdown-menu.tsx", 249, "shadcn DropdownMenu"],
-        ["src/components/ui/input-group.tsx", 144, "shadcn InputGroup (inputs with addons)"],
-        ["src/components/ui/input.tsx", 18, "shadcn Input"],
-        ["src/components/ui/kbd.tsx", 26, "Keyboard key label"],
-        ["src/components/ui/label.tsx", 20, "shadcn Label"],
-        ["src/components/ui/popover.tsx", 73, "shadcn Popover"],
-        ["src/components/ui/progress.tsx", 30, "shadcn Progress"],
+        ["skills-lock.json", 11, "Versions of the agent skills installed for this repo"],
         [
-          "src/components/ui/responsive-dialog.tsx",
-          117,
-          "Dialog on desktop, drag-to-close bottom drawer on phones",
+          "src-tauri/Cargo.toml",
+          24,
+          "Desktop app crate: Tauri, the dialog plugin, the engine and the MCP server",
         ],
-        ["src/components/ui/scroll-area.tsx", 54, "shadcn ScrollArea"],
+        ["src-tauri/build.rs", 3, "Tauri's build step"],
         [
-          "src/components/ui/scroll-strip.tsx",
-          100,
-          "Sideways strip with wheel/drag scroll and fade arrows",
+          "src-tauri/capabilities/default.json",
+          7,
+          "What the window may call: the app's commands and Tauri core",
         ],
-        ["src/components/ui/select.tsx", 184, "shadcn Select"],
-        ["src/components/ui/separator.tsx", 27, "shadcn Separator"],
-        ["src/components/ui/sheet.tsx", 130, "shadcn Sheet (side panel)"],
-        ["src/components/ui/skeleton.tsx", 13, "shadcn Skeleton"],
-        ["src/components/ui/sonner.tsx", 45, "Toasts (sonner) themed"],
-        ["src/components/ui/switch.tsx", 32, "shadcn Switch"],
-        ["src/components/ui/tabs.tsx", 79, "shadcn Tabs"],
-        ["src/components/ui/textarea.tsx", 17, "shadcn Textarea"],
-        ["src/components/ui/toggle-group.tsx", 86, "shadcn ToggleGroup"],
-        ["src/components/ui/toggle.tsx", 45, "shadcn Toggle"],
-        ["src/components/ui/tooltip.tsx", 52, "shadcn Tooltip"],
+        ["src-tauri/icons/128x128.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/128x128@2x.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/32x32.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/64x64.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/Square107x107Logo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/Square142x142Logo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/Square150x150Logo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/Square284x284Logo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/Square30x30Logo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/Square310x310Logo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/Square44x44Logo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/Square71x71Logo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/Square89x89Logo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/StoreLogo.png", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/icon.icns", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/icon.ico", 0, "App icon (generated by bun run icons)"],
+        ["src-tauri/icons/icon.png", 0, "App icon (generated by bun run icons)"],
         [
-          "src/components/vis/color-picker.tsx",
-          130,
-          "Table colour swatches: presets, none, custom",
+          "src-tauri/src/commands.rs",
+          403,
+          "The SQLite API the web UI calls, one command per method of the browser build's worker (`src/lib/sqlite/worker.ts`).",
         ],
         [
-          "src/components/vis/column-editor.tsx",
-          211,
-          "SchemaEditor contract and the column edit popover",
+          "src-tauri/src/main.rs",
+          87,
+          "Desktop app entry: runs `sequill mcp` when asked to, otherwise opens the window and starts the change watcher and the MCP host",
         ],
         [
-          "src/components/vis/designer.tsx",
-          665,
-          "React Flow canvas: table cards, FK lines, drag to connect, focus, auto-arrange, minimap",
+          "src-tauri/src/watch.rs",
+          60,
+          "Tells the UI when another process (the MCP server, an assistant) changed the databases, so open grids and lists refresh without a reload, and hands it the server's req…",
+        ],
+        ["src-tauri/tauri.conf.json", 46, "Tauri config: app id, window, bundle targets, dev URL"],
+        [
+          "src/app/app-providers.tsx",
+          28,
+          "Providers for pages that talk to SQLite (editor, visualizer).",
         ],
         [
-          "src/components/vis/inspector.tsx",
+          "src/app/app.tsx",
+          26,
+          "Shows the page for the current path; unknown paths show the editor.",
+        ],
+        [
+          "src/app/external-changes.tsx",
+          31,
+          "Refreshes lists, grids, schemas and saved queries when something outside the app (an AI assistant over MCP) changes the databases.",
+        ],
+        ["src/app/main.tsx", 24, "Entry point: fonts, global CSS, then renders the app into #root"],
+        ["src/app/mcp-requests.tsx", 32, "Listens for the MCP server's `show_in_app` requests."],
+        ["src/app/providers.tsx", 13, "App-wide providers."],
+        [
+          "src/components/atoms/alert-dialog.tsx",
+          181,
+          "shadcn/ui alert dialog primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/badge.tsx",
+          44,
+          "shadcn/ui badge primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/button.tsx",
+          66,
+          "shadcn/ui button primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/checkbox.tsx",
+          26,
+          "shadcn/ui checkbox primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/command.tsx",
+          178,
+          "shadcn/ui command primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/context-menu.tsx",
+          244,
+          "shadcn/ui context menu primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/dialog.tsx",
+          143,
+          "shadcn/ui dialog primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/dropdown-menu.tsx",
+          247,
+          "shadcn/ui dropdown menu primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/icons.tsx",
+          187,
+          "shadcn/ui icons primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/input-group.tsx",
+          142,
+          "shadcn/ui input group primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/input.tsx",
+          18,
+          "shadcn/ui input primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/kbd.tsx",
+          26,
+          "shadcn/ui kbd primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/label.tsx",
+          18,
+          "shadcn/ui label primitive (Radix), styled with the tokens",
+        ],
+        ["src/components/atoms/link.tsx", 13, "An anchor to a page of the app."],
+        [
+          "src/components/atoms/popover.tsx",
+          71,
+          "shadcn/ui popover primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/responsive-dialog.tsx",
+          115,
+          "shadcn/ui responsive dialog primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/scroll-strip.tsx",
+          98,
+          "A single row that scrolls sideways when its items don't fit: no scrollbar, but the wheel, a mouse drag and touch all slide it, and ‹ › arrows appear while items are hi…",
+        ],
+        [
+          "src/components/atoms/select.tsx",
+          182,
+          "shadcn/ui select primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/sheet.tsx",
+          128,
+          "shadcn/ui sheet primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/skeleton.tsx",
+          13,
+          "shadcn/ui skeleton primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/sonner.tsx",
+          37,
+          "shadcn/ui sonner primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/switch.tsx",
+          30,
+          "shadcn/ui switch primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/tabs.tsx",
+          77,
+          "shadcn/ui tabs primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/textarea.tsx",
+          17,
+          "shadcn/ui textarea primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/toggle-group.tsx",
+          84,
+          "shadcn/ui toggle group primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/toggle.tsx",
+          43,
+          "shadcn/ui toggle primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/atoms/tooltip.tsx",
+          50,
+          "shadcn/ui tooltip primitive (Radix), styled with the tokens",
+        ],
+        [
+          "src/components/molecules/pastel/annotation.tsx",
+          72,
+          "A single hand-drawn stroke that draws on when it scrolls into view.",
+        ],
+        [
+          "src/components/molecules/pastel/code-block.tsx",
+          149,
+          "Editor window for code on screen.",
+        ],
+        [
+          "src/components/molecules/pastel/loader.tsx",
+          79,
+          "Branded loader: the hand-drawn circle keeps re-drawing itself.",
+        ],
+        [
+          "src/components/molecules/pastel/marks.ts",
+          39,
+          "Hand-drawn marks from the design system (viewBox, path data).",
+        ],
+        ["src/components/molecules/step-number.tsx", 16, "A number in a circle, for steps."],
+        [
+          "src/components/molecules/theme-toggle.tsx",
+          24,
+          "One button that switches between dark and light.",
+        ],
+        [
+          "src/components/organisms/database-switcher.tsx",
+          206,
+          "The databases saved here (browser or computer) and what you can do with them.",
+        ],
+        [
+          "src/components/organisms/dialogs/column-fields.tsx",
+          374,
+          "Editor for one column definition.",
+        ],
+        [
+          "src/components/organisms/dialogs/dialog-host.tsx",
+          175,
+          "Renders whichever dialog is open (one at a time); heavy ones load on first use; opens the first-run guide",
+        ],
+        [
+          "src/components/organisms/dialogs/guide-dialog.tsx",
+          89,
+          "What the app does and how its parts fit together; shown on first start and from the palette.",
+        ],
+        [
+          "src/components/organisms/dialogs/import-dialog.tsx",
+          420,
+          "CSV, TSV and JSON import: type detection, column mapping, new or existing table",
+        ],
+        [
+          "src/components/organisms/dialogs/mcp-dialog.tsx",
+          281,
+          "Explains MCP, holds its two switches and shows how to connect an assistant.",
+        ],
+        [
+          "src/components/organisms/dialogs/schema-dialogs.tsx",
+          369,
+          "Create table, add column and create index dialogs, each previewing its SQL",
+        ],
+        [
+          "src/components/organisms/dialogs/simple-dialogs.tsx",
           297,
-          "Details panel for the selected table or relationship",
+          "Renders statements with parameters inlined, for previews only (execution stays parameterised).",
         ],
         [
-          "src/components/vis/save-as-dialog.tsx",
-          111,
-          "Save the design as a new database (optionally with rows)",
+          "src/components/organisms/mcp-activity.tsx",
+          275,
+          "What assistants did over MCP: the history panel and the sidebar activity dot",
         ],
         [
-          "src/components/vis/save-menu.tsx",
-          102,
-          "Other save choices: review SQL, save as, download SQL, discard",
+          "src/components/organisms/mcp-button.tsx",
+          53,
+          "Shows what AI assistants may do with the databases and opens the MCP guide.",
         ],
         [
-          "src/components/vis/schema-outline.tsx",
-          442,
-          "Searchable outline of tables and columns; also the editor for them",
+          "src/components/organisms/storage-handoff.tsx",
+          89,
+          "Only one window can hold the database files (the installed app and a browser tab of the site count as two).",
         ],
         [
-          "src/components/vis/table-node.tsx",
+          "src/components/templates/app-boot.tsx",
+          101,
+          "Boots SQLite (worker + wasm + OPFS) and downloads a page's UI in parallel, showing each stage.",
+        ],
+        ["src/constants/index.ts", 81, "App-wide constants."],
+        [
+          "src/features/editor/components/command-palette.tsx",
+          184,
+          "Jump to… (Ctrl+K): tables, saved queries, actions, databases, theme, the guide",
+        ],
+        [
+          "src/features/editor/components/editor-shell.tsx",
+          205,
+          "The editor page: sidebar, tab bar, the open tab (table or query), palette and dialogs",
+        ],
+        [
+          "src/features/editor/components/export-menu.tsx",
+          84,
+          "Export a table, filtered view, selection or result as CSV, JSON or SQL INSERTs",
+        ],
+        [
+          "src/features/editor/components/grid/cell-value.tsx",
+          44,
+          "How one value looks in a grid cell.",
+        ],
+        [
+          "src/features/editor/components/grid/data-grid.tsx",
+          594,
+          "The virtualised data grid: cells, selection, inline edits, paste, column resize and reorder",
+        ],
+        [
+          "src/features/editor/components/grid/grid-header.tsx",
+          210,
+          "Grid column headers: sort, resize, pin, hide and reorder",
+        ],
+        [
+          "src/features/editor/components/query/editor-theme.ts",
+          57,
+          "CodeMirror theme built from Pastel Noir tokens, so it follows light and dark mode.",
+        ],
+        [
+          "src/features/editor/components/query/query-console.tsx",
+          324,
+          "SQL console: CodeMirror editor, run script or selection, results, EXPLAIN, history",
+        ],
+        [
+          "src/features/editor/components/sidebar.tsx",
+          476,
+          "Editor sidebar: database menu, tables, views, saved queries and assistant activity",
+        ],
+        [
+          "src/features/editor/components/tab-bar.tsx",
+          195,
+          "Open tabs (tables and queries) and the top bar's MCP and history buttons",
+        ],
+        [
+          "src/features/editor/components/table/columns-menu.tsx",
+          64,
+          "Menu to show, hide and pin a table's columns",
+        ],
+        [
+          "src/features/editor/components/table/filter-builder.tsx",
+          198,
+          "Popover that edits the table's filters; changes apply on \"Apply\" so typing doesn't run queries.",
+        ],
+        [
+          "src/features/editor/components/table/pagination.tsx",
+          93,
+          "Page size and page buttons under the grid",
+        ],
+        [
+          "src/features/editor/components/table/row-inspector.tsx",
+          349,
+          "Side panel for one row: every value, JSON formatting, BLOBs, foreign-key links",
+        ],
+        [
+          "src/features/editor/components/table/structure-view.tsx",
+          313,
+          "A table's columns, keys, indexes and triggers, with schema actions",
+        ],
+        [
+          "src/features/editor/components/table/table-view.tsx",
+          527,
+          "A table tab: toolbar, filters, search, the grid and paging",
+        ],
+        ["src/features/editor/components/welcome.tsx", 106, "Shown when no database is open."],
+        [
+          "src/features/vis/components/change-marks.tsx",
+          72,
+          "The icon before a column name: deleted, primary key or foreign key.",
+        ],
+        [
+          "src/features/vis/components/color-picker.tsx",
+          135,
+          'Preset pastels, "none" and a custom color input, as one radio group.',
+        ],
+        [
+          "src/features/vis/components/column-editor.tsx",
+          209,
+          "Column editing shared by the outline and the table cards (popover, type badge)",
+        ],
+        [
+          "src/features/vis/components/designer.tsx",
+          744,
+          "The schema designer: React Flow canvas, toolbar, outline, inspector, save, export and the as-saved view",
+        ],
+        [
+          "src/features/vis/components/export-schema-menu.tsx",
+          53,
+          "Downloads the design's schema as CREATE statements for another database.",
+        ],
+        [
+          "src/features/vis/components/import-schema-dialog.tsx",
+          127,
+          "Makes a new database from another database's schema: a SQLite file or a SQL script for PostgreSQL, MySQL and others.",
+        ],
+        [
+          "src/features/vis/components/inspector.tsx",
+          296,
+          "Details for the selected table or relationship; renders nothing when nothing is selected.",
+        ],
+        [
+          "src/features/vis/components/save-as-dialog.tsx",
+          115,
+          "Creates a separate database from the current schema plus the design; the source is untouched.",
+        ],
+        [
+          "src/features/vis/components/save-menu.tsx",
+          100,
+          'The other save choices, beside the header\'s "Unsaved" badge (a click on the badge reviews a save to the open database).',
+        ],
+        [
+          "src/features/vis/components/schema-outline.tsx",
+          436,
+          "Left panel: every table and view with its columns and types, and where they are edited.",
+        ],
+        [
+          "src/features/vis/components/table-node.tsx",
           166,
-          "One table card on the canvas with per-row connection points",
+          "One table on the diagram: header plus one row per column, each with connection handles.",
         ],
         [
-          "src/components/vis/unsaved-badge.tsx",
+          "src/features/vis/components/unsaved-badge.tsx",
+          57,
+          "Header badge for the design's save state; clicking it reviews a save to the open database.",
+        ],
+        [
+          "src/features/vis/components/vis-shell.tsx",
+          189,
+          "The schema page: header, database menu, schema import, unsaved-design guard and the designer",
+        ],
+        [
+          "src/features/vis/components/vis.css",
+          55,
+          "React Flow themed from Pastel Noir tokens (follows light and dark mode).",
+        ],
+        [
+          "src/features/vis/hooks/use-design-check.ts",
+          31,
+          "Runs the design's SQL on a copy of the database's structure (no rows) as the person edits, so SQLite's own errors show up before anything touches the database.",
+        ],
+        [
+          "src/features/vis/lib/colors.ts",
+          76,
+          "Table colors on the schema diagram: one of the design system's pastels, or a custom hex.",
+        ],
+        [
+          "src/features/vis/lib/dialects.ts",
+          25,
+          "Databases whose schemas the designer reads and writes (desktop app).",
+        ],
+        [
+          "src/features/vis/lib/drafts.ts",
+          162,
+          'Unsaved schema designs, one per database id (or "blank"), until the user saves them into a database or discards them.',
+        ],
+        [
+          "src/features/vis/lib/layout.ts",
           69,
-          "Header badge for unsaved design; click saves",
+          "Automatic left-to-right layout for the schema diagram (dagre).",
         ],
-        ["src/components/vis/vis-boot.tsx", 9, "Wires AppBoot to lazily load vis-shell"],
         [
-          "src/components/vis/vis-shell.tsx",
-          172,
-          "Visualizer layout: header, switcher, outline, canvas, leave-with-unsaved guard",
+          "src/features/vis/lib/model.ts",
+          949,
+          "Schema visualizer model: turns a database schema plus the user's draft design into diagram tables and relationship edges, and the draft into SQL.",
         ],
-        ["src/components/vis/vis.css", 55, "React Flow theme overrides"],
+        [
+          "src/hooks/use-copy.ts",
+          26,
+          "Copies text to the clipboard and reports `copied` for a moment afterwards.",
+        ],
         [
           "src/hooks/use-db-actions.ts",
-          182,
-          "Database actions shared by sidebar, welcome, drop zone and palette",
+          229,
+          "Database-level actions shared by the sidebar, welcome screen, drop zone and command palette.",
         ],
-        [
-          "src/hooks/use-db.ts",
-          150,
-          "React Query bindings for the worker: databases, schema, rows, counts, run",
-        ],
+        ["src/hooks/use-db.ts", 162, "React Query bindings for the SQLite worker."],
         [
           "src/hooks/use-horizontal-scroll.ts",
-          100,
-          "Wheel/drag sideways scrolling and arrow state",
+          98,
+          "Makes a sideways-scrolling strip usable with a mouse as well as touch: the vertical wheel scrolls it sideways, a mouse drag slides it (without firing a click), and `ca…",
+        ],
+        [
+          "src/hooks/use-mcp.ts",
+          81,
+          "React Query bindings for the MCP switches and history (desktop app only).",
         ],
         ["src/hooks/use-mobile.ts", 20, "Phone-width check via useSyncExternalStore"],
         [
+          "src/hooks/use-now.ts",
+          14,
+          "The current time, updated every 30 seconds, for showing how long ago things happened.",
+        ],
+        [
           "src/hooks/use-saved-queries.ts",
-          65,
-          "Save, rename, delete saved queries and keep tabs in step",
+          63,
+          "Saving, renaming and deleting saved queries, keeping open tabs in step.",
         ],
         [
-          "src/lib/constants.ts",
-          79,
-          "App-wide constants: names, service worker URL, SQLite URLs, VFS settings, page sizes",
-        ],
-        ["src/lib/data/data.test.ts", 96, "Tests for format, import and export helpers"],
-        ["src/lib/data/export.ts", 83, "Serialise results to CSV, JSON or SQL INSERTs; download"],
-        [
-          "src/lib/data/format.ts",
-          102,
-          "Display helpers: value kinds, bytes, counts, durations, previews",
-        ],
-        ["src/lib/data/grid.test.ts", 59, "Tests for grid layout and TSV clipboard helpers"],
-        ["src/lib/data/grid.ts", 107, "Column layout (order, pin, widths) and TSV copy/paste"],
-        [
-          "src/lib/data/import.ts",
-          101,
-          "Infer column types from CSV/JSON and coerce cells for INSERT",
+          "src/lib/lazy-component.tsx",
+          20,
+          "A component whose code downloads the first time it renders, showing `fallback` meanwhile.",
         ],
         [
-          "src/lib/data/saved-queries.test.ts",
-          55,
-          "Tests for saved-query normalisation and naming",
+          "src/lib/mcp.ts",
+          368,
+          "Settings that connect an AI assistant to the desktop app's MCP server, and its requests.",
         ],
         [
-          "src/lib/data/saved-queries.ts",
-          44,
-          "Saved query shape, migration of old data, name suggestion",
+          "src/lib/motion-features.ts",
+          2,
+          "Loaded on demand by <LazyMotion>, so the animation engine stays out of the first-load bundle.",
         ],
-        ["src/lib/logo.test.ts", 34, "Tests the logo SVG output"],
-        ["src/lib/logo.ts", 77, "The logo's shapes and colours, one source for every icon"],
-        ["src/lib/motion-features.ts", 2, "Motion features loaded on demand by LazyMotion"],
         [
           "src/lib/motion.ts",
           36,
-          "Motion tokens (durations, easings) mirroring the tokens in globals.css",
-        ],
-        ["src/lib/site-url.test.ts", 42, "Tests site URL resolution"],
-        [
-          "src/lib/site-url.ts",
-          26,
-          "Works out the site origin at build time (env, Vercel, localhost)",
-        ],
-        ["src/lib/sqlite/client.ts", 33, "Lazily creates the worker; bootSqlite reports stages"],
-        ["src/lib/sqlite/ddl.ts", 159, "Builders for CREATE/ALTER/DROP TABLE, columns and indexes"],
-        ["src/lib/sqlite/dump.ts", 57, "SQL dump like the sqlite3 shell's .dump"],
-        ["src/lib/sqlite/errors.ts", 6, "Readable error text"],
-        [
-          "src/lib/sqlite/file-header.test.ts",
-          108,
-          "Tests the header and schema reader against real files",
+          "Pastel Noir motion tokens for the `motion` library (seconds and bezier arrays).",
         ],
         [
-          "src/lib/sqlite/file-header.ts",
-          203,
-          "Reads a SQLite file's 100-byte header and sqlite_schema without the engine",
+          "src/lib/platform.ts",
+          12,
+          "Which build is running: the website / installed PWA, or the Tauri desktop app.",
         ],
-        ["src/lib/sqlite/highlight.ts", 40, "Tiny SQL tokenizer for static previews"],
-        ["src/lib/sqlite/introspect.ts", 140, "Reads the schema via PRAGMA table-valued functions"],
-        ["src/lib/sqlite/sample.test.ts", 24, "Tests the sample database script"],
-        ["src/lib/sqlite/sample.ts", 101, "Seed SQL for the built-in sample shop"],
+        ["src/lib/router.ts", 55, "Client-side routing for the app's pages on the History API."],
         [
-          "src/lib/sqlite/session.test.ts",
-          236,
-          "Integration tests for the session on in-memory SQLite",
+          "src/lib/sqlite/cell-codec.ts",
+          34,
+          "SQLite values as JSON for the desktop app's commands.",
+        ],
+        ["src/lib/sqlite/client.ts", 72, "The pages' handle to SQLite."],
+        ["src/lib/sqlite/ddl.ts", 159, "Builders for schema changes."],
+        [
+          "src/lib/sqlite/desktop.ts",
+          169,
+          "The SQLite API backed by the desktop app's native engine (Tauri commands in `src-tauri/src/commands.rs`) instead of the browser worker.",
+        ],
+        ["src/lib/sqlite/dump.ts", 57, "SQL dump in the spirit of the sqlite3 shell's `.dump`."],
+        [
+          "src/lib/sqlite/errors.ts",
+          6,
+          "Readable text for an error from SQLite, the worker or anywhere else.",
         ],
         [
-          "src/lib/sqlite/session.ts",
-          196,
-          "Runs SQL against one open database; shared by worker and tests",
+          "src/lib/sqlite/highlight.ts",
+          40,
+          "Tiny SQL tokenizer for static code previews (the console uses CodeMirror).",
         ],
-        ["src/lib/sqlite/split.ts", 27, "Splits a script into statements using sqlite3_complete"],
-        ["src/lib/sqlite/sql.test.ts", 176, "Tests SQL builders and quoting"],
         [
-          "src/lib/sqlite/sql.ts",
-          301,
-          "Pure SQL builders: select, count, where/filters, insert, update, delete; quoteIdent",
+          "src/lib/sqlite/introspect.ts",
+          140,
+          "Reads the schema of the open database through PRAGMA table-valued functions.",
         ],
-        ["src/lib/sqlite/test-utils.ts", 32, "Test helpers: memory sessions and database files"],
         [
-          "src/lib/sqlite/types.ts",
-          110,
-          "Types shared by worker and UI (rows, results, schema, boot stages)",
+          "src/lib/sqlite/sample.ts",
+          101,
+          "Seed script for the built-in sample database: a small shop with every SQLite feature the editor shows.",
         ],
+        ["src/lib/sqlite/session.ts", 263, "Runs SQL against one open database."],
+        ["src/lib/sqlite/split.ts", 27, "Splits a script into statements."],
+        ["src/lib/sqlite/sql.ts", 301, "Pure SQL builders."],
+        ["src/types/lib/sqlite/types.ts", 133, "Types shared by the SQLite worker and the UI."],
         [
           "src/lib/sqlite/worker.ts",
-          434,
+          493,
           "The SQLite Web Worker: WASM, OPFS SAHPool VFS, catalog, handing files between windows, Comlink API",
         ],
-        ["src/lib/storage.ts", 30, "Guarded localStorage read/write/remove"],
-        ["src/lib/store/dialogs.ts", 40, "Zustand: which editor dialog is open"],
-        ["src/lib/store/saved-queries.ts", 59, "Zustand: saved queries in this browser"],
+        ["src/lib/storage.ts", 30, "localStorage for per-viewer conveniences (layouts, history)."],
+        ["src/lib/theme.ts", 80, "Light and dark themes."],
+        ["src/pages/editor-page.tsx", 8, "The / page: boots SQLite and lazy-loads the editor"],
         [
-          "src/lib/store/workspace.ts",
-          218,
-          "Zustand: active database, open tabs, per-table view state and layouts",
+          "src/pages/vis-page.tsx",
+          7,
+          "The /vis page: boots SQLite and lazy-loads the schema designer",
         ],
-        ["src/lib/utils.ts", 4, "newId: short random ids"],
-        ["src/lib/vis/colors.test.ts", 56, "Tests colour validation and helpers"],
-        ["src/lib/vis/colors.ts", 76, "Table colours: presets or validated custom hex"],
-        ["src/lib/vis/drafts.ts", 30, "Unsaved designs per database, kept in localStorage"],
-        ["src/lib/vis/layout.ts", 69, "dagre auto-layout, card sizes, handle ids and edge sides"],
-        ["src/lib/vis/model.test.ts", 648, "Tests for the diagram model and draft-to-SQL"],
+        ["src/store/dialogs.ts", 43, "Which editor dialog is open."],
+        ["src/store/saved-queries.ts", 120, "Saved SQL queries, shared by every database."],
         [
-          "src/lib/vis/model.ts",
-          949,
-          "Schema + draft → diagram tables and edges, and draft → SQL (incl. table rebuilds)",
+          "src/store/workspace.ts",
+          253,
+          "Editor UI state: active database, open tabs and their view settings.",
         ],
         [
-          "src/sw/sw.ts",
-          48,
-          "Service worker source: precaches the static export for offline use (built by serwist build)",
+          "src/styles/globals.css",
+          477,
+          "Design tokens (Pastel Noir colours, radii, motion) for light and dark, Tailwind theme, base styles",
         ],
-        ["src/sw/tsconfig.json", 0, "TypeScript config for the service worker (webworker lib)"],
-        ["tsconfig.json", 0, "TypeScript config and @/ path alias"],
+        ["src/utils/data/export.ts", 83, "Serialises query results for download."],
+        ["src/utils/data/format.ts", 102, "Display helpers for SQLite values."],
+        [
+          "src/utils/data/grid.ts",
+          128,
+          "Pure helpers behind the data grid: column layout and clipboard text.",
+        ],
+        [
+          "src/utils/data/import.ts",
+          101,
+          "Turns parsed CSV/JSON into typed columns and rows ready for INSERT.",
+        ],
+        [
+          "src/utils/data/saved-queries.ts",
+          44,
+          "Saved SQL queries: the stored shape and the pure helpers around it.",
+        ],
+        [
+          "src/utils/highlight-code.ts",
+          89,
+          "Syntax highlighting for static code previews: Prism for config files and shell, our own for SQL.",
+        ],
+        [
+          "src/utils/index.ts",
+          4,
+          "A short random id for client-side records (tabs, saved queries).",
+        ],
+        [
+          "src/utils/logo.ts",
+          77,
+          "The Sequill brand: the mark (a pen nib whose top is stacked database disks, sequel and quill) and the block wordmark, in Pastel Noir colours on the near-black ground.",
+        ],
+        ["tests/e2e/browser/editor.spec.ts", 275, "Tests for editor"],
+        ["tests/e2e/browser/guide.spec.ts", 25, "Tests for guide"],
+        ["tests/e2e/browser/mobile.spec.ts", 94, "Tests for mobile"],
+        [
+          "tests/e2e/browser/stress.spec.ts",
+          84,
+          "Stress, end to end in the browser build: large tables, large imports and a large schema, driven through the UI exactly as a person would.",
+        ],
+        ["tests/e2e/browser/vis.spec.ts", 353, "Tests for vis"],
+        ["tests/e2e/browser/windows.spec.ts", 47, "Tests for windows"],
+        [
+          "tests/e2e/desktop/app.spec.ts",
+          186,
+          "The real desktop app end to end: the React UI, Tauri's IPC, the Rust engine on real files, and the MCP server an assistant starts.",
+        ],
+        [
+          "tests/e2e/desktop/app.ts",
+          209,
+          "The real desktop app under Playwright, without WebDriver: the debug build is started with its WebView2 listening for the Chrome DevTools Protocol, and Playwright attac…",
+        ],
+        ["tests/e2e/helpers.ts", 57, "Opens the editor and waits for SQLite to finish booting."],
+        ["tests/fixtures/notes.sqlite", 0, "Fixture the e2e tests open or import"],
+        ["tests/fixtures/people.csv", 0, "Fixture the e2e tests open or import"],
+        [
+          "tests/helpers/random.ts",
+          61,
+          "Seeded randomness for stress tests: the same seed gives the same inputs, so a failure can be replayed.",
+        ],
+        [
+          "tests/helpers/sqlite.ts",
+          32,
+          "Test helpers: SQLite sessions and database files (Node build of sqlite-wasm, no OPFS).",
+        ],
+        ["tests/integration/sqlite/sample.test.ts", 24, "Tests for sample"],
+        ["tests/integration/sqlite/session.test.ts", 267, "Tests for session"],
+        ["tests/integration/sqlite/sql.test.ts", 176, "Tests for sql"],
+        [
+          "tests/integration/stress/designer.stress.test.ts",
+          111,
+          "Stress: a large schema design (renames, dropped and changed columns that force table rebuilds, added columns, new tables) built through the designer's model and saved…",
+        ],
+        [
+          "tests/integration/stress/drafts.stress.test.ts",
+          76,
+          "Stress: the designer and an assistant saving the same design at once, 2,000 times, against a fake catalog with the real versioning rules.",
+        ],
+        [
+          "tests/integration/stress/sqlite.stress.test.ts",
+          200,
+          "Stress: the editor's SQL on a real SQLite (WASM, in memory) with tens of thousands of rows, hostile identifiers and seeded random filters, checked against plain-JS ans…",
+        ],
+        ["tests/integration/vis/drafts.test.ts", 87, "Tests for drafts"],
+        ["tests/integration/vis/model.test.ts", 648, "Tests for model"],
+        ["tests/unit/lib/mcp.test.ts", 160, "Tests for mcp"],
+        ["tests/unit/lib/router.test.ts", 27, "Tests for router"],
+        ["tests/unit/lib/theme.test.ts", 16, "Tests for theme"],
+        ["tests/unit/scripts/cargo-version.test.ts", 86, "Tests for cargo-version"],
+        ["tests/unit/scripts/ico.test.ts", 30, "Tests for ico"],
+        ["tests/unit/sqlite/cell-codec.test.ts", 36, "Tests for cell-codec"],
+        ["tests/unit/store/workspace.test.ts", 30, "Tests for workspace"],
+        [
+          "tests/unit/stress/round-trips.stress.test.ts",
+          72,
+          "Stress: data that leaves the app and comes back (clipboard TSV, CSV export, the desktop wire format, import type inference) at scale, with seeded random nasty text.",
+        ],
+        ["tests/unit/utils/data.test.ts", 108, "Tests for data"],
+        ["tests/unit/utils/grid.test.ts", 100, "Tests for grid"],
+        ["tests/unit/utils/highlight-code.test.ts", 35, "Tests for highlight-code"],
+        ["tests/unit/utils/logo.test.ts", 35, "Tests for logo"],
+        ["tests/unit/utils/saved-queries.test.ts", 55, "Tests for saved-queries"],
+        ["tests/unit/vis/colors.test.ts", 56, "Tests for colors"],
+        ["tsconfig.json", 23, "TypeScript config and the @/ path alias"],
+        [
+          "vite.config.ts",
+          25,
+          "Vite: React with the React Compiler, Tailwind, the @/ alias, the dev port",
+        ],
+        [
+          "vitest.config.mts",
+          32,
+          "Vitest: the unit and integration test projects and the @/ alias",
+        ],
       ];
 
       const esc = (s) =>
@@ -1621,7 +1876,7 @@
       const treeEl = document.getElementById("tree");
       const qEl = document.getElementById("q");
       const countEl = document.getElementById("count");
-      const DEFAULT_OPEN = new Set(["src", "src/app", "src/components", "src/lib"]);
+      const DEFAULT_OPEN = new Set(["src", "src/components", "src/features", "crates"]);
       let openSet = new Set(DEFAULT_OPEN);
 
       function draw() {
@@ -1669,14 +1924,16 @@
       const src = FILES.filter(([p]) => p.startsWith("src/"));
       const srcLines = src.reduce((a, [, l]) => a + l, 0);
       const tests = FILES.filter(([p]) => /\.(test|spec)\.tsx?$/.test(p));
-      const comps = FILES.filter(([p]) => /^src\/components\/.*\.tsx$/.test(p));
+      const comps = FILES.filter(([p]) => /^src\/.*\.tsx$/.test(p) && !/\.test\./.test(p));
+      const rust = FILES.filter(([p]) => /\.rs$/.test(p));
       document.getElementById("stats").innerHTML = [
         [FILES.length, "files"],
         [src.length, "files in src/"],
         [srcLines.toLocaleString(), "lines in src/"],
+        [rust.reduce((a, [, l]) => a + l, 0).toLocaleString(), "lines of Rust"],
         [comps.length, "React components (.tsx)"],
         [tests.length, "test files (unit + e2e)"],
-        [3, "routes: / · /app · /vis"],
+        [2, "pages: / · /vis"],
       ]
         .map(([b, s]) => `<div class="stat"><b>${b}</b><span>${s}</span></div>`)
         .join("");
@@ -1692,7 +1949,9 @@
           .join("");
       }
       const byDir = new Map();
-      for (const [p, l] of src) {
+      for (const [p, l] of FILES.filter(
+        ([p]) => /\.(tsx?|css|rs)$/.test(p) && /^(src|crates|src-tauri)\//.test(p),
+      )) {
         const parts = p.split("/");
         const key =
           parts.length > 3 ? parts.slice(0, 3).join("/") + "/" : parts.slice(0, 2).join("/") + "/";

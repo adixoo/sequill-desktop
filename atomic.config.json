@@ -1,0 +1,12 @@
+{
+  "preset": "js",
+  "levels": {
+    "atoms": "src/components/atoms",
+    "molecules": "src/components/molecules",
+    "organisms": "src/components/organisms",
+    "templates": "src/components/templates",
+    "pages": "src/pages"
+  },
+  "tokens": ["src/styles/globals.css"],
+  "ignore": ["**/*.test.*", "**/*.spec.*", "tools/atomic-design/**"]
+}

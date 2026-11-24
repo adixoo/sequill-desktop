@@ -1,31 +1,15 @@
-import { defineConfig, devices } from "@playwright/test";
-import { BRAVE_PATH } from "./scripts/brave.ts";
-
-const PORT = 4173;
+import { defineConfig } from "@playwright/test";
 
 /**
- * End-to-end tests run against the production build (`bun run build` first),
- * served by `vite preview`, in the installed Brave browser.
+ * End-to-end tests (tests/e2e) run against the real desktop app (`bun run desktop:build:debug`
+ * first), driven through its WebView2 (Windows only); see tests/e2e/desktop/app.ts.
  */
 export default defineConfig({
-  testDir: "./e2e",
-  fullyParallel: true,
+  testDir: "./tests/e2e",
   retries: process.env.CI ? 1 : 0,
+  // Each test starts its own app (a debug build); one at a time keeps the stress test's
+  // timings honest.
+  workers: 1,
   reporter: [["list"]],
-  use: {
-    baseURL: `http://localhost:${PORT}`,
-    launchOptions: { executablePath: BRAVE_PATH },
-    trace: "retain-on-failure",
-  },
-  projects: [
-    {
-      name: "desktop",
-      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
-    },
-  ],
-  webServer: {
-    command: `bunx vite preview --port ${PORT} --strictPort`,
-    url: `http://localhost:${PORT}`,
-    reuseExistingServer: !process.env.CI,
-  },
+  use: { trace: "retain-on-failure" },
 });

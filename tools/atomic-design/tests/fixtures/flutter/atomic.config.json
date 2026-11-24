@@ -1,0 +1,5 @@
+{
+  "preset": "flutter",
+  "levels": { "atoms": "lib/ui/atoms", "molecules": "lib/ui/molecules", "organisms": "lib/ui/organisms" },
+  "tokens": ["lib/theme/tokens.dart"]
+}

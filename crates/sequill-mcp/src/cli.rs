@@ -7,8 +7,9 @@ use std::path::PathBuf;
 pub const USAGE: &str = "Usage: sequill mcp [--data-dir <path>]
 
 Connects an AI assistant (over MCP on stdio) to the Sequill app, which runs every tool on the
-databases it has, so Sequill must be open. Whether assistants may use them, and whether they
-may also change them, is set with the MCP button in the app.
+databases it has. While Sequill is closed, the tools run here on the same data folder (except
+for assistants in a Windows app package, which need Sequill open). Whether assistants may use
+the databases, and whether they may also change them, is set with the MCP button in the app.
 
   --data-dir <path>   The data folder of the app to reach (default: the app's own).";
 

@@ -1,5 +1,5 @@
 //! Reads the schema of an open database through PRAGMA table-valued functions.
-//! Mirrors the web app's `src/shared/lib/sqlite/introspect.ts`; field names match its `types.ts`.
+//! Field names match the web UI's `src/types/lib/sqlite/types.ts`.
 
 use crate::error::Result;
 use rusqlite::types::ValueRef;
@@ -87,10 +87,77 @@ pub struct Schema {
     pub views: Vec<RelationInfo>,
     pub indexes: Vec<SchemaObject>,
     pub triggers: Vec<SchemaObject>,
+    /// The database a schema was imported from ("postgresql", "mysql", "mssql", "duckdb"…);
+    /// None for a SQLite database.
+    pub dialect: Option<String>,
+    /// That database's enums, functions, procedures, triggers, views, sequences and types,
+    /// which SQLite can't hold itself; kept as their SQL (`OBJECTS_TABLE`).
+    pub objects: Vec<ExtraObject>,
+}
+
+/// Where an imported schema keeps its database type and the objects SQLite can't run. Hidden
+/// from the editor and the diagram like SQLite's own tables.
+pub const OBJECTS_TABLE: &str = "_sequill_objects";
+
+/// One enum, function, procedure, trigger, view, sequence or type of an imported schema.
+#[derive(Debug, Clone, PartialEq, Serialize, serde::Deserialize)]
+#[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
+#[serde(rename_all = "camelCase")]
+pub struct ExtraObject {
+    /// "enum", "function", "procedure", "trigger", "view", "sequence" or "type".
+    pub kind: String,
+    pub name: String,
+    /// The table a trigger belongs to.
+    pub table: Option<String>,
+    /// Its SQL as written; for an enum, its values as a JSON array.
+    pub body: String,
 }
 
 pub fn is_internal_name(name: &str) -> bool {
-    name.to_lowercase().starts_with("sqlite_")
+    name.to_lowercase().starts_with("sqlite_") || name.eq_ignore_ascii_case(OBJECTS_TABLE)
+}
+
+/// A declared type as shown: upper-cased in a SQLite database, unless it holds quoted text
+/// (an ENUM's values); in an imported schema, exactly as written there.
+fn shown_type(declared: String, as_written: bool) -> String {
+    if as_written || declared.contains(['\'', '"']) {
+        declared
+    } else {
+        declared.to_uppercase()
+    }
+}
+
+/// The imported schema's database type and objects, if it has them.
+fn read_objects(conn: &Connection) -> Result<(Option<String>, Vec<ExtraObject>)> {
+    let exists: bool = conn.query_row(
+        "SELECT count(*) > 0 FROM sqlite_schema WHERE type = 'table' AND name = ?",
+        [OBJECTS_TABLE],
+        |r| r.get(0),
+    )?;
+    if !exists {
+        return Ok((None, Vec::new()));
+    }
+    let rows = collect(
+        conn,
+        &format!("SELECT kind, name, tbl, body FROM \"{OBJECTS_TABLE}\" ORDER BY rowid"),
+        None,
+        |r| {
+            Ok(ExtraObject {
+                kind: string(r, 0)?,
+                name: string(r, 1)?,
+                table: text(r, 2)?,
+                body: string(r, 3)?,
+            })
+        },
+    )?;
+    let dialect = rows
+        .iter()
+        .find(|o| o.kind == "dialect")
+        .map(|o| o.name.clone());
+    Ok((
+        dialect,
+        rows.into_iter().filter(|o| o.kind != "dialect").collect(),
+    ))
 }
 
 pub fn pick_rowid_name(columns: &[ColumnInfo]) -> Option<String> {
@@ -136,7 +203,11 @@ fn collect<T>(
     }
 }
 
-fn read_columns(conn: &Connection, table: &str) -> rusqlite::Result<Vec<ColumnInfo>> {
+fn read_columns(
+    conn: &Connection,
+    table: &str,
+    as_written: bool,
+) -> rusqlite::Result<Vec<ColumnInfo>> {
     collect(
         conn,
         r#"SELECT cid, name, type, "notnull", dflt_value, pk, hidden FROM pragma_table_xinfo(?) ORDER BY cid"#,
@@ -145,7 +216,7 @@ fn read_columns(conn: &Connection, table: &str) -> rusqlite::Result<Vec<ColumnIn
             Ok(ColumnInfo {
                 cid: number(r, 0)?,
                 name: string(r, 1)?,
-                type_name: string(r, 2)?.to_uppercase(),
+                type_name: shown_type(string(r, 2)?, as_written),
                 not_null: number(r, 3)? == 1,
                 default_value: text(r, 4)?,
                 pk: number(r, 5)?,
@@ -214,6 +285,7 @@ fn read_indexes(
 }
 
 pub fn read_schema(conn: &Connection) -> Result<Schema> {
+    let (dialect, extra) = read_objects(conn)?;
     // (type, name, tbl_name, sql)
     let master = collect(
         conn,
@@ -263,7 +335,7 @@ pub fn read_schema(conn: &Connection) -> Result<Schema> {
             _ => RelationKind::Table,
         };
         // A view whose tables were dropped can't be described; list it without columns.
-        let columns = match read_columns(conn, &name) {
+        let columns = match read_columns(conn, &name, dialect.is_some()) {
             Ok(columns) => columns,
             Err(_) if kind == RelationKind::View => Vec::new(),
             Err(error) => return Err(error.into()),
@@ -307,6 +379,8 @@ pub fn read_schema(conn: &Connection) -> Result<Schema> {
         views,
         indexes: objects("index"),
         triggers: objects("trigger"),
+        dialect,
+        objects: extra,
     })
 }
 

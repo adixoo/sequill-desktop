@@ -11,37 +11,22 @@ import {
   buildRenameColumn,
   buildRenameTable,
   emptyColumn,
-  type ColumnDef,
-} from "@/shared/lib/sqlite/ddl";
-import { typeAffinity } from "@/shared/lib/data/format";
-import { quoteIdent } from "@/shared/lib/sqlite/sql";
-import type { ColumnInfo, RelationInfo, Schema } from "@/shared/lib/sqlite/types";
-
-export interface DraftTable {
-  id: string;
-  name: string;
-  columns: ColumnDef[];
-  withoutRowid: boolean;
-  strict: boolean;
-}
-
-/** A pending change to an existing column. `def.name` is the column's new name. */
-export type ColumnChange = { kind: "drop" } | { kind: "change"; def: ColumnDef };
-
-/**
- * What the user has designed but not saved yet. Existing tables and columns are
- * always keyed by their current names in the database.
- */
-export interface Draft {
-  tables: DraftTable[];
-  /** New columns for existing tables. */
-  addedColumns: Record<string, ColumnDef[]>;
-  /** Existing table → new name. */
-  renamedTables: Record<string, string>;
-  droppedTables: string[];
-  /** Existing table → existing column → change. */
-  columnChanges: Record<string, Record<string, ColumnChange>>;
-}
+} from "@/lib/sqlite/ddl";
+import type { ColumnDef } from "@/types/lib/sqlite/ddl";
+import { OBJECTS_TABLE, REBUILD_TABLE_PREFIX } from "@/constants";
+import { typeAffinity } from "@/utils/data/format";
+import { quoteIdent, sqlLiteral } from "@/lib/sqlite/sql";
+import type { Schema, ExtraObject, RelationInfo, ColumnInfo } from "@/types/lib/sqlite/types";
+import type {
+  DraftTable,
+  ColumnChange,
+  Draft,
+  DiagramColumn,
+  DiagramTable,
+  DiagramEdge,
+  Diagram,
+  ColumnEditMode,
+} from "@/types/features/vis/lib/model";
 
 export const EMPTY_DRAFT: Draft = {
   tables: [],
@@ -49,66 +34,70 @@ export const EMPTY_DRAFT: Draft = {
   renamedTables: {},
   droppedTables: [],
   columnChanges: {},
+  objects: {},
 };
+
+/** How an imported object is keyed in a draft: its kind and name as stored. */
+export const objectKey = (o: { kind: string; name: string }) => `${o.kind}:${o.name}`;
+
+/** The imported schema's objects as they will be after saving, in order. */
+export function currentObjects(schema: Schema | null | undefined, draft: Draft): ExtraObject[] {
+  const stored = schema?.objects ?? [];
+  const storedKeys = new Set(stored.map(objectKey));
+  const kept = stored.flatMap((o) => {
+    const key = objectKey(o);
+    if (!(key in draft.objects)) return [o];
+    const next = draft.objects[key];
+    return next ? [next] : [];
+  });
+  const added = Object.entries(draft.objects)
+    .filter(([key, o]) => !storedKeys.has(key) && o !== null)
+    .map(([, o]) => o!);
+  return [...kept, ...added];
+}
+
+/** Sets (or, with null, deletes) an imported object; `key` is its key as stored. */
+export function setObject(draft: Draft, key: string, object: ExtraObject | null): Draft {
+  return { ...draft, objects: { ...draft.objects, [key]: object } };
+}
+
+/** Forgets the draft's change to an object. */
+export function revertObject(draft: Draft, key: string): Draft {
+  const objects = { ...draft.objects };
+  delete objects[key];
+  return { ...draft, objects };
+}
+
+/**
+ * SQL that stores an imported schema's database type and objects (`OBJECTS_TABLE`).
+ * Mirrors `objects_sql` in `crates/sequill-core/src/sql_objects.rs`.
+ */
+export function objectsTableStatements(dialect: string, objects: ExtraObject[]): string[] {
+  const rows: [string, string, string | null, string][] = [
+    ["dialect", dialect, null, ""],
+    ...objects.map((o): [string, string, string | null, string] => [
+      o.kind,
+      o.name,
+      o.table,
+      o.body,
+    ]),
+  ];
+  return [
+    `CREATE TABLE ${quoteIdent(OBJECTS_TABLE)} (kind TEXT NOT NULL, name TEXT NOT NULL, tbl TEXT, body TEXT NOT NULL, PRIMARY KEY (kind, name));`,
+    ...rows.map(
+      (r) =>
+        `INSERT OR REPLACE INTO ${quoteIdent(OBJECTS_TABLE)} VALUES (${r.map(sqlLiteral).join(", ")});`,
+    ),
+  ];
+}
 
 /** Fills in fields missing from drafts saved by earlier versions. */
 export function normalizeDraft(draft: Partial<Draft>): Draft {
-  return { ...EMPTY_DRAFT, ...draft };
-}
-
-export type DiagramTableKind = "table" | "view" | "virtual" | "draft";
-
-export interface DiagramColumn {
-  /** Name as it will be after saving. */
-  name: string;
-  type: string;
-  pk: boolean;
-  notNull: boolean;
-  /** Referenced table and column, when this column is a foreign key. */
-  fk: { table: string; column: string | null } | null;
-  /** Not in the database yet. */
-  draft: boolean;
-  /** Pending change to an existing column. */
-  change?: "edited" | "dropped";
-  /**
-   * Stable id within its table for editing: "o:<name>" for a column in the
-   * database, "a:<index>" for a column added to an existing table, "n:<index>"
-   * for a column of a new table.
-   */
-  key: string;
-  /** The column's name in the database, when it exists there. */
-  originalName?: string;
-}
-
-export interface DiagramTable {
-  id: string;
-  /** Name as it will be after saving. */
-  name: string;
-  kind: DiagramTableKind;
-  columns: DiagramColumn[];
-  /** Set for tables designed in the draft. */
-  draftId?: string;
-  /** The table's name in the database, for existing tables. */
-  originalName?: string;
-  change?: "renamed" | "dropped";
+  return { ...EMPTY_DRAFT, ...draft, objects: draft.objects ?? {} };
 }
 
 /** Handle id used when a relationship targets a table rather than a known column. */
 export const TABLE_HANDLE = "__table__";
-
-export interface DiagramEdge {
-  id: string;
-  source: string;
-  sourceColumn: string;
-  target: string;
-  targetColumn: string;
-  draft: boolean;
-}
-
-export interface Diagram {
-  tables: DiagramTable[];
-  edges: DiagramEdge[];
-}
 
 export const existingId = (name: string) => `t:${name}`;
 export const draftTableId = (id: string) => `d:${id}`;
@@ -265,7 +254,7 @@ export function buildDiagram(
  * the table's indexes and triggers and every view.
  */
 function rebuildStatements(rel: RelationInfo, defs: ColumnDef[], schema: Schema): string[] {
-  const tmp = `__sbe_rebuild_${rel.name}`;
+  const tmp = `${REBUILD_TABLE_PREFIX}${rel.name}`;
   const cols = defs.map((d) => quoteIdent(d.name)).join(", ");
   const views = schema.views.filter((v) => v.sql);
   const objects = [
@@ -370,6 +359,21 @@ export function draftStatements(draft: Draft, schema?: Schema | null): string[] 
       }),
     );
   }
+
+  // An imported schema's objects are rows of OBJECTS_TABLE: replace the changed ones.
+  if (schema?.dialect) {
+    const table = quoteIdent(OBJECTS_TABLE);
+    for (const [key, object] of Object.entries(draft.objects)) {
+      const [kind, ...name] = key.split(":");
+      out.push(
+        `DELETE FROM ${table} WHERE kind = ${sqlLiteral(kind)} AND name = ${sqlLiteral(name.join(":"))}`,
+      );
+      if (object) {
+        const values = [object.kind, object.name.trim(), object.table, object.body];
+        out.push(`INSERT INTO ${table} VALUES (${values.map(sqlLiteral).join(", ")})`);
+      }
+    }
+  }
   return out;
 }
 
@@ -389,6 +393,7 @@ export function schemaStatements(schema: Schema | null | undefined): string[] {
     ...sqlOf(schema.indexes),
     ...sqlOf(schema.triggers),
     ...sqlOf(schema.views),
+    ...(schema.dialect ? objectsTableStatements(schema.dialect, schema.objects) : []),
   ];
 }
 
@@ -403,18 +408,8 @@ export function isDraftEmpty(draft: Draft): boolean {
     Object.values(draft.addedColumns).every((c) => c.length === 0) &&
     Object.keys(draft.renamedTables).length === 0 &&
     draft.droppedTables.length === 0 &&
-    Object.values(draft.columnChanges).every((c) => Object.keys(c).length === 0)
-  );
-}
-
-/** How many things the draft changes, for summaries like "3 changes". */
-export function countChanges(draft: Draft): number {
-  return (
-    draft.tables.length +
-    Object.values(draft.addedColumns).flat().length +
-    Object.keys(draft.renamedTables).length +
-    draft.droppedTables.length +
-    Object.values(draft.columnChanges).reduce((n, c) => n + Object.keys(c).length, 0)
+    Object.values(draft.columnChanges).every((c) => Object.keys(c).length === 0) &&
+    Object.keys(draft.objects).length === 0
   );
 }
 
@@ -435,7 +430,122 @@ export function changeSummary(draft: Draft): string[] {
     renamed > 0 && plural(renamed, "table renamed", "tables renamed"),
     draft.droppedTables.length > 0 &&
       plural(draft.droppedTables.length, "table deleted", "tables deleted"),
+    Object.keys(draft.objects).length > 0 &&
+      plural(Object.keys(draft.objects).length, "object changed", "objects changed"),
   ].filter((p): p is string => !!p);
+}
+
+/** "Enum", "Function"…: an object kind as the start of a sentence. */
+const kindLabel = (kind: string) => kind.charAt(0).toUpperCase() + kind.slice(1);
+
+/** An enum's values, from its stored body (a JSON array); [] if unreadable. */
+/** Non-empty values that appear more than once. */
+export function duplicateValues(values: readonly string[]): Set<string> {
+  const seen = new Set<string>();
+  const dupes = new Set<string>();
+  for (const v of values) {
+    if (v && seen.has(v)) dupes.add(v);
+    seen.add(v);
+  }
+  return dupes;
+}
+
+export function enumValues(object: Pick<ExtraObject, "body">): string[] {
+  try {
+    const values: unknown = JSON.parse(object.body);
+    return Array.isArray(values) ? values.map(String) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** How a column default reads in a change list. */
+function defaultText(c: ColumnDef): string {
+  switch (c.defaultKind) {
+    case "none":
+      return "no default";
+    case "null":
+      return "default NULL";
+    case "text":
+      return `default '${c.defaultValue}'`;
+    default:
+      return `default ${c.defaultValue}`;
+  }
+}
+
+/** What differs between a column as it is and as designed, e.g. ["type TEXT → INTEGER"]. */
+function columnDifferences(base: ColumnDef, def: ColumnDef): string[] {
+  const flag = (on: boolean, what: string) => (on ? `now ${what}` : `no longer ${what}`);
+  const ref = (c: ColumnDef) =>
+    c.references ? `${c.references.table}.${c.references.column}` : "nothing";
+  return [
+    base.name !== def.name && `renamed to "${def.name}"`,
+    base.type !== def.type && `type ${base.type || "none"} → ${def.type || "none"}`,
+    base.notNull !== def.notNull && flag(def.notNull, "NOT NULL"),
+    base.unique !== def.unique && flag(def.unique, "UNIQUE"),
+    base.primaryKey !== def.primaryKey && flag(def.primaryKey, "the primary key"),
+    defaultText(base) !== defaultText(def) && defaultText(def),
+    ref(base) !== ref(def) && `references ${ref(def)}`,
+  ].filter((d): d is string => !!d);
+}
+
+/**
+ * Everything a save would change, one plain sentence per change, for the review before
+ * saving (the SQL shows how; this shows what).
+ */
+export function changeDetails(schema: Schema | null | undefined, draft: Draft): string[] {
+  const rels = new Map((schema?.tables ?? []).map((t) => [t.name, t]));
+  const out: string[] = [];
+  for (const t of draft.tables) {
+    const names = t.columns.map((c) => c.name).join(", ");
+    out.push(
+      `New table "${t.name}" with ${plural(t.columns.length, "column", "columns")}: ${names}`,
+    );
+  }
+  for (const table of draft.droppedTables) {
+    out.push(`Table "${table}" deleted, with all its rows`);
+  }
+  const live = (table: string) => !draft.droppedTables.includes(table);
+  for (const [from, to] of Object.entries(draft.renamedTables)) {
+    if (live(from)) out.push(`Table "${from}" renamed to "${to}"`);
+  }
+  for (const [table, columns] of Object.entries(draft.addedColumns)) {
+    if (!live(table)) continue;
+    for (const c of columns) {
+      const ref = c.references ? `, references ${c.references.table}.${c.references.column}` : "";
+      out.push(`"${table}": new column "${c.name}" (${c.type || "no type"}${ref})`);
+    }
+  }
+  for (const [table, changes] of Object.entries(draft.columnChanges)) {
+    if (!live(table)) continue;
+    const rel = rels.get(table);
+    for (const [column, change] of Object.entries(changes)) {
+      if (change.kind === "drop") {
+        out.push(`"${table}": column "${column}" deleted, with its data`);
+        continue;
+      }
+      const info = rel?.columns.find((c) => c.name === column);
+      const diffs = rel && info ? columnDifferences(columnDefFromInfo(rel, info), change.def) : [];
+      out.push(`"${table}": column "${column}" ${diffs.length > 0 ? diffs.join(", ") : "changed"}`);
+    }
+  }
+  const stored = new Map((schema?.objects ?? []).map((o) => [objectKey(o), o]));
+  for (const [key, object] of Object.entries(draft.objects)) {
+    const before = stored.get(key);
+    const label = kindLabel(object?.kind ?? before?.kind ?? key.split(":")[0]);
+    const name = before?.name ?? object?.name ?? "";
+    if (!object) {
+      out.push(`${label} "${name}" deleted`);
+      continue;
+    }
+    const renamed = before && before.name !== object.name ? `, renamed to "${object.name}"` : "";
+    const what =
+      object.kind === "enum" ? `values ${enumValues(object).join(", ") || "none"}` : "SQL changed";
+    out.push(
+      before ? `${label} "${name}": ${what}${renamed}` : `New ${object.kind} "${object.name}"`,
+    );
+  }
+  return out;
 }
 
 /** Tables a column can point at after saving, with their columns. */
@@ -557,6 +667,14 @@ export function validateDraft(schema: Schema | null | undefined, draft: Draft): 
   }
   // Every pending relationship links columns of fitting types.
   problems.push(...edgeTypeProblems(buildDiagram(schema, draft)).values());
+  // Imported objects need a name, unique within their kind.
+  const seen = new Set<string>();
+  for (const object of currentObjects(schema, draft)) {
+    const key = `${object.kind}:${object.name.trim().toLowerCase()}`;
+    if (!object.name.trim()) problems.push(`A ${object.kind} needs a name`);
+    else if (seen.has(key)) problems.push(`Two ${object.kind}s are called ${object.name}`);
+    seen.add(key);
+  }
   return problems;
 }
 
@@ -791,40 +909,7 @@ export function isNewColumn(diagram: Diagram, end: { table: string; column: stri
   return !!table?.columns.find((c) => c.name === end.column)?.draft;
 }
 
-/** Removes a pending relationship (from a new column, or one added to an existing column). */
-export function disconnectColumn(
-  draft: Draft,
-  diagram: Diagram,
-  edge: DiagramEdge,
-  schema?: Schema | null,
-): Draft {
-  const source = diagram.tables.find((t) => t.id === edge.source);
-  if (!source || !edge.draft) return draft;
-  const clear = (c: ColumnDef): ColumnDef =>
-    c.name === edge.sourceColumn ? { ...c, references: null } : c;
-  if (source.draftId) {
-    return {
-      ...draft,
-      tables: draft.tables.map((t) =>
-        t.id === source.draftId ? { ...t, columns: t.columns.map(clear) } : t,
-      ),
-    };
-  }
-  const column = source.columns.find((c) => c.name === edge.sourceColumn);
-  if (column?.change === "edited" && column.originalName) {
-    const rel = schema?.tables.find((t) => t.name === source.originalName);
-    const def = rel && currentColumnDef(draft, rel, column.originalName);
-    return rel && def
-      ? editExistingColumn(draft, rel, column.originalName, { ...def, references: null })
-      : draft;
-  }
-  const key = source.originalName ?? source.name;
-  return setAddedColumns(draft, key, (draft.addedColumns[key] ?? []).map(clear));
-}
-
 /* ---- Editing from the outline: one interface for every kind of column ---- */
-
-export type ColumnEditMode = "create" | "add";
 
 const relationOf = (schema: Schema | null | undefined, table: DiagramTable) =>
   schema?.tables.find((t) => t.name === table.originalName);
@@ -857,6 +942,21 @@ export function columnForEditing(
   return def ? { def, mode: "create" } : null;
 }
 
+/** Edits the columns of a new table ("n" keys) or those added to an existing one ("a" keys). */
+function mapNewColumns(
+  draft: Draft,
+  table: DiagramTable,
+  kind: "n" | "a",
+  f: (columns: ColumnDef[]) => ColumnDef[],
+): Draft {
+  if (kind === "n") {
+    const t = draft.tables.find((x) => x.id === table.draftId);
+    return t ? updateDraftTable(draft, t.id, { ...t, columns: f(t.columns) }) : draft;
+  }
+  const name = table.originalName ?? "";
+  return setAddedColumns(draft, name, f(draft.addedColumns[name] ?? []));
+}
+
 export function updateColumn(
   draft: Draft,
   schema: Schema | null | undefined,
@@ -865,23 +965,10 @@ export function updateColumn(
   def: ColumnDef,
 ): Draft {
   const [kind, id] = [key.slice(0, 1), key.slice(2)];
-  if (kind === "n") {
-    const t = draft.tables.find((x) => x.id === table.draftId);
-    return t
-      ? updateDraftTable(draft, t.id, {
-          ...t,
-          columns: t.columns.map((c, i) => (i === Number(id) ? def : c)),
-        })
-      : draft;
-  }
-  if (kind === "a") {
-    const name = table.originalName ?? "";
-    return setAddedColumns(
-      draft,
-      name,
-      (draft.addedColumns[name] ?? []).map((c, i) => (i === Number(id) ? def : c)),
+  if (kind === "n" || kind === "a")
+    return mapNewColumns(draft, table, kind, (cols) =>
+      cols.map((c, i) => (i === Number(id) ? def : c)),
     );
-  }
   const rel = relationOf(schema, table);
   return rel ? editExistingColumn(draft, rel, id, def) : draft;
 }
@@ -889,23 +976,8 @@ export function updateColumn(
 /** Deletes a column: new ones disappear, existing ones are marked (revertColumn restores them). */
 export function dropColumn(draft: Draft, table: DiagramTable, key: string): Draft {
   const [kind, id] = [key.slice(0, 1), key.slice(2)];
-  if (kind === "n") {
-    const t = draft.tables.find((x) => x.id === table.draftId);
-    return t
-      ? updateDraftTable(draft, t.id, {
-          ...t,
-          columns: t.columns.filter((_, i) => i !== Number(id)),
-        })
-      : draft;
-  }
-  if (kind === "a") {
-    const name = table.originalName ?? "";
-    return setAddedColumns(
-      draft,
-      name,
-      (draft.addedColumns[name] ?? []).filter((_, i) => i !== Number(id)),
-    );
-  }
+  if (kind === "n" || kind === "a")
+    return mapNewColumns(draft, table, kind, (cols) => cols.filter((_, i) => i !== Number(id)));
   return setColumnChange(draft, table.originalName ?? "", id, { kind: "drop" });
 }
 

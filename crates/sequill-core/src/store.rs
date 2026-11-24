@@ -1,9 +1,9 @@
 //! The databases Sequill knows: files it keeps in a data directory, and files the user
 //! opened from their computer, which are edited where they are (never copied). A small
-//! catalog database keeps their display names. Mirrors the web worker's OPFS catalog
-//! (`src/shared/lib/sqlite/worker.ts`), with real files that other processes (the MCP
-//! server) can open too.
+//! catalog database keeps their display names. They are real files that other processes
+//! (the MCP server) can open too.
 
+use crate::dialects;
 use crate::error::{Error, Result};
 use crate::session::DesignCopy;
 use crate::session::Session;
@@ -24,6 +24,8 @@ const MCP_ENABLED_KEY: &str = "mcp_enabled";
 /// Whether assistants may also change data, schema and databases ("1" or "0"); off until
 /// turned on. Checked by the MCP server on every call that changes something.
 const MCP_CHANGES_KEY: &str = "mcp_allow_changes";
+/// The window's page and database, for `app_info` over MCP.
+const UI_STATE_KEY: &str = "ui_state";
 /// Requests to show something older than this are dropped unseen.
 const UI_REQUEST_MAX_AGE_MS: i64 = 10_000;
 /// How many days the record of what assistants did over MCP is kept; "0" keeps it forever.
@@ -35,8 +37,14 @@ const DAY_MS: i64 = 24 * 60 * 60 * 1000;
 const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
 const STRUCTURE_CHANGED: &str = "The database's structure changed since your design was checked (another app or an assistant changed it). Nothing was saved; review the changes and save again.";
 
+/// Points the app and `sequill mcp` at another data folder (end-to-end tests use a fresh one).
+pub const DATA_DIR_ENV: &str = "SEQUILL_DATA_DIR";
+
 /// Where the app and the MCP server keep databases unless told otherwise.
 pub fn default_data_dir() -> Option<PathBuf> {
+    if let Some(dir) = std::env::var_os(DATA_DIR_ENV).filter(|d| !d.is_empty()) {
+        return Some(PathBuf::from(dir));
+    }
     dirs::data_dir().map(|dir| dir.join(APP_IDENTIFIER))
 }
 
@@ -51,6 +59,9 @@ pub struct DbInfo {
     /// The file on the user's computer that is edited in place; None when Sequill keeps the
     /// file in its data folder.
     pub path: Option<String>,
+    /// The database type of a schema imported from another database ("postgresql"…): a
+    /// design for the schema designer only, never opened by the editor or MCP. None for SQLite.
+    pub dialect: Option<String>,
 }
 
 /// A query saved by name, shared by every database.
@@ -71,6 +82,31 @@ fn required_name(name: &str) -> Result<&str> {
         Ok(name)
     }
 }
+
+/// The schema designer's unsaved design for one database (or "blank"), as stored.
+#[derive(Debug, Clone, Serialize, PartialEq)]
+pub struct StoredDesign {
+    /// A database id, or [`BLANK_DESIGN`].
+    pub key: String,
+    /// The draft as JSON (see [`crate::design::Draft`]).
+    pub draft: serde_json::Value,
+    /// Goes up by one on every save, so a save based on an older read can be refused.
+    pub version: i64,
+}
+
+/// What `import_schema` made, and what it left out (such as "CREATE FUNCTION (2)").
+#[derive(Debug, Clone, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportedSchema {
+    pub database: DbInfo,
+    pub skipped: Vec<String>,
+}
+
+/// Databases other than SQLite the schema designer can design for (see `create_design`).
+pub const DESIGN_DIALECTS: &[&str] = &["postgresql", "mysql", "mssql", "duckdb"];
+
+/// The key of the design that isn't tied to a database (it becomes a new one).
+pub const BLANK_DESIGN: &str = "blank";
 
 /// What other processes changed since the last check.
 #[derive(Debug, Clone, Default, Serialize, PartialEq)]
@@ -153,20 +189,47 @@ fn to_info(row: &rusqlite::Row) -> rusqlite::Result<DbInfo> {
         created_at: row.get("created_at")?,
         updated_at: row.get("updated_at")?,
         path: row.get("path")?,
+        dialect: row.get("dialect")?,
     })
 }
 
-/// Adds the `path` column to catalogs made before files could be opened in place. Inside an
-/// immediate transaction, so the app and the MCP server can't both add it.
-fn migrate_catalog(catalog: &mut Connection) -> Result<()> {
+/// Adds the columns older catalogs lack: `path` (files opened in place) and `dialect`
+/// (schemas imported from another database), filling `dialect` in from each imported file.
+/// Inside an immediate transaction, so the app and the MCP server can't both add them.
+fn migrate_catalog(catalog: &mut Connection, dir: &Path) -> Result<()> {
     let tx = catalog.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let has_path: bool = tx.query_row(
-        "SELECT count(*) > 0 FROM pragma_table_info('databases') WHERE name = 'path'",
-        [],
-        |r| r.get(0),
-    )?;
-    if !has_path {
+    let has = |column: &str| -> rusqlite::Result<bool> {
+        tx.query_row(
+            "SELECT count(*) > 0 FROM pragma_table_info('databases') WHERE name = ?",
+            [column],
+            |r| r.get(0),
+        )
+    };
+    if !has("path")? {
         tx.execute_batch("ALTER TABLE databases ADD COLUMN path TEXT")?;
+    }
+    if !has("dialect")? {
+        tx.execute_batch("ALTER TABLE databases ADD COLUMN dialect TEXT")?;
+        // Imports always live in the data folder; a file that can't be read stays unlabelled.
+        let ids: Vec<String> = tx
+            .prepare("SELECT id FROM databases WHERE path IS NULL")?
+            .query_map([], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        for id in ids {
+            let file = dir
+                .join(DATABASES_DIR)
+                .join(format!("{DB_FILE_PREFIX}{id}{DB_FILE_SUFFIX}"));
+            let dialect = Session::open_read_only(&file)
+                .and_then(|s| s.schema())
+                .ok()
+                .and_then(|schema| schema.dialect);
+            if let Some(dialect) = dialect {
+                tx.execute(
+                    "UPDATE databases SET dialect = ? WHERE id = ?",
+                    params![dialect, id],
+                )?;
+            }
+        }
     }
     tx.execute_batch("CREATE UNIQUE INDEX IF NOT EXISTS databases_path ON databases (path)")?;
     Ok(tx.commit()?)
@@ -238,9 +301,11 @@ impl Store {
                id INTEGER PRIMARY KEY AUTOINCREMENT, at INTEGER NOT NULL, tool TEXT NOT NULL,
                database_id TEXT, database_name TEXT, sql TEXT, details TEXT,
                ok INTEGER NOT NULL, message TEXT);
-             CREATE INDEX IF NOT EXISTS mcp_activity_at ON mcp_activity (at);",
+             CREATE INDEX IF NOT EXISTS mcp_activity_at ON mcp_activity (at);
+             CREATE TABLE IF NOT EXISTS designs (
+               key TEXT PRIMARY KEY, draft TEXT NOT NULL, version INTEGER NOT NULL);",
         )?;
-        migrate_catalog(&mut catalog)?;
+        migrate_catalog(&mut catalog, dir)?;
         let catalog_version = data_version(&catalog)?;
         Ok(Self {
             dir: dir.to_owned(),
@@ -323,16 +388,28 @@ impl Store {
             .ok_or_else(|| Error::msg("That database no longer exists"))
     }
 
-    /// Finds a database by id, or by a name that only one database has (any case).
+    /// Finds a SQLite database (not a design of another database) by id, or by a name that
+    /// only one of them has (any case).
     pub fn resolve(&self, id_or_name: &str) -> Result<DbInfo> {
+        self.find(id_or_name, |d| d.dialect.is_none())
+    }
+
+    /// Like `resolve`, but also finds designs of other databases: for the schema designer.
+    pub fn resolve_any(&self, id_or_name: &str) -> Result<DbInfo> {
+        self.find(id_or_name, |_| true)
+    }
+
+    fn find(&self, id_or_name: &str, keep: impl Fn(&DbInfo) -> bool) -> Result<DbInfo> {
         if let Ok(info) = self.info(id_or_name) {
-            return Ok(info);
+            if keep(&info) {
+                return Ok(info);
+            }
         }
         let wanted = id_or_name.trim().to_lowercase();
         let matches: Vec<DbInfo> = self
             .list()?
             .into_iter()
-            .filter(|d| d.name.to_lowercase() == wanted)
+            .filter(|d| keep(d) && d.name.to_lowercase() == wanted)
             .collect();
         match matches.len() {
             1 => Ok(matches.into_iter().next().expect("one match")),
@@ -378,23 +455,87 @@ impl Store {
         }
     }
 
-    pub fn import(&mut self, name: &str, bytes: &[u8]) -> Result<DbInfo> {
-        if !bytes.starts_with(SQLITE_HEADER) {
-            return Err(not_sqlite("it has no SQLite header"));
+    /// A new database with only the structure (no rows) of `bytes`, and no link back to them:
+    /// a SQLite file, or a SQL script written for `dialect` (see [`dialects::to_sqlite`]).
+    pub fn import_schema(
+        &mut self,
+        name: &str,
+        dialect: &str,
+        bytes: &[u8],
+    ) -> Result<ImportedSchema> {
+        let name = required_name(name)?;
+        // The other database's type and its objects SQLite can't run, kept beside the tables.
+        let mut extra = String::new();
+        let (structure, skipped) = if bytes.starts_with(SQLITE_HEADER) {
+            (self.structure_of_file(bytes)?, Vec::new())
+        } else {
+            let script = std::str::from_utf8(bytes).map_err(|_| {
+                Error::msg("This file is neither a SQLite database nor a SQL script")
+            })?;
+            let converted = dialects::to_sqlite(dialect, script)?;
+            if !dialect.eq_ignore_ascii_case("sqlite") {
+                extra = crate::sql_objects::objects_sql(
+                    &dialect.to_ascii_lowercase(),
+                    &converted.objects,
+                );
+            }
+            let scratch = Session::memory()?;
+            let mut skipped = converted.skipped;
+            for sql in &converted.statements {
+                if let Err(error) = scratch.connection().execute_batch(sql) {
+                    let start: String =
+                        sql.split_whitespace().take(4).collect::<Vec<_>>().join(" ");
+                    skipped.push(format!("{start}… ({error})"));
+                }
+            }
+            // Rows a SQLite script inserted stay behind.
+            (scratch.schema_only_copy()?, skipped)
+        };
+        if structure.schema()?.tables.is_empty() {
+            return Err(Error::msg("No tables were found in this file"));
         }
-        let id = uuid::Uuid::new_v4().to_string();
-        let path = self.managed_file(&id);
-        let partial = path.with_extension("sqlite3.part");
+        let seed = format!("{}\n{extra}", structure.dump()?);
+        let mut database = self.create(name, Some(&seed))?;
+        if !extra.is_empty() {
+            self.catalog.execute(
+                "UPDATE databases SET dialect = ? WHERE id = ?",
+                params![dialect.to_ascii_lowercase(), database.id],
+            )?;
+            database = self.info(&database.id)?;
+        }
+        Ok(ImportedSchema { database, skipped })
+    }
+
+    /// A new, empty design for another database (`dialect` such as "postgresql"): the schema
+    /// designer's only, like an imported schema. SQLite databases are made with `create`.
+    pub fn create_design(&mut self, name: &str, dialect: &str) -> Result<DbInfo> {
+        let name = required_name(name)?;
+        let dialect = dialect.to_ascii_lowercase();
+        if !DESIGN_DIALECTS.contains(&dialect.as_str()) {
+            return Err(Error::msg(format!(
+                "Sequill can't design a schema for \"{dialect}\""
+            )));
+        }
+        let seed = crate::sql_objects::objects_sql(&dialect, &[]);
+        let database = self.create(name, Some(&seed))?;
+        self.catalog.execute(
+            "UPDATE databases SET dialect = ? WHERE id = ?",
+            params![dialect, database.id],
+        )?;
+        self.info(&database.id)
+    }
+
+    /// The structure of a SQLite file's bytes, read from a temporary copy.
+    fn structure_of_file(&self, bytes: &[u8]) -> Result<Session> {
+        let partial = self
+            .dir
+            .join(DATABASES_DIR)
+            .join(format!("import-{}.sqlite3.part", uuid::Uuid::new_v4()));
         fs::write(&partial, bytes)?;
-        let checked = Session::open_read_only(&partial)
-            .and_then(|s| s.count("SELECT count(*) FROM sqlite_schema", &[]));
+        let copied = Session::open_read_only(&partial).and_then(|s| s.schema_only_copy());
         drop_side_files(&partial);
-        if let Err(error) = checked {
-            let _ = fs::remove_file(&partial);
-            return Err(not_sqlite(&error.to_string()));
-        }
-        fs::rename(&partial, &path)?;
-        self.register(&id, name, bytes.len() as u64)
+        let _ = fs::remove_file(&partial);
+        copied.map_err(|e| not_sqlite(&e.to_string()))
     }
 
     /// Adds a file on the user's computer to the list without copying it: every change is
@@ -457,10 +598,7 @@ impl Store {
     }
 
     pub fn rename(&mut self, id: &str, name: &str) -> Result<DbInfo> {
-        let name = name.trim();
-        if name.is_empty() {
-            return Err(Error::msg("The name is empty"));
-        }
+        let name = required_name(name)?;
         self.info(id)?;
         self.catalog.execute(
             "UPDATE databases SET name = ? WHERE id = ?",
@@ -486,6 +624,8 @@ impl Store {
         if self.info(id).is_ok_and(|info| info.path.is_some()) {
             self.catalog
                 .execute("DELETE FROM databases WHERE id = ?", [id])?;
+            self.catalog
+                .execute("DELETE FROM designs WHERE key = ?", [id])?;
             return Ok(());
         }
         // Only forget it once the file is gone: another process may still have it open.
@@ -502,6 +642,8 @@ impl Store {
         drop_side_files(&path);
         self.catalog
             .execute("DELETE FROM databases WHERE id = ?", [id])?;
+        self.catalog
+            .execute("DELETE FROM designs WHERE key = ?", [id])?;
         Ok(())
     }
 
@@ -617,36 +759,72 @@ impl Store {
         Ok(())
     }
 
-    /// Saves `sql` under `name`: updates the query with `id`, or the one already called `name`
-    /// (any case), or adds a new one.
-    pub fn save_query(&self, name: &str, sql: &str, id: Option<&str>) -> Result<SavedQuery> {
-        let name = required_name(name)?;
-        let existing = self.saved_queries()?;
-        let target = match id {
-            Some(id) => Some(
-                existing
-                    .iter()
-                    .find(|q| q.id == id)
-                    .ok_or_else(|| Error::msg(format!("No saved query has the id {id}")))?,
-            ),
-            None => existing.iter().find(|q| q.name.eq_ignore_ascii_case(name)),
-        };
-        let query = SavedQuery {
-            id: target.map_or_else(|| uuid::Uuid::new_v4().to_string(), |q| q.id.clone()),
-            name: name.to_owned(),
-            sql: sql.to_owned(),
-            updated_at: now_ms(),
-        };
-        self.upsert_saved_query(&query)?;
-        Ok(query)
-    }
-
     /// Removes a saved query; false when there was none with that id.
     pub fn delete_saved_query(&self, id: &str) -> Result<bool> {
         Ok(self
             .catalog
             .execute("DELETE FROM saved_queries WHERE id = ?", [id])?
             > 0)
+    }
+
+    /// Every stored schema design.
+    pub fn designs(&self) -> Result<Vec<StoredDesign>> {
+        self.catalog
+            .prepare("SELECT key, draft, version FROM designs")?
+            .query_map([], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?, r.get(2)?))
+            })?
+            .map(|row| {
+                let (key, draft, version) = row?;
+                let draft = serde_json::from_str(&draft)
+                    .map_err(|e| Error::msg(format!("The design for {key} is unreadable ({e})")))?;
+                Ok(StoredDesign {
+                    key,
+                    draft,
+                    version,
+                })
+            })
+            .collect()
+    }
+
+    /// The stored design for `key`; an empty one at version 0 if there is none.
+    pub fn design(&self, key: &str) -> Result<StoredDesign> {
+        Ok(self
+            .designs()?
+            .into_iter()
+            .find(|d| d.key == key)
+            .unwrap_or_else(|| StoredDesign {
+                key: key.to_owned(),
+                draft: serde_json::json!({}),
+                version: 0,
+            }))
+    }
+
+    /// Saves the design for `key` (a database id or [`BLANK_DESIGN`]) if it is still at
+    /// `version` (0 when none was saved yet). Returns the new version, or None when another
+    /// window or an assistant saved it first; nothing is saved then.
+    pub fn save_design(
+        &self,
+        key: &str,
+        draft: &serde_json::Value,
+        version: i64,
+    ) -> Result<Option<i64>> {
+        if key != BLANK_DESIGN {
+            check_id(key)?;
+        }
+        let draft = draft.to_string();
+        let saved = if version == 0 {
+            self.catalog.execute(
+                "INSERT INTO designs (key, draft, version) VALUES (?, ?, 1) ON CONFLICT (key) DO NOTHING",
+                params![key, draft],
+            )?
+        } else {
+            self.catalog.execute(
+                "UPDATE designs SET draft = ?, version = version + 1 WHERE key = ? AND version = ?",
+                params![draft, key, version],
+            )?
+        };
+        Ok((saved > 0).then_some(version + 1))
     }
 
     /// Records one call an assistant made over MCP, then forgets calls older than the
@@ -810,12 +988,33 @@ impl Store {
     }
 
     fn set_switch(&self, key: &str, on: bool) -> Result<()> {
+        self.set_setting(key, if on { "1" } else { "0" })
+    }
+
+    fn set_setting(&self, key: &str, value: &str) -> Result<()> {
         self.catalog.execute(
             "INSERT INTO settings (key, value) VALUES (?, ?)
              ON CONFLICT (key) DO UPDATE SET value = excluded.value",
-            params![key, if on { "1" } else { "0" }],
+            params![key, value],
         )?;
         Ok(())
+    }
+
+    /// What the window shows (its page and database, as JSON), saved by the app whenever it
+    /// changes so assistants can ask over MCP.
+    pub fn ui_state(&self) -> Result<Option<String>> {
+        Ok(self
+            .catalog
+            .query_row(
+                "SELECT value FROM settings WHERE key = ?",
+                [UI_STATE_KEY],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    pub fn set_ui_state(&self, state: &str) -> Result<()> {
+        self.set_setting(UI_STATE_KEY, state)
     }
 
     /// What other processes committed since the last call.
@@ -843,7 +1042,7 @@ pub struct McpActivity {
     pub id: i64,
     /// When it was called (ms since the Unix epoch).
     pub at: i64,
-    /// The tool's name, such as `query` or `insert_rows`.
+    /// The tool's name, such as `query` or `execute`.
     pub tool: String,
     pub database_id: Option<String>,
     pub database_name: Option<String>,
@@ -942,32 +1141,25 @@ mod tests {
     }
 
     #[test]
-    fn exports_and_imports_a_database() {
+    fn exports_a_database() {
         let (_dir, mut store) = store();
         let a = store
             .create("A", Some("CREATE TABLE t(a); INSERT INTO t VALUES ('x');"))
             .unwrap();
         let bytes = store.export(&a.id).unwrap();
         assert!(bytes.starts_with(SQLITE_HEADER));
-
-        let b = store.import("B", &bytes).unwrap();
-        let rows = store
-            .session(&b.id)
-            .unwrap()
-            .query("SELECT a FROM t", &[], None)
-            .unwrap()
-            .rows;
-        assert_eq!(rows, vec![vec![crate::CellValue::Text("x".into())]]);
     }
 
     #[test]
     fn rejects_files_that_are_not_sqlite() {
         let (dir, mut store) = store();
-        let error = store.import("X", b"hello").unwrap_err().to_string();
-        assert!(error.starts_with("This file does not look like a SQLite database"));
         let mut corrupt = SQLITE_HEADER.to_vec();
         corrupt.extend([0xff; 100]);
-        assert!(store.import("Y", &corrupt).is_err());
+        let error = store
+            .import_schema("Y", "sqlite", &corrupt)
+            .unwrap_err()
+            .to_string();
+        assert!(error.starts_with("This file does not look like a SQLite database"));
         assert!(store.list().unwrap().is_empty());
         assert_eq!(
             fs::read_dir(dir.path().join(DATABASES_DIR))
@@ -1044,17 +1236,21 @@ mod tests {
     }
 
     #[test]
-    fn saves_queries_by_id_or_name() {
+    fn saves_queries() {
         let (dir, store) = store();
-        let first = store.save_query("Top customers", "SELECT 1", None).unwrap();
-        let same = store.save_query("top CUSTOMERS", "SELECT 2", None).unwrap();
-        assert_eq!(same.id, first.id, "same name updates it");
-        let renamed = store
-            .save_query("Best customers", "SELECT 3", Some(&first.id))
+        let query = |id: &str, name: &str, updated_at: i64| SavedQuery {
+            id: id.into(),
+            name: name.into(),
+            sql: "SELECT 1".into(),
+            updated_at,
+        };
+        store
+            .upsert_saved_query(&query("a", "Top customers", 1))
             .unwrap();
-        assert_eq!(renamed.id, first.id);
-        std::thread::sleep(std::time::Duration::from_millis(2));
-        store.save_query("Other", "SELECT 4", None).unwrap();
+        store
+            .upsert_saved_query(&query("a", " Best customers ", 2))
+            .unwrap();
+        store.upsert_saved_query(&query("b", "Other", 3)).unwrap();
 
         let other = Store::open_shared(dir.path()).unwrap();
         let names: Vec<String> = other
@@ -1063,11 +1259,14 @@ mod tests {
             .into_iter()
             .map(|q| q.name)
             .collect();
-        assert_eq!(names, ["Other", "Best customers"], "newest first, shared");
-        assert!(store.save_query(" ", "SELECT 1", None).is_err());
-        assert!(store.save_query("x", "SELECT 1", Some("missing")).is_err());
-        assert!(store.delete_saved_query(&first.id).unwrap());
-        assert!(!store.delete_saved_query(&first.id).unwrap());
+        assert_eq!(
+            names,
+            ["Other", "Best customers"],
+            "newest first, shared, trimmed"
+        );
+        assert!(store.upsert_saved_query(&query("c", " ", 4)).is_err());
+        assert!(store.delete_saved_query("a").unwrap());
+        assert!(!store.delete_saved_query("a").unwrap());
     }
 
     #[test]
@@ -1282,6 +1481,50 @@ mod tests {
     }
 
     #[test]
+    fn creates_empty_designs_for_other_databases_only() {
+        let (_dir, mut store) = store();
+        let design = store.create_design("Shop", "PostgreSQL").unwrap();
+        assert_eq!(design.dialect.as_deref(), Some("postgresql"));
+        let schema = store.session(&design.id).unwrap().schema().unwrap();
+        assert_eq!(schema.dialect.as_deref(), Some("postgresql"));
+        assert!(
+            schema.tables.is_empty(),
+            "empty, and the objects table stays hidden"
+        );
+        assert!(store.create_design("Lite", "sqlite").is_err());
+        assert!(store.create_design("Odd", "oracle").is_err());
+        assert!(store.create_design(" ", "mysql").is_err());
+        assert_eq!(store.list().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn labels_schemas_imported_before_the_dialect_column() {
+        let dir = tempfile::tempdir().unwrap();
+        let (pg, plain) = {
+            let mut store = Store::open(dir.path()).unwrap();
+            let pg = store
+                .import_schema(
+                    "Pg",
+                    "postgresql",
+                    b"CREATE TABLE p (id serial PRIMARY KEY);",
+                )
+                .unwrap();
+            let plain = store.create("Plain", Some("CREATE TABLE t(a)")).unwrap();
+            (pg.database.id, plain.id)
+        };
+        Connection::open(dir.path().join(CATALOG_FILE))
+            .unwrap()
+            .execute_batch("ALTER TABLE databases DROP COLUMN dialect")
+            .unwrap();
+        let store = Store::open(dir.path()).unwrap();
+        assert_eq!(
+            store.info(&pg).unwrap().dialect.as_deref(),
+            Some("postgresql")
+        );
+        assert_eq!(store.info(&plain).unwrap().dialect, None);
+    }
+
+    #[test]
     fn checks_designs_on_a_copy_and_saves_only_when_asked() {
         let (_dir, mut store) = store();
         let a = store
@@ -1342,6 +1585,84 @@ mod tests {
                 error: None
             }
         );
+    }
+
+    #[test]
+    fn imports_only_the_structure_of_a_file_or_script() {
+        let (_dir, mut store) = store();
+        let source = store
+            .create(
+                "Src",
+                Some("CREATE TABLE t(a PRIMARY KEY); INSERT INTO t VALUES (1), (2);"),
+            )
+            .unwrap();
+        let bytes = store.export(&source.id).unwrap();
+        let from_file = store.import_schema("Copy", "sqlite", &bytes).unwrap();
+        assert!(from_file.skipped.is_empty());
+        let copy = store.session(&from_file.database.id).unwrap();
+        assert_eq!(copy.count("SELECT count(*) FROM t", &[]).unwrap(), 0);
+
+        let script =
+            b"CREATE TABLE p (id serial PRIMARY KEY, at timestamptz); CREATE VIEW v AS SELECT 1;";
+        let from_sql = store.import_schema("Pg", "postgresql", script).unwrap();
+        assert!(from_sql.skipped.is_empty());
+        let schema = store
+            .session(&from_sql.database.id)
+            .unwrap()
+            .schema()
+            .unwrap();
+        assert_eq!(schema.tables[0].columns[1].type_name, "TIMESTAMPTZ");
+        // The database type and the view (which SQLite can't run as PostgreSQL) are kept.
+        assert_eq!(schema.dialect.as_deref(), Some("postgresql"));
+        assert_eq!(schema.objects[0].kind, "view");
+        // A design of another database: labelled, and out of reach by name or id.
+        assert_eq!(from_sql.database.dialect.as_deref(), Some("postgresql"));
+        assert_eq!(from_file.database.dialect, None);
+        assert!(store.resolve("Pg").is_err());
+        assert!(store.resolve(&from_sql.database.id).is_err());
+        assert_eq!(store.resolve("Copy").unwrap().id, from_file.database.id);
+        // …except for the schema designer.
+        assert_eq!(store.resolve_any("pg").unwrap().id, from_sql.database.id);
+        assert_eq!(
+            store.resolve_any(&from_sql.database.id).unwrap().id,
+            from_sql.database.id
+        );
+        assert_eq!(schema.tables.len(), 1, "the objects table stays hidden");
+
+        assert!(store.import_schema("None", "mysql", b"SET x = 1;").is_err());
+        assert_eq!(
+            store.list().unwrap().len(),
+            3,
+            "a failed import adds nothing"
+        );
+    }
+
+    #[test]
+    fn saves_designs_only_over_the_version_they_were_read_at() {
+        let (dir, mut store) = store();
+        let db = store.create("A", None).unwrap();
+        let other = Store::open_shared(dir.path()).unwrap();
+        let v1 = serde_json::json!({ "droppedTables": ["a"] });
+        let v2 = serde_json::json!({ "droppedTables": ["b"] });
+
+        assert_eq!(store.design(&db.id).unwrap().version, 0);
+        assert_eq!(store.save_design(&db.id, &v1, 0).unwrap(), Some(1));
+        // Another process read version 0 too: its save is refused, not merged.
+        assert_eq!(other.save_design(&db.id, &v2, 0).unwrap(), None);
+        assert_eq!(other.save_design(&db.id, &v2, 1).unwrap(), Some(2));
+        assert_eq!(store.save_design(&db.id, &v1, 1).unwrap(), None);
+        assert_eq!(store.design(&db.id).unwrap().draft, v2);
+
+        assert_eq!(store.save_design(BLANK_DESIGN, &v1, 0).unwrap(), Some(1));
+        assert!(store.save_design("../x", &v1, 0).is_err());
+        store.delete(&db.id).unwrap();
+        let keys: Vec<String> = store
+            .designs()
+            .unwrap()
+            .into_iter()
+            .map(|d| d.key)
+            .collect();
+        assert_eq!(keys, [BLANK_DESIGN]);
     }
 
     fn call(tool: &str, ok: bool) -> NewMcpActivity {

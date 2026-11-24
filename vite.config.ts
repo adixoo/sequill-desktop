@@ -7,11 +7,11 @@ import { defineConfig } from "vite";
 /** Port of the dev server; `src-tauri/tauri.conf.json` (devUrl) points at it. */
 const DEV_PORT = 5173;
 
+const src = fileURLToPath(new URL("./src", import.meta.url));
+
 export default defineConfig({
   plugins: [react(), babel({ presets: [reactCompilerPreset()] }), tailwindcss()],
-  resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
-  },
+  resolve: { alias: [{ find: "@", replacement: src }] },
   // Keep Tauri's and Rust's output visible while `tauri dev` runs.
   clearScreen: false,
   server: {
@@ -21,5 +21,4 @@ export default defineConfig({
     watch: { ignored: ["**/src-tauri/**", "**/target/**", "**/crates/**"] },
   },
   preview: { port: 4173, strictPort: true },
-  worker: { format: "es" },
 });

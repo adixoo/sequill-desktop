@@ -1,5 +1,24 @@
 # sqlite-browser-editor
 
+## 1.2.0
+
+### Minor Changes
+
+- 236b88d: Unsaved schema designs now live in Sequill's catalog in the desktop app, so assistants can read and edit them over MCP with the new `get_design` and `set_design` tools, and the designer shows their edits live. The database only changes when you save the design. Drafts kept by earlier versions are moved over the first time the app opens.
+- ae1b17e: Importing a schema now starts with the database type (PostgreSQL, MySQL / MariaDB, SQL Server, DuckDB or SQLite) and shows how to get its schema. Column types are kept exactly as written (arrays, `NVARCHAR(MAX)`, enums, structs), the type picker offers that database's own types, and its enums, functions, procedures, triggers, views, sequences and types are kept, shown in the designer's outline, editable and saved with the design. Exporting to the database a schema came from writes them back; DuckDB is a new export target.
+- 5716548: Assistants keep working over MCP while Sequill is closed, or after it closes mid-conversation: `sequill mcp` runs the calls itself on the same data folder, with the same switches and history, and the app shows the changes when it opens. Assistants that Windows runs in an app package (Claude Desktop from the Microsoft Store) still need Sequill open, because Windows gives them a private copy of the data folder.
+- 937e330: The schema designer's import now takes pasted SQL as well as files, and reads DuckDB schemas too (alongside PostgreSQL, MySQL / MariaDB, SQL Server, Oracle and SQLite). The imported tables become the saved schema you design on; nothing connects to your database.
+- 3ab16e3: The schema designer can import a schema from a SQL script for PostgreSQL, MySQL / MariaDB, SQL Server, Oracle or standard SQL, or from a SQLite file, as a new database with no rows that isn't linked to the file. It can also export any design as `CREATE` statements for PostgreSQL, MySQL, SQL Server or SQLite. Desktop app only.
+- 9f21386: A welcome guide opens the first time Sequill starts: opening or creating a database, browsing and editing data, designing the schema (drafts, import and export) and connecting an AI assistant. Open it again from the command palette with "Show the welcome guide".
+
+### Patch Changes
+
+- 41df77a: The desktop app no longer ships the browser build's SQLite (the WebAssembly engine and its worker, about 1.5 MB); it only ever used its native SQLite.
+- aa06af2: An assistant's write that was saved is no longer reported as failed when Sequill is busy with a long write of its own. Before, the assistant saw "database is locked", retried, and added the rows twice.
+- b963aab: Pasting cells copied from the grid keeps Windows line breaks (\r\n) inside a cell instead of turning them into plain line breaks.
+- cb7a20c: Saving a schema design now lists every change in plain words (new tables and columns, renames, changed and deleted columns and tables) above the SQL. If the save fails, the reason stays in the review ("Nothing was saved: …"), naming the real table, and the design is kept so you can fix it.
+- c1a285a: The schema designer can show the schema as saved, without your unsaved changes, read-only; one click brings your design back.
+
 ## 1.1.2
 
 ### Patch Changes

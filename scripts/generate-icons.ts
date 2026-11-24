@@ -1,12 +1,12 @@
 /**
- * Renders the Sequill logo (src/shared/lib/logo.ts) into the icons the app ships:
+ * Renders the Sequill logo (src/utils/logo.ts) into the icons the app ships:
  * public/logo.svg and public/favicon.ico for the page, and public/icons/icon-512.png,
  * the source for the desktop app's icons (`bun tauri icon public/icons/icon-512.png -o src-tauri/icons`).
  * Run: bun run icons
  */
 import { join } from "node:path";
 import sharp from "sharp";
-import { logoSvg } from "../src/shared/lib/logo";
+import { logoSvg } from "../src/utils/logo";
 import { encodeIco } from "./ico";
 
 const root = join(import.meta.dir, "..");

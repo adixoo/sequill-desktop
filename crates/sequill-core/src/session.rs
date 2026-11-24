@@ -1,5 +1,4 @@
-//! Runs SQL against one open database. Mirrors the web app's `src/shared/lib/sqlite/session.ts`,
-//! so the desktop app behaves the same as the browser build.
+//! Runs SQL against one open database.
 
 use crate::dump::dump_database;
 use crate::error::{Error, Result};
@@ -81,6 +80,11 @@ impl Session {
 
     pub fn connection(&self) -> &Connection {
         &self.conn
+    }
+
+    /// For settings that need it, such as an authorizer.
+    pub fn connection_mut(&mut self) -> &mut Connection {
+        &mut self.conn
     }
 
     /// Runs one statement and returns at most `limit` rows.

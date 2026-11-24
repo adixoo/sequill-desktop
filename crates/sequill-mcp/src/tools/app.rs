@@ -1,13 +1,16 @@
-//! The app around the databases: creating, renaming and deleting databases, saved queries,
-//! and asking the open app to show a table, a query or the schema.
+//! The app around the databases: what the window shows, creating, renaming and deleting
+//! databases, the schema designer's designs, and asking the open app to show something.
 
-use super::{open_db, open_store, open_store_for_changes, to_json};
+use super::{open_db, open_design, open_store, open_store_for_changes, to_json};
 use schemars::JsonSchema;
-use sequill_core::filter::{Filter, FilterMatch, build_where};
+use sequill_core::design::Draft;
+use sequill_core::filter::{Filter, FilterMatch};
 use sequill_core::rows::{Sort, table_columns};
+use sequill_core::schema::{RelationInfo, SchemaObject};
 use sequill_core::{Error, Result};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::collections::BTreeMap;
 use std::path::Path;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -16,6 +19,45 @@ use std::time::{Duration, Instant};
 pub const SHOW_WAIT: Duration = Duration::from_secs(4);
 const NOT_OPEN: &str =
     "Sequill isn't open, so nothing was shown. Ask the user to open Sequill, then try again.";
+
+/// The app's version, whether its window is open (`in_app`: this server runs inside it),
+/// the page and database it shows, the MCP switches, and every database and design.
+pub fn app_info(dir: &Path, in_app: bool) -> Result<Value> {
+    let store = open_store(dir)?;
+    let mut databases = Vec::new();
+    let mut designs = Vec::new();
+    for d in store.list()? {
+        // Designs of other databases: only get_schema and set_design work on them.
+        if let Some(dialect) = d.dialect {
+            designs.push(json!({ "id": d.id, "name": d.name, "dialect": dialect, "updatedAt": d.updated_at }));
+            continue;
+        }
+        let mut entry = json!({ "id": d.id, "name": d.name, "sizeBytes": d.size_bytes, "updatedAt": d.updated_at });
+        // A file the user opened from their computer: changes are made to that file.
+        if let Some(path) = d.path {
+            entry["file"] = json!(path);
+        }
+        databases.push(entry);
+    }
+    // Saved by the window as {"page", "databaseId"}; stale once the app has closed.
+    let shown: Value = match store.ui_state()? {
+        Some(state) if in_app => serde_json::from_str(&state).unwrap_or(Value::Null),
+        _ => Value::Null,
+    };
+    let current = shown["databaseId"]
+        .as_str()
+        .and_then(|id| store.resolve_any(id).ok())
+        .map(|d| json!({ "id": d.id, "name": d.name }));
+    Ok(json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "appOpen": in_app,
+        "page": shown["page"],
+        "database": current,
+        "changesAllowed": store.mcp_changes_allowed()?,
+        "databases": databases,
+        "designs": designs,
+    }))
+}
 
 pub fn create_database(dir: &Path, name: &str) -> Result<Value> {
     let mut store = open_store_for_changes(dir)?;
@@ -45,34 +87,84 @@ pub fn delete_database(dir: &Path, database: &str) -> Result<Value> {
     }
 }
 
-pub fn list_saved_queries(dir: &Path) -> Result<Value> {
-    Ok(json!({ "queries": to_json(open_store(dir)?.saved_queries()?) }))
-}
+/// Told to an assistant whose design save lost the race to another edit.
+pub const DESIGN_CHANGED_MESSAGE: &str = "The design changed since you read it (the user or another assistant edited it), so nothing was saved. Call get_schema again and apply your changes to that version.";
 
-pub fn save_query(dir: &Path, name: &str, sql: &str, id: Option<&str>) -> Result<Value> {
-    Ok(json!({ "query": to_json(open_store_for_changes(dir)?.save_query(name, sql, id)?) }))
-}
-
-pub fn delete_saved_query(dir: &Path, id: &str) -> Result<Value> {
-    if !open_store_for_changes(dir)?.delete_saved_query(id)? {
-        return Err(Error::msg(format!("No saved query has the id {id}")));
+/// What the schema designer shows: tables, views, indexes and triggers with their SQL, for
+/// a design of another database also its type and "objects", and the unsaved design (the
+/// changes planned in the designer, with its version for set_design).
+pub fn get_schema(dir: &Path, database: &str) -> Result<Value> {
+    let db = open_design(dir, database)?;
+    let schema = db.session.schema()?;
+    let design = db.store.design(&db.info.id)?;
+    let relations = |list: &[RelationInfo]| -> Vec<Value> {
+        list.iter()
+            .map(|r| json!({ "name": r.name, "kind": r.kind, "sql": r.sql }))
+            .collect()
+    };
+    let objects = |list: &[SchemaObject]| -> Vec<Value> {
+        list.iter()
+            .map(|o| json!({ "name": o.name, "table": o.table, "sql": o.sql }))
+            .collect()
+    };
+    let mut result = json!({
+        "database": db.database(),
+        "tables": relations(&schema.tables),
+        "views": relations(&schema.views),
+        "indexes": objects(&schema.indexes),
+        "triggers": objects(&schema.triggers),
+        "design": { "version": design.version, "draft": design.draft },
+    });
+    // A design of another database: its type, and the objects SQLite can't hold, which
+    // set_design's "objects" changes by "kind:name".
+    if let Some(dialect) = schema.dialect {
+        result["dialect"] = json!(dialect);
+        result["objects"] = to_json(schema.objects);
     }
-    Ok(json!({ "deleted": id }))
+    Ok(result)
+}
+
+/// Replaces a database's unsaved design if it is still at `version`. Existing tables and
+/// columns must be named as they are in the database; the user saves the design into it.
+pub fn set_design(dir: &Path, database: &str, version: i64, draft: &Draft) -> Result<Value> {
+    open_store_for_changes(dir)?;
+    let db = open_design(dir, database)?;
+    let tables: BTreeMap<String, Vec<String>> = db
+        .session
+        .schema()?
+        .tables
+        .into_iter()
+        .map(|t| (t.name, t.columns.into_iter().map(|c| c.name).collect()))
+        .collect();
+    let unknown = draft.unknown_names(&tables);
+    if !unknown.is_empty() {
+        return Err(Error::msg(format!(
+            "The database has no {}. Name existing tables and columns as they are now (see get_schema); new tables go in \"tables\".",
+            unknown.join(", ")
+        )));
+    }
+    let draft = serde_json::to_value(draft).expect("drafts serialize");
+    match db.store.save_design(&db.info.id, &draft, version)? {
+        Some(version) => Ok(json!({ "database": db.database(), "version": version })),
+        None => Err(Error::msg(DESIGN_CHANGED_MESSAGE)),
+    }
 }
 
 /// What to show in the app.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ShowView {
+    /// The editor page on the database.
+    Editor,
     /// A table or view in the editor, with optional filters, search and sort.
     Table,
     /// A new query tab in the editor with `sql` in it (not run).
     Query,
-    /// The schema diagram.
+    /// The schema page (diagram and designer); works for designs of other databases too.
     Schema,
 }
 
-/// The request the app receives (`src/shared/components/mcp-requests.tsx` reads it).
+/// The request the app receives (`src/app/mcp-requests.tsx` reads it).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ShowRequest<'a> {
@@ -104,20 +196,27 @@ pub fn show_in_app(
     sql: Option<&str>,
     wait: Duration,
 ) -> Result<Value> {
-    let db = open_db(dir, database, false)?;
+    let db = if view == ShowView::Schema {
+        open_design(dir, database)?
+    } else {
+        open_db(dir, database)?
+    };
     match view {
         ShowView::Table => {
             let table = table.ok_or_else(|| Error::msg("view table needs a table"))?;
             let columns = table_columns(&db.session, table)?;
-            build_where(&columns, filters, matching, search.unwrap_or(""))?;
-            if let Some(bad) = sort.iter().find(|s| !columns.contains(&s.column)) {
-                return Err(Error::msg(format!("Unknown column: {}", bad.column)));
+            let used = filters
+                .iter()
+                .map(|f| &f.column)
+                .chain(sort.iter().map(|s| &s.column));
+            if let Some(bad) = used.into_iter().find(|c| !columns.contains(c)) {
+                return Err(Error::msg(format!("Unknown column: {bad}")));
             }
         }
         ShowView::Query if sql.is_none_or(|s| s.trim().is_empty()) => {
             return Err(Error::msg("view query needs sql"));
         }
-        ShowView::Query | ShowView::Schema => {}
+        ShowView::Editor | ShowView::Query | ShowView::Schema => {}
     }
     let request = ShowRequest {
         database_id: &db.info.id,
@@ -155,6 +254,77 @@ mod tests {
     use sequill_core::filter::FilterOp;
 
     #[test]
+    fn edits_the_design_over_the_version_it_read_and_leaves_the_database_alone() {
+        let (dir, id) = store_with_shop();
+        let read = get_schema(dir.path(), "Shop").unwrap();
+        assert_eq!(read["design"]["version"], 0);
+
+        let draft: Draft =
+            serde_json::from_value(json!({ "renamedTables": { "customer": "client" } })).unwrap();
+        let saved = set_design(dir.path(), "Shop", 0, &draft).unwrap();
+        assert_eq!(saved["version"], 1);
+        let read = get_schema(dir.path(), &id).unwrap();
+        assert_eq!(
+            read["design"]["draft"]["renamedTables"]["customer"],
+            "client"
+        );
+
+        // Based on an old read: refused, so the newer design isn't lost.
+        let error = set_design(dir.path(), "Shop", 0, &Draft::default()).unwrap_err();
+        assert_eq!(error.to_string(), DESIGN_CHANGED_MESSAGE);
+
+        let ghost: Draft = serde_json::from_value(json!({ "droppedTables": ["ghost"] })).unwrap();
+        let error = set_design(dir.path(), "Shop", 1, &ghost).unwrap_err();
+        assert!(error.to_string().contains("no ghost"), "{error}");
+
+        let store = Store::open_shared(dir.path()).unwrap();
+        store.set_mcp_changes_allowed(false).unwrap();
+        assert!(set_design(dir.path(), "Shop", 1, &draft).is_err());
+        // The database itself never changed.
+        let schema = get_schema(dir.path(), "Shop").unwrap();
+        assert_eq!(schema["tables"][0]["name"], "customer");
+    }
+
+    #[test]
+    fn edits_the_design_of_another_database_but_nothing_else_reaches_it() {
+        let (dir, _) = store_with_shop();
+        Store::open(dir.path())
+            .unwrap()
+            .import_schema(
+                "Pg",
+                "postgresql",
+                b"CREATE TABLE p (id serial PRIMARY KEY);\nCREATE TYPE mood AS ENUM ('ok', 'sad');",
+            )
+            .unwrap();
+
+        let schema = get_schema(dir.path(), "pg").unwrap();
+        assert_eq!(schema["dialect"], "postgresql");
+        assert_eq!(schema["tables"][0]["name"], "p");
+        assert_eq!(schema["objects"][0]["kind"], "enum");
+
+        let draft: Draft = serde_json::from_value(json!({
+            "renamedTables": { "p": "person" },
+            "objects": { "enum:mood": null },
+        }))
+        .unwrap();
+        assert_eq!(
+            set_design(dir.path(), "Pg", 0, &draft).unwrap()["version"],
+            1
+        );
+        assert_eq!(
+            get_schema(dir.path(), "Pg").unwrap()["design"]["draft"]["renamedTables"]["p"],
+            "person"
+        );
+        let ghost: Draft = serde_json::from_value(json!({ "droppedTables": ["ghost"] })).unwrap();
+        assert!(set_design(dir.path(), "Pg", 1, &ghost).is_err());
+
+        // Rows, SQL and the database itself stay out of reach.
+        assert!(crate::tools::query(dir.path(), "Pg", "SELECT 1", &[], None).is_err());
+        assert!(rename_database(dir.path(), "Pg", "Other").is_err());
+        assert!(delete_database(dir.path(), "Pg").is_err());
+    }
+
+    #[test]
     fn creates_renames_and_deletes_databases() {
         let (dir, _) = store_with_shop();
         let created = create_database(dir.path(), "Notes").unwrap();
@@ -183,28 +353,39 @@ mod tests {
     }
 
     #[test]
-    fn saves_lists_and_deletes_queries() {
-        let (dir, _) = store_with_shop();
-        let saved = save_query(
-            dir.path(),
-            "Delhi customers",
-            "SELECT * FROM customer",
-            None,
-        )
-        .unwrap();
-        let id = saved["query"]["id"].as_str().unwrap().to_owned();
-        save_query(
-            dir.path(),
-            "Delhi customers",
-            "SELECT name FROM customer",
-            None,
-        )
-        .unwrap();
-        let list = list_saved_queries(dir.path()).unwrap();
-        assert_eq!(list["queries"].as_array().unwrap().len(), 1);
-        assert_eq!(list["queries"][0]["sql"], "SELECT name FROM customer");
-        delete_saved_query(dir.path(), &id).unwrap();
-        assert!(delete_saved_query(dir.path(), &id).is_err());
+    fn app_info_tells_what_the_open_window_shows() {
+        let (dir, id) = store_with_shop();
+        Store::open(dir.path())
+            .unwrap()
+            .import_schema(
+                "Pg",
+                "postgresql",
+                b"CREATE TABLE p (id serial PRIMARY KEY);",
+            )
+            .unwrap();
+        let store = Store::open_shared(dir.path()).unwrap();
+        store
+            .set_ui_state(&json!({ "page": "schema", "databaseId": id }).to_string())
+            .unwrap();
+
+        let info = app_info(dir.path(), true).unwrap();
+        assert_eq!(info["version"], env!("CARGO_PKG_VERSION"));
+        assert_eq!(info["appOpen"], true);
+        assert_eq!(info["page"], "schema");
+        assert_eq!(info["database"]["name"], "Shop");
+        assert_eq!(info["changesAllowed"], true);
+        assert_eq!(
+            info["databases"].as_array().unwrap().len(),
+            1,
+            "designs are listed apart"
+        );
+        assert_eq!(info["designs"][0]["dialect"], "postgresql");
+
+        // Run by the relay while the app is closed: what the window last saved is stale.
+        let closed = app_info(dir.path(), false).unwrap();
+        assert_eq!(closed["appOpen"], false);
+        assert_eq!(closed["page"], Value::Null);
+        assert_eq!(closed["database"], Value::Null);
     }
 
     fn delhi() -> Vec<Filter> {
@@ -311,6 +492,40 @@ mod tests {
         assert_eq!(
             show(ShowView::Query, None, &[], Some(" ")),
             "view query needs sql"
+        );
+        assert_eq!(
+            show(ShowView::Editor, None, &[], None),
+            NOT_OPEN,
+            "checked, then asked"
+        );
+        Store::open(dir.path())
+            .unwrap()
+            .import_schema("Pg", "postgresql", b"CREATE TABLE p (id int);")
+            .unwrap();
+        let in_page = |view| {
+            show_in_app(
+                dir.path(),
+                "Pg",
+                view,
+                None,
+                &[],
+                FilterMatch::All,
+                None,
+                &[],
+                None,
+                Duration::ZERO,
+            )
+            .unwrap_err()
+            .to_string()
+        };
+        assert_eq!(
+            in_page(ShowView::Schema),
+            NOT_OPEN,
+            "designs open on the schema page"
+        );
+        assert!(
+            in_page(ShowView::Editor).contains("No database"),
+            "but not in the editor"
         );
     }
 }

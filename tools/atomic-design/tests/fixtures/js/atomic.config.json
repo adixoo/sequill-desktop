@@ -1,0 +1,6 @@
+{
+  "preset": "js",
+  "levels": { "atoms": "src/atoms", "molecules": "src/molecules", "organisms": "src/organisms", "pages": "src/pages" },
+  "tokens": ["src/tokens.css"],
+  "ignore": ["**/*.test.*"]
+}

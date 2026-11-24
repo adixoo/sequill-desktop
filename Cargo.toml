@@ -3,14 +3,14 @@ resolver = "3"
 members = ["crates/sequill-core", "crates/sequill-mcp", "src-tauri"]
 
 [workspace.package]
-version = "1.1.2"
+version = "1.2.0"
 edition = "2024"
 rust-version = "1.85"
 
 [workspace.dependencies]
 sequill-core = { path = "crates/sequill-core" }
 sequill-mcp = { path = "crates/sequill-mcp" }
-rusqlite = { version = "0.43", features = ["bundled", "backup", "limits"] }
+rusqlite = { version = "0.43", features = ["bundled", "backup", "hooks", "limits"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 base64 = "0.23"

@@ -19,6 +19,7 @@ base64.workspace = true
 uuid.workspace = true
 dirs.workspace = true
 thiserror.workspace = true
+sqlparser = "0.64"
 
 [dev-dependencies]
 tempfile.workspace = true

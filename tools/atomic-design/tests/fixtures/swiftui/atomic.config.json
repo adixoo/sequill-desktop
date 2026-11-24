@@ -1,0 +1,4 @@
+{
+  "preset": "swiftui",
+  "levels": { "atoms": "App/UI/Atoms", "molecules": "App/UI/Molecules" }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "atomic-design",
+  "version": "0.1.0",
+  "author": { "name": "adibitz", "url": "https://github.com/adibitz" },
+  "license": "MIT",
+  "homepage": "https://github.com/adibitz/atomic-design",
+  "repository": "https://github.com/adibitz/atomic-design",
+  "description": "Plan UI as atoms, molecules, organisms, templates and pages; reuse existing components; audit every UI edit for web and app frameworks.",
+  "keywords": ["atomic-design", "design-system", "components", "reuse", "audit", "react", "vue", "flutter", "compose", "swiftui"]
+}

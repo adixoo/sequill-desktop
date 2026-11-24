@@ -1,20 +1,19 @@
 //! What each MCP tool does, as plain functions over the data directory, so they can be
 //! tested without a client. `server.rs` exposes them over MCP.
 //!
-//! - this file: shared helpers, reading the schema, SQL queries and scripts
-//! - `data.rs`: finding, adding, changing and deleting rows
-//! - `schema.rs`: tables, columns, indexes, triggers and views
-//! - `app.rs`: databases, saved queries, and showing things in the app
+//! - this file: shared helpers, the permission checks, `query` and `execute`
+//! - `app.rs`: the app, databases, the schema designer, and showing things in the window
 
 pub mod app;
-pub mod data;
-pub mod schema;
 
+use rusqlite::hooks::{AuthAction, AuthContext, Authorization};
 use rusqlite::limits::Limit;
-use sequill_core::schema::{RelationInfo, SchemaObject};
+use sequill_core::split::split_statements;
 use sequill_core::{CellValue, DbInfo, Error, NewMcpActivity, Result, Session, Store};
+use serde::Serialize;
 use serde_json::{Value, json};
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 /// Rows a query returns unless the caller asks for fewer or more.
 pub const DEFAULT_MAX_ROWS: usize = 200;
@@ -26,6 +25,10 @@ pub const MCP_OFF_MESSAGE: &str = "MCP access is turned off in Sequill. Ask the 
 
 /// Shown to the assistant when it tries to change something while the user allows only reading.
 pub const CHANGES_OFF_MESSAGE: &str = "Changes are turned off in Sequill, so you can only read and show things. Ask the user to switch on \"Allow changes\" in Sequill (MCP button in the top bar), then try again.";
+
+/// Shown when `query` is given a statement that would change something.
+pub const QUERY_WRITES_MESSAGE: &str =
+    "query only reads, and this statement would change something. Use execute for changes.";
 
 /// The store, if the user has turned MCP access on in the app. Checked on every call,
 /// so switching it off takes effect at once, even for a server that is already running.
@@ -56,10 +59,20 @@ struct Opened {
 
 impl Opened {
     /// Keeps the app's list (size, last change) current after a write; the app also
-    /// notices the write itself and refreshes what's on screen.
-    fn record_write(&self) -> Result<()> {
-        self.store
-            .record_write(&self.info.id, self.session.size_bytes()?)
+    /// notices the write itself and refreshes what's on screen. The write is already saved,
+    /// so a failure here (such as a lock held by a long write) is only logged: reported as a
+    /// failed call, the assistant would retry and make the change twice.
+    fn record_write(&self) {
+        let recorded = self
+            .session
+            .size_bytes()
+            .and_then(|size| self.store.record_write(&self.info.id, size));
+        if let Err(error) = recorded {
+            eprintln!(
+                "sequill mcp: could not update the size of {}: {error}",
+                self.info.name
+            );
+        }
     }
 
     fn database(&self) -> Value {
@@ -67,15 +80,23 @@ impl Opened {
     }
 }
 
-/// Opens a database by id or name. Read-only unless `writable` (which needs "Allow changes");
-/// SQLite itself then refuses writes. ATTACH is turned off so a call can't reach other files.
-fn open_db(dir: &Path, database: &str, writable: bool) -> Result<Opened> {
-    let store = if writable {
-        open_store_for_changes(dir)?
-    } else {
-        open_store(dir)?
-    };
+/// Opens a database by id or name, read-only: SQLite itself then refuses writes. ATTACH is
+/// turned off so a call can't reach other files.
+fn open_db(dir: &Path, database: &str) -> Result<Opened> {
+    let store = open_store(dir)?;
     let info = store.resolve(database)?;
+    open_session(store, info, false)
+}
+
+/// Opens a database, or a design of another database, read-only: for the tools that read
+/// a schema or work on the schema designer's draft.
+fn open_design(dir: &Path, database: &str) -> Result<Opened> {
+    let store = open_store(dir)?;
+    let info = store.resolve_any(database)?;
+    open_session(store, info, false)
+}
+
+fn open_session(store: Store, info: DbInfo, writable: bool) -> Result<Opened> {
     let path = store.path(&info.id)?;
     let session = if writable {
         Session::open_existing(&path)?
@@ -103,7 +124,7 @@ pub fn record_call(
 ) -> Result<()> {
     let store = Store::open_shared(dir)?;
     let named = args.get("database").and_then(Value::as_str);
-    let found = named.and_then(|name| store.resolve(name).ok());
+    let found = named.and_then(|name| store.resolve_any(name).ok());
     let mut rest = args.clone();
     rest.remove("database");
     let sql = rest
@@ -124,76 +145,8 @@ fn to_json<T: serde::Serialize>(value: T) -> Value {
     serde_json::to_value(value).expect("tool results serialize")
 }
 
-pub fn list_databases(dir: &Path) -> Result<Value> {
-    let store = open_store(dir)?;
-    let databases: Vec<Value> = store
-        .list()?
-        .into_iter()
-        .map(|d| {
-            let mut entry = json!({ "id": d.id, "name": d.name, "sizeBytes": d.size_bytes, "updatedAt": d.updated_at });
-            // A file the user opened from their computer: changes are made to that file.
-            if let Some(path) = d.path {
-                entry["file"] = json!(path);
-            }
-            entry
-        })
-        .collect();
-    Ok(json!({ "databases": databases }))
-}
-
-pub fn get_schema(dir: &Path, database: &str) -> Result<Value> {
-    let db = open_db(dir, database, false)?;
-    let schema = db.session.schema()?;
-    let relations = |list: &[RelationInfo]| -> Vec<Value> {
-        list.iter()
-            .map(|r| json!({ "name": r.name, "kind": r.kind, "sql": r.sql }))
-            .collect()
-    };
-    let objects = |list: &[SchemaObject]| -> Vec<Value> {
-        list.iter()
-            .map(|o| json!({ "name": o.name, "table": o.table, "sql": o.sql }))
-            .collect()
-    };
-    Ok(json!({
-        "database": db.database(),
-        "tables": relations(&schema.tables),
-        "views": relations(&schema.views),
-        "indexes": objects(&schema.indexes),
-        "triggers": objects(&schema.triggers),
-    }))
-}
-
-/// One table or view in detail: columns, keys, indexes, triggers and its row count.
-pub fn describe_table(dir: &Path, database: &str, table: &str) -> Result<Value> {
-    let db = open_db(dir, database, false)?;
-    let schema = db.session.schema()?;
-    let relation = schema
-        .tables
-        .iter()
-        .chain(&schema.views)
-        .find(|r| r.name == table)
-        .ok_or_else(|| Error::msg(format!("No table or view is called \"{table}\"")))?;
-    let triggers: Vec<&SchemaObject> = schema
-        .triggers
-        .iter()
-        .filter(|t| t.table == table)
-        .collect();
-    let rows = db.session.count(
-        &format!(
-            "SELECT count(*) FROM {}",
-            sequill_core::dump::quote_ident(table)
-        ),
-        &[],
-    )?;
-    Ok(json!({
-        "database": db.database(),
-        "table": to_json(relation),
-        "triggers": to_json(triggers),
-        "rowCount": rows,
-    }))
-}
-
-/// Runs one read-only statement; SQLite itself refuses writes on this connection.
+/// Runs one read-only statement. SQLite refuses writes on this connection, and a statement
+/// that would write anyway (such as VACUUM INTO, which writes a new file) is refused first.
 pub fn query(
     dir: &Path,
     database: &str,
@@ -201,24 +154,248 @@ pub fn query(
     params: &[CellValue],
     max_rows: Option<usize>,
 ) -> Result<Value> {
-    let db = open_db(dir, database, false)?;
+    let db = open_db(dir, database)?;
+    if !db.session.connection().prepare(sql)?.readonly() {
+        return Err(Error::msg(QUERY_WRITES_MESSAGE));
+    }
     let limit = max_rows.unwrap_or(DEFAULT_MAX_ROWS).min(MAX_ROWS_LIMIT);
     Ok(to_json(db.session.query(sql, params, Some(limit))?))
 }
 
-/// EXPLAIN QUERY PLAN for each statement of a script; nothing runs.
-pub fn explain_query(dir: &Path, database: &str, sql: &str) -> Result<Value> {
-    let db = open_db(dir, database, false)?;
-    Ok(json!({ "plans": db.session.explain_script(sql) }))
+/// What a statement changes, as SQLite reports it while preparing the statement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Kind {
+    Insert,
+    Update,
+    Delete,
+    Create,
+    Alter,
+    Drop,
+    /// A PRAGMA that sets something, such as `PRAGMA user_version = 2`.
+    Setting,
+    /// ANALYZE or REINDEX.
+    Maintain,
 }
 
-/// Runs a script of one or more statements that may change data or schema.
-pub fn execute(dir: &Path, database: &str, sql: &str) -> Result<Value> {
-    let db = open_db(dir, database, true)?;
-    let results = db.session.exec_script(sql, DEFAULT_MAX_ROWS);
-    db.record_write()?;
-    let failed = results.iter().any(|r| r.error.is_some());
-    Ok(json!({ "ok": !failed, "statements": results }))
+/// One change a statement makes: its kind and the table, index, view, trigger or pragma.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct Action {
+    pub kind: Kind,
+    pub on: String,
+}
+
+impl Action {
+    fn describe(&self) -> String {
+        let on = &self.on;
+        match self.kind {
+            Kind::Insert => format!("add rows to {on}"),
+            Kind::Update => format!("change rows in {on}"),
+            Kind::Delete => format!("delete rows from {on}"),
+            Kind::Create => format!("create {on}"),
+            Kind::Alter => format!("alter {on}"),
+            Kind::Drop => format!("drop {on}"),
+            Kind::Setting => format!("set PRAGMA {on}"),
+            Kind::Maintain => format!("rebuild the statistics or indexes of {on}"),
+        }
+    }
+}
+
+/// How `execute` treats one thing a statement does.
+enum Check {
+    Read,
+    Change(Action),
+    /// Refused even with changes allowed; says why.
+    Never(&'static str),
+}
+
+/// PRAGMAs that only report, even when given an argument such as a table name.
+const READ_PRAGMAS: [&str; 16] = [
+    "collation_list",
+    "compile_options",
+    "database_list",
+    "foreign_key_check",
+    "foreign_key_list",
+    "function_list",
+    "index_info",
+    "index_list",
+    "index_xinfo",
+    "integrity_check",
+    "module_list",
+    "pragma_list",
+    "quick_check",
+    "table_info",
+    "table_list",
+    "table_xinfo",
+];
+
+fn check(action: AuthAction<'_>) -> Check {
+    use AuthAction as A;
+    let change = |kind, on: &str| {
+        Check::Change(Action {
+            kind,
+            on: on.to_owned(),
+        })
+    };
+    match action {
+        A::Select | A::Read { .. } | A::Function { .. } | A::Recursive | A::Savepoint { .. } => {
+            Check::Read
+        }
+        A::Pragma {
+            pragma_name,
+            pragma_value,
+        } => {
+            let name = pragma_name.to_ascii_lowercase();
+            if name == "writable_schema" && pragma_value.is_some() {
+                Check::Never(
+                    "PRAGMA writable_schema, which lets SQL damage the database's structure",
+                )
+            } else if pragma_value.is_none() || READ_PRAGMAS.contains(&name.as_str()) {
+                Check::Read
+            } else {
+                change(Kind::Setting, &name)
+            }
+        }
+        A::Insert { table_name } => change(Kind::Insert, table_name),
+        A::Update { table_name, .. } => change(Kind::Update, table_name),
+        A::Delete { table_name } => change(Kind::Delete, table_name),
+        A::CreateTable { table_name }
+        | A::CreateTempTable { table_name }
+        | A::CreateVtable { table_name, .. } => change(Kind::Create, table_name),
+        A::CreateIndex { index_name, .. } | A::CreateTempIndex { index_name, .. } => {
+            change(Kind::Create, index_name)
+        }
+        A::CreateTrigger { trigger_name, .. } | A::CreateTempTrigger { trigger_name, .. } => {
+            change(Kind::Create, trigger_name)
+        }
+        A::CreateView { view_name } | A::CreateTempView { view_name } => {
+            change(Kind::Create, view_name)
+        }
+        A::AlterTable { table_name, .. } => change(Kind::Alter, table_name),
+        A::DropTable { table_name }
+        | A::DropTempTable { table_name }
+        | A::DropVtable { table_name, .. } => change(Kind::Drop, table_name),
+        A::DropIndex { index_name, .. } | A::DropTempIndex { index_name, .. } => {
+            change(Kind::Drop, index_name)
+        }
+        A::DropTrigger { trigger_name, .. } | A::DropTempTrigger { trigger_name, .. } => {
+            change(Kind::Drop, trigger_name)
+        }
+        A::DropView { view_name } | A::DropTempView { view_name } => change(Kind::Drop, view_name),
+        A::Analyze { table_name } => change(Kind::Maintain, table_name),
+        A::Reindex { index_name } => change(Kind::Maintain, index_name),
+        A::Transaction { .. } => Check::Never(
+            "BEGIN, COMMIT or ROLLBACK, which aren't needed: execute runs the whole script as one transaction",
+        ),
+        A::Attach { .. } | A::Detach { .. } => {
+            Check::Never("ATTACH or DETACH, which would reach files outside Sequill")
+        }
+        _ => Check::Never("something Sequill doesn't recognize"),
+    }
+}
+
+/// SQLite's own bookkeeping when a table, index or view is created or dropped.
+fn is_internal(name: &str) -> bool {
+    [
+        "sqlite_master",
+        "sqlite_schema",
+        "sqlite_temp_master",
+        "sqlite_temp_schema",
+    ]
+    .contains(&name.to_ascii_lowercase().as_str())
+}
+
+/// What the authorizer saw while one statement was prepared.
+#[derive(Default)]
+struct Seen {
+    actions: Vec<Action>,
+    /// Why the statement was refused, if it was.
+    refused: Option<String>,
+}
+
+/// Runs a script as one transaction: all of it, or none of it. While each statement is
+/// prepared, SQLite reports what it would do (add rows, drop a table…, including what
+/// triggers would do); anything that changes something needs "Allow changes", and a few
+/// things are never allowed. A refused or failing statement rolls the whole script back.
+pub fn execute(dir: &Path, database: &str, script: &str) -> Result<Value> {
+    let store = open_store(dir)?;
+    let changes_allowed = store.mcp_changes_allowed()?;
+    let info = store.resolve(database)?;
+    // With changes off the file is opened read-only too, so SQLite refuses writes as well.
+    let mut db = open_session(store, info, changes_allowed)?;
+    let seen = Arc::new(Mutex::new(Seen::default()));
+
+    db.session.connection().execute_batch("BEGIN")?;
+    let watcher = Arc::clone(&seen);
+    db.session
+        .connection_mut()
+        .authorizer(Some(move |context: AuthContext<'_>| {
+            let mut seen = watcher.lock().expect("authorizer state");
+            match check(context.action) {
+                // SQLite's own bookkeeping comes before the CREATE or DROP it belongs to,
+                // which is checked next; SQLite refuses direct writes to it anyway.
+                Check::Read => Authorization::Allow,
+                Check::Change(action) if is_internal(&action.on) => Authorization::Allow,
+                Check::Change(action) if changes_allowed => {
+                    if !seen.actions.contains(&action) {
+                        seen.actions.push(action);
+                    }
+                    Authorization::Allow
+                }
+                Check::Change(action) => {
+                    seen.refused.get_or_insert(format!(
+                        "it would {}, and {CHANGES_OFF_MESSAGE}",
+                        action.describe()
+                    ));
+                    Authorization::Deny
+                }
+                Check::Never(what) => {
+                    seen.refused
+                        .get_or_insert(format!("it uses {what}. That is never allowed over MCP."));
+                    Authorization::Deny
+                }
+            }
+        }))?;
+
+    let mut statements = Vec::new();
+    let mut failure = None;
+    for (number, sql) in split_statements(script).into_iter().enumerate() {
+        *seen.lock().expect("authorizer state") = Seen::default();
+        let ran = db.session.query(&sql, &[], Some(DEFAULT_MAX_ROWS));
+        let seen = std::mem::take(&mut *seen.lock().expect("authorizer state"));
+        match ran {
+            Ok(result) => {
+                let mut statement = to_json(result);
+                statement["sql"] = json!(sql);
+                statement["does"] = to_json(&seen.actions);
+                statements.push(statement);
+            }
+            Err(error) => {
+                let why = seen.refused.unwrap_or_else(|| error.to_string());
+                failure = Some(format!(
+                    "Nothing was changed. Statement {} ({sql}) was refused or failed: {why}",
+                    number + 1
+                ));
+                break;
+            }
+        }
+    }
+
+    db.session
+        .connection_mut()
+        .authorizer(None::<fn(AuthContext<'_>) -> Authorization>)?;
+    if let Some(failure) = failure {
+        db.session.connection().execute_batch("ROLLBACK")?;
+        return Err(Error::msg(failure));
+    }
+    db.session.connection().execute_batch("COMMIT")?;
+    let changed = statements
+        .iter()
+        .any(|s| s["does"].as_array().is_some_and(|a| !a.is_empty()));
+    if changed {
+        db.record_write();
+    }
+    Ok(json!({ "database": db.database(), "statements": statements }))
 }
 
 #[cfg(test)]
@@ -250,30 +427,8 @@ mod tests {
     use super::test_support::store_with_shop;
     use super::*;
 
-    #[test]
-    fn lists_databases_and_reads_schema_by_name() {
-        let (dir, id) = store_with_shop();
-        let list = list_databases(dir.path()).unwrap();
-        assert_eq!(list["databases"][0]["id"], id.as_str());
-
-        let schema = get_schema(dir.path(), "shop").unwrap();
-        assert_eq!(schema["tables"][0]["name"], "customer");
-        assert!(
-            schema["tables"][0]["sql"]
-                .as_str()
-                .unwrap()
-                .starts_with("CREATE TABLE customer")
-        );
-    }
-
-    #[test]
-    fn describes_one_table() {
-        let (dir, id) = store_with_shop();
-        let d = describe_table(dir.path(), &id, "customer").unwrap();
-        assert_eq!(d["rowCount"], 3);
-        assert_eq!(d["table"]["columns"][1]["name"], "name");
-        assert_eq!(d["table"]["columns"][1]["notNull"], true);
-        assert!(describe_table(dir.path(), &id, "nope").is_err());
+    fn count(dir: &Path, id: &str) -> Value {
+        query(dir, id, "SELECT count(*) FROM customer", &[], None).unwrap()["rows"].clone()
     }
 
     #[test]
@@ -299,43 +454,170 @@ mod tests {
         )
         .unwrap();
         assert_eq!(one["rows"], json!([["Meera"]]));
+        let columns = query(dir.path(), &id, "PRAGMA table_info(customer)", &[], None).unwrap();
+        assert_eq!(columns["rows"][1][1], "name");
     }
 
     #[test]
-    fn query_cannot_write_attach_or_run_several_statements() {
+    fn query_cannot_write_attach_vacuum_or_run_several_statements() {
         let (dir, id) = store_with_shop();
-        assert!(query(dir.path(), &id, "DELETE FROM customer", &[], None).is_err());
-        assert!(query(dir.path(), &id, "SELECT 1; DELETE FROM customer", &[], None).is_err());
-        assert!(query(dir.path(), &id, "ATTACH 'other.db' AS other", &[], None).is_err());
-        let count = query(dir.path(), &id, "SELECT count(*) FROM customer", &[], None).unwrap();
-        assert_eq!(count["rows"], json!([[3]]));
+        let refused = |sql: &str| {
+            query(dir.path(), &id, sql, &[], None)
+                .unwrap_err()
+                .to_string()
+        };
+        assert_eq!(refused("DELETE FROM customer"), QUERY_WRITES_MESSAGE);
+        assert_eq!(refused("DROP TABLE customer"), QUERY_WRITES_MESSAGE);
+        let copy = dir.path().join("copy.db");
+        refused(&format!("VACUUM INTO '{}'", copy.display()));
+        assert!(!copy.exists(), "VACUUM INTO wrote a file");
+        refused("SELECT 1; DELETE FROM customer");
+        refused("ATTACH 'other.db' AS other");
+        assert_eq!(count(dir.path(), &id), json!([[3]]));
     }
 
     #[test]
-    fn explains_without_running() {
-        let (dir, id) = store_with_shop();
-        let plan = explain_query(dir.path(), &id, "DELETE FROM customer").unwrap();
-        assert!(plan["plans"][0]["columns"].to_string().contains("detail"));
-        let count = query(dir.path(), &id, "SELECT count(*) FROM customer", &[], None).unwrap();
-        assert_eq!(count["rows"], json!([[3]]));
-    }
-
-    #[test]
-    fn execute_writes_and_reports_each_statement() {
+    fn execute_runs_a_script_and_reports_what_each_statement_did() {
         let (dir, id) = store_with_shop();
         let result = execute(
             dir.path(),
             &id,
-            "INSERT INTO customer (name) VALUES ('Kiran'); SELECT count(*) AS n FROM customer;",
+            "INSERT INTO customer (name) VALUES ('Kiran');
+             CREATE TABLE note (body TEXT);
+             SELECT count(*) AS n FROM customer;",
         )
         .unwrap();
-        assert_eq!(result["ok"], true);
-        assert_eq!(result["statements"][0]["changes"], 1);
-        assert_eq!(result["statements"][1]["rows"], json!([[4]]));
+        let s = &result["statements"];
+        assert_eq!(s[0]["changes"], 1);
+        assert_eq!(
+            s[0]["does"],
+            json!([{ "kind": "insert", "on": "customer" }])
+        );
+        assert_eq!(
+            s[1]["does"],
+            json!([{ "kind": "create", "on": "note" }]),
+            "no bookkeeping"
+        );
+        assert_eq!(s[2]["does"], json!([]));
+        assert_eq!(s[2]["rows"], json!([[4]]));
+    }
 
-        let failed = execute(dir.path(), &id, "INSERT INTO nope VALUES (1); SELECT 1;").unwrap();
-        assert_eq!(failed["ok"], false);
-        assert_eq!(failed["statements"].as_array().unwrap().len(), 1);
+    #[test]
+    fn execute_is_all_or_nothing() {
+        let (dir, id) = store_with_shop();
+        let error = execute(
+            dir.path(),
+            &id,
+            "DELETE FROM customer; INSERT INTO nope VALUES (1);",
+        )
+        .unwrap_err()
+        .to_string();
+        assert!(
+            error.starts_with("Nothing was changed. Statement 2"),
+            "{error}"
+        );
+        assert_eq!(
+            count(dir.path(), &id),
+            json!([[3]]),
+            "the delete was rolled back"
+        );
+    }
+
+    #[test]
+    fn execute_reads_but_refuses_every_change_while_changes_are_off() {
+        let (dir, id) = store_with_shop();
+        let store = Store::open_shared(dir.path()).unwrap();
+        store.set_mcp_changes_allowed(false).unwrap();
+
+        let read = execute(dir.path(), &id, "SELECT name FROM customer WHERE id = 1").unwrap();
+        assert_eq!(read["statements"][0]["rows"], json!([["Asha"]]));
+
+        for (sql, does) in [
+            (
+                "UPDATE customer SET city = 'Agra'",
+                "change rows in customer",
+            ),
+            (
+                "WITH gone AS (SELECT 1) DELETE FROM customer",
+                "delete rows from customer",
+            ),
+            ("CREATE INDEX by_city ON customer (city)", "create by_city"),
+            (
+                "ALTER TABLE customer ADD COLUMN email TEXT",
+                "alter customer",
+            ),
+            ("DROP TABLE customer", "drop customer"),
+            ("PRAGMA user_version = 2", "set PRAGMA user_version"),
+        ] {
+            let error = execute(dir.path(), &id, sql).unwrap_err().to_string();
+            assert!(error.contains(does), "{sql}: {error}");
+            assert!(error.contains(CHANGES_OFF_MESSAGE), "{sql}: {error}");
+        }
+        assert_eq!(count(dir.path(), &id), json!([[3]]));
+    }
+
+    #[test]
+    fn execute_sees_what_triggers_would_do() {
+        let (dir, id) = store_with_shop();
+        execute(
+            dir.path(),
+            &id,
+            "CREATE TABLE log (name TEXT);
+             CREATE TRIGGER keep AFTER INSERT ON customer BEGIN INSERT INTO log VALUES (NEW.name); END;",
+        )
+        .unwrap();
+        let result = execute(
+            dir.path(),
+            &id,
+            "INSERT INTO customer (name) VALUES ('Kiran')",
+        )
+        .unwrap();
+        let does = &result["statements"][0]["does"];
+        assert!(
+            does.as_array()
+                .unwrap()
+                .contains(&json!({ "kind": "insert", "on": "log" })),
+            "{does}"
+        );
+    }
+
+    #[test]
+    fn execute_never_attaches_vacuums_into_or_takes_over_the_transaction() {
+        let (dir, id) = store_with_shop();
+        let copy = dir.path().join("copy.db");
+        for sql in [
+            "ATTACH 'other.db' AS other".to_owned(),
+            format!("VACUUM INTO '{}'", copy.display()),
+            "COMMIT".to_owned(),
+            "PRAGMA writable_schema = ON".to_owned(),
+            "DELETE FROM customer; BEGIN".to_owned(),
+        ] {
+            assert!(execute(dir.path(), &id, &sql).is_err(), "{sql}");
+        }
+        assert!(!copy.exists(), "VACUUM INTO wrote a file");
+        assert_eq!(count(dir.path(), &id), json!([[3]]));
+    }
+
+    #[test]
+    fn a_saved_write_is_reported_as_saved_even_if_the_bookkeeping_after_it_fails() {
+        let (dir, _) = store_with_shop();
+        // The app's list can't be updated (here: read-only; in real use: locked by a long write).
+        let catalog = dir.path().join("catalog.sqlite3");
+        let original = std::fs::metadata(&catalog).unwrap().permissions();
+        let mut readonly = original.clone();
+        readonly.set_readonly(true);
+        std::fs::set_permissions(&catalog, readonly).unwrap();
+
+        let result = execute(
+            dir.path(),
+            "Shop",
+            "INSERT INTO customer (name) VALUES ('Kiran')",
+        );
+
+        std::fs::set_permissions(&catalog, original).unwrap();
+        // Reported as failed, an assistant would retry and add the row twice.
+        assert_eq!(result.unwrap()["statements"][0]["changes"], 1);
+        assert_eq!(count(dir.path(), "Shop"), json!([[4]]));
     }
 
     #[test]
@@ -346,57 +628,20 @@ mod tests {
             .set_mcp_enabled(false)
             .unwrap();
         let off = |r: Result<Value>| assert_eq!(r.unwrap_err().to_string(), MCP_OFF_MESSAGE);
-        off(list_databases(dir.path()));
-        off(get_schema(dir.path(), &id));
+        off(app::app_info(dir.path(), true));
+        off(app::get_schema(dir.path(), &id));
         off(query(dir.path(), &id, "SELECT 1", &[], None));
         off(execute(dir.path(), &id, "DELETE FROM customer"));
-        off(app::list_saved_queries(dir.path()));
-        off(data::delete_rows(
-            dir.path(),
-            &id,
-            "customer",
-            &[],
-            Default::default(),
-            true,
-        ));
 
         Store::open_shared(dir.path())
             .unwrap()
             .set_mcp_enabled(true)
             .unwrap();
-        let count = query(dir.path(), &id, "SELECT count(*) FROM customer", &[], None).unwrap();
-        assert_eq!(count["rows"], json!([[3]]), "nothing was deleted while off");
-    }
-
-    #[test]
-    fn changes_are_refused_until_allowed_but_reading_works() {
-        let (dir, id) = store_with_shop();
-        let store = Store::open_shared(dir.path()).unwrap();
-        store.set_mcp_changes_allowed(false).unwrap();
-        let refused =
-            |r: Result<Value>| assert_eq!(r.unwrap_err().to_string(), CHANGES_OFF_MESSAGE);
-        refused(execute(dir.path(), &id, "DELETE FROM customer"));
-        refused(data::delete_rows(
-            dir.path(),
-            &id,
-            "customer",
-            &[],
-            Default::default(),
-            true,
-        ));
-        refused(app::create_database(dir.path(), "New"));
-        refused(app::rename_database(dir.path(), &id, "Renamed"));
-        refused(app::delete_database(dir.path(), &id));
-        refused(app::save_query(dir.path(), "q", "SELECT 1", None));
-        let count = query(dir.path(), &id, "SELECT count(*) FROM customer", &[], None).unwrap();
         assert_eq!(
-            count["rows"],
+            count(dir.path(), &id),
             json!([[3]]),
-            "reading still works, nothing changed"
+            "nothing was deleted while off"
         );
-
-        store.set_mcp_changes_allowed(true).unwrap();
-        execute(dir.path(), &id, "DELETE FROM customer WHERE name = 'Ravi'").unwrap();
     }
 
     #[test]
@@ -413,7 +658,7 @@ mod tests {
         .unwrap();
         record_call(
             dir.path(),
-            "list_databases",
+            "app_info",
             &args(json!({})),
             false,
             Some(MCP_OFF_MESSAGE.into()),
@@ -422,7 +667,7 @@ mod tests {
 
         let store = Store::open_shared(dir.path()).unwrap();
         let history = store.mcp_activity(10).unwrap();
-        assert_eq!(history[0].tool, "list_databases");
+        assert_eq!(history[0].tool, "app_info");
         assert!(!history[0].ok);
         assert_eq!(history[0].message.as_deref(), Some(MCP_OFF_MESSAGE));
         assert_eq!(history[0].details, None);
@@ -452,7 +697,9 @@ mod tests {
     #[test]
     fn unknown_databases_are_reported_by_name() {
         let (dir, _) = store_with_shop();
-        let error = get_schema(dir.path(), "Missing").unwrap_err().to_string();
+        let error = query(dir.path(), "Missing", "SELECT 1", &[], None)
+            .unwrap_err()
+            .to_string();
         assert_eq!(error, "No database is called \"Missing\"");
     }
 }

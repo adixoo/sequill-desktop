@@ -38,9 +38,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 
-# sqlite wasm runtime copied by scripts/copy-sqlite-wasm.ts
-/public/sqlite/
-
 # playwright
 /playwright-report/
 /test-results/
@@ -50,6 +47,7 @@ yarn-error.log*
 
 # rust / tauri build output
 /target/
+/src-tauri/target/
 
 # claude code local settings
 /.claude/
