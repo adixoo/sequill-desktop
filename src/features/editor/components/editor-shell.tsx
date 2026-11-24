@@ -13,7 +13,7 @@ import { useDialogs } from "@/store/dialogs";
 import { useWorkspace } from "@/store/workspace";
 import { DialogHost } from "@/components/organisms/dialogs/dialog-host";
 import { Sidebar } from "./sidebar";
-import { TabBar } from "./tab-bar";
+import { EditorHeader, TabBar } from "./tab-bar";
 import { TableView } from "./table/table-view";
 import { NoDatabase, NoTab } from "./welcome";
 
@@ -142,14 +142,28 @@ function Workspace() {
     );
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-canvas">
-      <Sidebar
+    <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
+      <EditorHeader
         dbId={dbId}
-        schema={schema.data}
-        className="w-72 shrink-0 border-r-2 border-hairline max-md:hidden"
+        onOpenSidebar={() => setSidebarOpen(true)}
+        onOpenPalette={() => {
+          setPaletteLoaded(true);
+          setPaletteOpen(true);
+        }}
       />
+      <div className="flex min-h-0 flex-1">
+        <Sidebar
+          dbId={dbId}
+          schema={schema.data}
+          className="w-72 shrink-0 border-r-2 border-hairline max-md:hidden"
+        />
+        <main className="flex min-w-0 flex-1 flex-col">
+          <TabBar schema={schema.data} />
+          {content}
+        </main>
+      </div>
       <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-        {/* No close button: it would sit on the sidebar's theme toggle. Tap outside or Esc closes. */}
+        {/* No close button, so it never covers the first group's actions. Tap outside or Esc closes. */}
         <SheetContent
           side="left"
           showCloseButton={false}
@@ -160,17 +174,6 @@ function Workspace() {
           <Sidebar dbId={dbId} schema={schema.data} onNavigate={() => setSidebarOpen(false)} />
         </SheetContent>
       </Sheet>
-      <main className="flex min-w-0 flex-1 flex-col">
-        <TabBar
-          schema={schema.data}
-          onOpenSidebar={() => setSidebarOpen(true)}
-          onOpenPalette={() => {
-            setPaletteLoaded(true);
-            setPaletteOpen(true);
-          }}
-        />
-        {content}
-      </main>
       <DialogHost />
       {paletteLoaded && (
         <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} schema={schema.data} />

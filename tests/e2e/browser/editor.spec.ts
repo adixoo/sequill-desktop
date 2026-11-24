@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { join } from "node:path";
-import { cell, createSample, expectRowCount, openEditor, openTable } from "../helpers";
+import { cell, createSample, expectRowCount, openEditor, openImport, openTable } from "../helpers";
 
 test("the editor boots behind a loader at the root", async ({ page }) => {
   await page.goto("/");
@@ -122,7 +122,7 @@ test("creates a table, adds a column and shows it in the structure", async ({ pa
 
 test("imports a CSV file into a new table with detected types", async ({ page }) => {
   await createSample(page);
-  await page.getByRole("button", { name: "Import CSV or JSON" }).click();
+  await openImport(page);
   await page
     .locator('input[type=file][accept*=".csv"]')
     .setInputFiles(join(__dirname, "..", "..", "fixtures", "people.csv"));

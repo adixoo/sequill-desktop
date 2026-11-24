@@ -12,14 +12,9 @@ import {
   TableProperties,
   Trash,
   Upload,
-  Network,
   Zap,
 } from "@/components/atoms/icons";
 import { useState, type ReactNode } from "react";
-import { DatabaseSwitcher } from "@/components/organisms/database-switcher";
-import { Link } from "@/components/atoms/link";
-import { ROUTES } from "@/lib/router";
-import { ThemeToggle } from "@/components/molecules/theme-toggle";
 import { Button } from "@/components/atoms/button";
 import {
   DropdownMenu,
@@ -36,7 +31,6 @@ import { useDialogs } from "@/store/dialogs";
 import { useSavedQueries } from "@/store/saved-queries";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
-import { hasUnsavedDesign } from "@/features/vis/lib/drafts";
 
 function Group({
   title,
@@ -271,23 +265,29 @@ export function Sidebar({ dbId, schema, onNavigate, className }: SidebarProps) {
 
   return (
     <nav aria-label="Database" className={cn("flex h-full min-h-0 flex-col bg-surface", className)}>
-      <div className="flex h-12 items-center gap-2 border-b-2 border-hairline px-3">
-        <span className="font-semibold tracking-[-0.015em] text-ink">Editor</span>
-        <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" asChild>
-            <Link href={ROUTES.vis}>
-              <Network /> Schema
-            </Link>
-          </Button>
-          <ThemeToggle />
-        </div>
-      </div>
-
-      <div className="border-b-2 border-hairline p-2">
-        <DatabaseSwitcher dbId={dbId} hasDraft={hasUnsavedDesign} />
-      </div>
-
       <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
+        {dbId && (
+          <div className="mb-1.5 grid grid-cols-2 gap-1.5 border-b-2 border-hairline px-0.5 pt-0.5 pb-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                openQuery();
+                onNavigate?.();
+              }}
+            >
+              <SquareTerminal /> New query
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                openDialog({ kind: "createTable" });
+                onNavigate?.();
+              }}
+            >
+              <Plus /> New table
+            </Button>
+          </div>
+        )}
         {dbId && schema && (
           <>
             <Group
@@ -364,29 +364,6 @@ export function Sidebar({ dbId, schema, onNavigate, className }: SidebarProps) {
           </>
         )}
       </div>
-
-      {dbId && (
-        <div className="flex gap-2 border-t-2 border-hairline p-2">
-          <Button
-            variant="secondary"
-            className="flex-1"
-            onClick={() => {
-              openQuery();
-              onNavigate?.();
-            }}
-          >
-            <SquareTerminal /> New query
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Import CSV or JSON"
-            onClick={() => openDialog({ kind: "import" })}
-          >
-            <Upload />
-          </Button>
-        </div>
-      )}
     </nav>
   );
 }

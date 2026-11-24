@@ -5,7 +5,15 @@
 import { writeFileSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 import { random } from "../../helpers/random";
-import { cell, createSample, expectChanged, expectRowCount, openTable, runSql } from "../helpers";
+import {
+  cell,
+  createSample,
+  expectChanged,
+  expectRowCount,
+  openImport,
+  openTable,
+  runSql,
+} from "../helpers";
 
 test.describe.configure({ timeout: 180_000 });
 
@@ -49,7 +57,7 @@ test("imports a 30,000-row CSV full of quotes, commas, line breaks and non-ASCII
   writeFileSync(file, lines.join("\r\n"));
 
   await createSample(page);
-  await page.getByRole("button", { name: "Import CSV or JSON" }).click();
+  await openImport(page);
   await page.locator('input[type=file][accept*=".csv"]').setInputFiles(file);
   await expect(page.getByRole("dialog")).toContainText('"score" REAL');
   await page.getByRole("button", { name: "Import 30,000 rows" }).click();

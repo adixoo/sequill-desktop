@@ -39,7 +39,11 @@ test("on phones, forms open as a bottom drawer that a drag down closes", async (
 
 test("the tab strip slides with the wheel, a mouse drag and the arrows", async ({ page }) => {
   await createSample(page);
-  for (let i = 0; i < 5; i++) await page.getByRole("button", { name: "New query" }).first().click();
+  // On phones new queries come from the sidebar sheet, which closes again after each one.
+  for (let i = 0; i < 5; i++) {
+    await page.getByRole("button", { name: "Open sidebar" }).click();
+    await page.getByRole("button", { name: "New query" }).click();
+  }
   const strip = page.getByRole("tablist", { name: "Open tabs" });
   const scrollLeft = () => strip.evaluate((el) => el.scrollLeft);
   const toStart = () => strip.evaluate((el) => (el.scrollLeft = 0));

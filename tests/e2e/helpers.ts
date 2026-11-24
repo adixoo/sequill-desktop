@@ -41,6 +41,15 @@ export async function expectRowCount(page: Page, n: number): Promise<void> {
   );
 }
 
+/** Opens the CSV/JSON import dialog from the command palette. */
+export async function openImport(page: Page): Promise<void> {
+  await page.keyboard.press("Control+k");
+  await page
+    .getByRole("dialog", { name: "Jump to" })
+    .getByRole("option", { name: "Import CSV or JSON" })
+    .click();
+}
+
 /** Types SQL into a new console tab and runs it (Ctrl+Enter). */
 export async function runSql(page: Page, sql: string): Promise<void> {
   await page.getByRole("button", { name: "New query" }).first().click();

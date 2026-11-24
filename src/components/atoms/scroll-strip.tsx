@@ -6,7 +6,7 @@ import { Button } from "@/components/atoms/button";
 import { useHorizontalScroll } from "@/hooks/use-horizontal-scroll";
 
 /** The bar colour each arrow's fade blends into. */
-const FADE = { raised: "from-raised", surface: "from-surface" } as const;
+const FADE = { raised: "from-raised", surface: "from-surface", canvas: "from-canvas" } as const;
 
 /**
  * A single row that scrolls sideways when its items don't fit: no scrollbar, but the wheel,

@@ -2,7 +2,7 @@ import {
   CopyPlus,
   Eye,
   Menu,
-  Plus,
+  Network,
   Search,
   SquareTerminal,
   Table,
@@ -24,24 +24,71 @@ import { useSavedQueries } from "@/store/saved-queries";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
 import { McpButton, McpHistoryButton } from "@/components/organisms/mcp-button";
+import { AppHeader } from "@/components/organisms/app-header";
+import { DatabaseSwitcher } from "@/components/organisms/database-switcher";
+import { hasUnsavedDesign } from "@/features/vis/lib/drafts";
+import { Link } from "@/components/atoms/link";
+import { ROUTES } from "@/lib/router";
 
-interface TabBarProps {
-  schema: Schema | undefined;
+/** The editor's top bar: sidebar button on phones, page switch, database switcher, MCP, palette. */
+export function EditorHeader({
+  dbId,
+  onOpenSidebar,
+  onOpenPalette,
+}: {
+  dbId: string | null;
   onOpenSidebar(): void;
   onOpenPalette(): void;
+}) {
+  return (
+    <AppHeader
+      title="Editor"
+      leading={
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          aria-label="Open sidebar"
+          onClick={onOpenSidebar}
+        >
+          <Menu />
+        </Button>
+      }
+      nav={
+        <Button variant="ghost" asChild>
+          <Link href={ROUTES.vis}>
+            <Network /> <span className="max-sm:sr-only">Schema</span>
+          </Link>
+        </Button>
+      }
+      actions={
+        <>
+          <McpButton />
+          <McpHistoryButton />
+          <Button
+            variant="outline"
+            className="ml-1 gap-2 text-ink-muted"
+            onClick={onOpenPalette}
+            aria-label="Command palette"
+          >
+            <Search />
+            <span className="max-lg:hidden">Jump to…</span>
+            <Kbd className="max-lg:hidden">Ctrl K</Kbd>
+          </Button>
+        </>
+      }
+    >
+      <div className="flex min-w-0 items-center">
+        <DatabaseSwitcher variant="inline" dbId={dbId} hasDraft={hasUnsavedDesign} />
+      </div>
+    </AppHeader>
+  );
 }
 
-export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
-  const {
-    tabs,
-    activeTabId,
-    setActiveTab,
-    closeTab,
-    closeOtherTabs,
-    closeTabsToRight,
-    openQuery,
-    dbId,
-  } = useWorkspace();
+/** The open tables and queries, above the content; hidden while nothing is open. */
+export function TabBar({ schema }: { schema: Schema | undefined }) {
+  const { tabs, activeTabId, setActiveTab, closeTab, closeOtherTabs, closeTabsToRight, openQuery } =
+    useWorkspace();
   const views = new Set(schema?.views.map((v) => v.name));
   const savedQueries = useSavedQueries((s) => s.queries);
   const savedSql = new Map(savedQueries.map((q) => [q.id, q.sql]));
@@ -54,19 +101,11 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [activeTabId, tabs.length]);
 
+  if (tabs.length === 0) return null;
   return (
-    <div className="flex h-12 shrink-0 items-stretch border-b-2 border-hairline bg-raised">
-      <Button
-        variant="ghost"
-        size="icon"
-        className="m-2 md:hidden"
-        aria-label="Open sidebar"
-        onClick={onOpenSidebar}
-      >
-        <Menu />
-      </Button>
+    <div className="flex h-10 shrink-0 border-b-2 border-hairline bg-canvas">
       <ScrollStrip
-        fade="raised"
+        fade="canvas"
         scrollLabel="tabs"
         scrollRef={listRef}
         role="tablist"
@@ -83,7 +122,7 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
                 <div
                   className={cn(
                     "group/tab relative flex max-w-56 shrink-0 items-center border-r border-hairline",
-                    active ? "bg-surface" : "hover:bg-active",
+                    active ? "bg-raised" : "hover:bg-raised",
                   )}
                 >
                   <button
@@ -165,30 +204,7 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
             </ContextMenu>
           );
         })}
-        {dbId && (
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="m-auto ml-1 shrink-0"
-            aria-label="New query"
-            onClick={() => openQuery()}
-          >
-            <Plus />
-          </Button>
-        )}
       </ScrollStrip>
-      <McpButton className="my-2 ml-2" />
-      <McpHistoryButton className="my-2" />
-      <Button
-        variant="outline"
-        className="m-2 gap-2 text-ink-muted"
-        onClick={onOpenPalette}
-        aria-label="Command palette"
-      >
-        <Search />
-        <span className="max-lg:hidden">Jump to…</span>
-        <Kbd className="max-lg:hidden">Ctrl K</Kbd>
-      </Button>
     </div>
   );
 }

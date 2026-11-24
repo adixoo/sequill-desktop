@@ -5,9 +5,9 @@ import { useState } from "react";
 import { toast } from "@/components/atoms/toast";
 import { AppProviders } from "@/app/app-providers";
 import { DatabaseSwitcher } from "@/components/organisms/database-switcher";
+import { AppHeader } from "@/components/organisms/app-header";
 import { DialogHost } from "@/components/organisms/dialogs/dialog-host";
 import { Loader } from "@/components/molecules/pastel/loader";
-import { ThemeToggle } from "@/components/molecules/theme-toggle";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -78,30 +78,31 @@ function Visualizer() {
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b-2 border-hairline bg-surface px-3">
-        <h1 className="font-semibold tracking-[-0.015em] text-ink">Schema</h1>
-        <DatabaseSwitcher
-          variant="inline"
-          className="ml-2"
-          dbId={activeDb}
-          onSwitch={(id) => leave({ kind: "db", id })}
-          blankDesign={{
-            active: blank,
-            onSelect: () => leave({ kind: "blank" }),
-            hasDraft: hasUnsavedDesign(BLANK_DESIGN),
-          }}
-          hasDraft={hasUnsavedDesign}
-          onImportSchema={isDesktop() ? () => setImporting(true) : undefined}
-        />
-        {/* The designer shows its save state here: "Unsaved" (click to save), "Saved". */}
-        <div ref={setBadgeSlot} className="flex items-center" />
-        <div className="ml-auto flex items-center gap-1">
+      <AppHeader
+        title="Schema"
+        nav={
           <Button variant="ghost" onClick={() => leave({ kind: "editor" })}>
             <Table /> <span className="max-sm:sr-only">Editor</span>
           </Button>
-          <ThemeToggle />
+        }
+      >
+        <div className="flex min-w-0 items-center gap-2">
+          <DatabaseSwitcher
+            variant="inline"
+            dbId={activeDb}
+            onSwitch={(id) => leave({ kind: "db", id })}
+            blankDesign={{
+              active: blank,
+              onSelect: () => leave({ kind: "blank" }),
+              hasDraft: hasUnsavedDesign(BLANK_DESIGN),
+            }}
+            hasDraft={hasUnsavedDesign}
+            onImportSchema={isDesktop() ? () => setImporting(true) : undefined}
+          />
+          {/* The designer shows its save state here: "Unsaved" (click to save), "Saved". */}
+          <div ref={setBadgeSlot} className="flex items-center" />
         </div>
-      </header>
+      </AppHeader>
       {ready ? (
         <Designer
           key={storageKey!}
