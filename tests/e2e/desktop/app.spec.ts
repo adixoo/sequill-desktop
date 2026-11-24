@@ -134,11 +134,15 @@ test("a PostgreSQL schema keeps its types, enums, functions and triggers to desi
   await page.getByRole("button", { name: /^Database: / }).click();
   await page.getByRole("menuitem", { name: "Import a schema…" }).click();
 
-  // First the database type, then how to get its schema.
+  // First the database type, then (without the schema yet) how to get it, then the schema.
   const dialog = page.getByRole("dialog", { name: "Import a schema" });
   await dialog.getByRole("button", { name: "PostgreSQL" }).click();
   const step = page.getByRole("dialog", { name: "Import a PostgreSQL schema" });
+  await step.getByRole("button", { name: /Get the schema/ }).click();
+  await expect(step).toContainText("pg_get_functiondef");
+  await step.getByRole("tab", { name: "In a terminal" }).click();
   await expect(step).toContainText("pg_dump --schema-only");
+  await step.getByRole("button", { name: "Next" }).click();
   await step.getByRole("textbox", { name: "Paste the schema" }).fill(
     `CREATE TYPE public.mood AS ENUM ('sad', 'happy');
 CREATE TABLE public.customer (id serial PRIMARY KEY, email varchar(255) NOT NULL UNIQUE);

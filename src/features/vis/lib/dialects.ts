@@ -1,3 +1,5 @@
+import postgresqlSchemaQuery from "./postgresql-schema.sql?raw";
+
 /**
  * Databases whose schemas the designer imports and exports (desktop app): how to get a
  * schema out of each, its data types, and the objects it has beside tables. Values are
@@ -7,10 +9,12 @@
 export interface Dialect {
   value: string;
   label: string;
-  /** How to get the schema out of this database, in one sentence. */
+  /** How to get the schema out of this database with `command`, in one sentence. */
   howTo: string;
-  /** A command that prints it, when there is one. */
+  /** A terminal command that prints it, when there is one. */
   command?: string;
+  /** A query that prints it from any SQL editor (no terminal needed), when there is one. */
+  query?: string;
   /** Kinds of objects (beside tables) this database has, in the order the outline lists them. */
   objectKinds: readonly ObjectKind[];
 }
@@ -23,8 +27,9 @@ export const IMPORT_DIALECTS: readonly Dialect[] = [
   {
     value: "postgresql",
     label: "PostgreSQL",
-    howTo: "Dump the schema without data and paste it, or pick the .sql file.",
-    command: "pg_dump --schema-only --no-owner your_database",
+    howTo: "Run this in a terminal, then drop the schema.sql it writes.",
+    command: "pg_dump --schema-only --no-owner --no-privileges -f schema.sql your_database",
+    query: postgresqlSchemaQuery,
     objectKinds: ["enum", "type", "sequence", "function", "procedure", "view", "trigger"],
   },
   {
@@ -178,3 +183,17 @@ export const EXPORT_TARGETS = [
 
 /** Files the schema import accepts: SQL scripts and SQLite databases. */
 export const SCHEMA_FILE_ACCEPT = ".sql,.ddl,.txt";
+
+/**
+ * A name for a database made from an imported schema: the database the dump itself names
+ * (mysqldump's header, the first line of the PostgreSQL query above, CREATE DATABASE, USE,
+ * psql's \connect), else the file's name without its extension, else "<database> schema".
+ */
+export function suggestSchemaName(dialect: Dialect, sql: string, fileName?: string): string {
+  const named =
+    /^-- (?:Host: .*\b)?Database: (\S+)/m.exec(sql) ??
+    /\bCREATE DATABASE (?:IF NOT EXISTS )?[`"[]?([\w$-]+)/i.exec(sql) ??
+    /^\s*USE [`"[]?([\w$-]+)/im.exec(sql) ??
+    /^\\c(?:onnect)? "?([\w$-]+)/m.exec(sql);
+  return named?.[1] || fileName?.replace(/\.[^.]+$/, "") || `${dialect.label} schema`;
+}

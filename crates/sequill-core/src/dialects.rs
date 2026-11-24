@@ -686,6 +686,51 @@ CREATE INDEX active_customer ON public.customer USING btree (name) WHERE (status
         assert_eq!(indexes, ["order_customer"]);
     }
 
+    /// What the app's SQL-editor query for PostgreSQL (src/features/vis/lib/postgresql-schema.sql)
+    /// printed on PostgreSQL 17: keys inline, foreign keys added after, objects in full.
+    const PG_CATALOG_QUERY: &str = include_str!("../tests/fixtures/postgres-catalog-query.sql");
+
+    #[test]
+    fn reads_the_output_of_the_sql_editor_query() {
+        let converted = to_sqlite("postgresql", PG_CATALOG_QUERY).unwrap();
+        assert_eq!(
+            converted.skipped,
+            ["CREATE INDEX"],
+            "only the partial index"
+        );
+        let kept: Vec<(&str, &str)> = converted
+            .objects
+            .iter()
+            .map(|o| (o.kind.as_str(), o.name.as_str()))
+            .collect();
+        assert_eq!(
+            kept,
+            [
+                ("type", "address"),
+                ("enum", "mood"),
+                ("type", "email"),
+                ("sequence", "customer_id_seq"),
+                ("sequence", "invoice_no"),
+                ("procedure", "noop"),
+                ("function", "stamp"),
+                ("view", "sad_tickets"),
+                ("view", "totals"),
+                ("trigger", "ticket_stamp"),
+            ]
+        );
+        let schema = run(&converted.statements).schema().unwrap();
+        let ticket = schema.tables.iter().find(|t| t.name == "ticket").unwrap();
+        assert_eq!(ticket.columns[0].pk, 1);
+        assert_eq!(
+            ticket.columns[2].type_name, "MOOD",
+            "the enum's name is kept as the type"
+        );
+        assert_eq!(ticket.foreign_keys[0].table, "customer");
+        assert_eq!(ticket.foreign_keys[0].on_delete, "CASCADE");
+        let customer = schema.tables.iter().find(|t| t.name == "customer").unwrap();
+        assert_eq!(customer.columns[0].pk, 1);
+    }
+
     #[test]
     fn reads_duckdb() {
         let duckdb = "CREATE SEQUENCE event_ids START 1;
