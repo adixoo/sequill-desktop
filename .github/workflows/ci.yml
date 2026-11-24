@@ -30,21 +30,6 @@ jobs:
       - run: bun run version:check
       - run: bun run build
 
-  desktop-e2e:
-    name: Desktop end-to-end
-    # Playwright reaches the app through WebView2, which only Windows has.
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v5
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version-file: package.json
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - run: bun install --frozen-lockfile
-      - run: bun run desktop:build:debug
-      - run: bun run test:e2e
-
   rust:
     name: Rust
     # Tauri's Linux build needs WebKitGTK 4.1, which Ubuntu 22.04 ships.

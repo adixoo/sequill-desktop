@@ -107,8 +107,9 @@ holds the version; the app reads it from there, and `bun run version-packages` c
    Linux (x64), uploads the installers to a GitHub release `v<version>` with the changelog as notes,
    and publishes it. If a build fails, nothing is published; re-run the workflow to retry.
 
-The **CI** workflow runs the type, lint, format, unit and Rust checks on every pull request and push
-to `master`.
+The **CI** workflow runs the type, lint and format checks, the unit, integration and Rust tests, and
+the web build on every pull request and push to `master`. It doesn't run the desktop end-to-end
+tests; run `bun run test:e2e` locally when a change needs them.
 
 ## Project layout
 
