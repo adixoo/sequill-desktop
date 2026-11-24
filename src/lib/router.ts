@@ -6,7 +6,7 @@
 import { useSyncExternalStore } from "react";
 
 /** The app's pages. */
-export const ROUTES = { editor: "/", vis: "/vis" } as const;
+export const ROUTES = { editor: "/", vis: "/vis", components: "/components" } as const;
 
 const NAVIGATE_EVENT = "sequill:navigate";
 
