@@ -2,7 +2,7 @@ import { Table } from "@/components/atoms/icons";
 import { navigate, ROUTES } from "@/lib/router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { AppProviders } from "@/app/app-providers";
 import { DatabaseSwitcher } from "@/components/organisms/database-switcher";
 import { DialogHost } from "@/components/organisms/dialogs/dialog-host";

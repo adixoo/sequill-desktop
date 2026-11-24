@@ -3,7 +3,7 @@
  * storage; in the desktop app they live in the catalog next to the databases, so an
  * assistant can read and edit them over MCP too.
  */
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { create } from "zustand";
 import { STORAGE_KEYS } from "@/constants";
 import { normalizeSavedQueries, type SavedQuery } from "@/utils/data/saved-queries";

@@ -1,7 +1,7 @@
 import Papa from "papaparse";
 import { FileUp } from "@/components/atoms/icons";
 import { useEffect, useMemo, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { Loader } from "@/components/molecules/pastel/loader";
 import { Button } from "@/components/atoms/button";
 import { Checkbox } from "@/components/atoms/checkbox";

@@ -1,7 +1,7 @@
 import { FileDown } from "@/components/atoms/icons";
 import { AnimatePresence, m } from "motion/react";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { AppProviders } from "@/app/app-providers";
 import { lazyComponent } from "@/lib/lazy-component";
 import { Loader } from "@/components/molecules/pastel/loader";

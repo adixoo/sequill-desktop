@@ -1,6 +1,6 @@
 /** React Query bindings for the MCP switches and history (desktop app only). */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { queryKeys } from "@/hooks/use-db";
 import type { McpStatus } from "@/lib/mcp";
 import { isDesktop } from "@/lib/platform";

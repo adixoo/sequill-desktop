@@ -1,4 +1,4 @@
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { Button } from "@/components/atoms/button";
 import {
   DropdownMenu,

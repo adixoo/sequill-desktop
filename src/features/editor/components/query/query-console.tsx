@@ -12,7 +12,7 @@ import {
   Trash,
 } from "@/components/atoms/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { Loader } from "@/components/molecules/pastel/loader";
 import { Button } from "@/components/atoms/button";
 import { Kbd } from "@/components/atoms/kbd";

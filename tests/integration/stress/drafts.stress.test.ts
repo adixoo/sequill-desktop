@@ -25,7 +25,9 @@ const { catalog, history, catalogSave, delay } = vi.hoisted(() => {
   return { catalog, history, catalogSave, delay };
 });
 vi.mock("@/lib/platform", () => ({ isDesktop: () => true }));
-vi.mock("sonner", () => ({ toast: { warning: () => undefined, error: () => undefined } }));
+vi.mock("@/components/atoms/toast", () => ({
+  toast: { warning: () => undefined, error: () => undefined },
+}));
 vi.mock("@/lib/sqlite/desktop", () => ({
   desktopDesigns: {
     list: async () => {

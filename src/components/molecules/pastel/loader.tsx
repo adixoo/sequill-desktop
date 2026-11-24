@@ -1,6 +1,6 @@
 import { Check } from "@/components/atoms/icons";
+import { Spinner } from "@/components/atoms/spinner";
 import { cn } from "@/utils";
-import { MARKS } from "./marks";
 
 export interface LoaderStage {
   label: string;
@@ -15,26 +15,15 @@ interface LoaderProps {
   size?: "sm" | "lg";
 }
 
-/**
- * Branded loader: the hand-drawn circle keeps re-drawing itself. Pure CSS so it
- * can show before any JavaScript chunk arrives (route loading states).
- */
+/** A spinner with a status line, and optional stages, for loading states. */
 export function Loader({ label = "Loading", stages, className, size = "lg" }: LoaderProps) {
-  const mark = MARKS.circle;
   return (
     <div
       role="status"
       aria-live="polite"
       className={cn("flex flex-col items-center gap-5 text-center", className)}
     >
-      <svg
-        viewBox={mark.viewBox}
-        aria-hidden
-        className={cn("pn-stroke overflow-visible", size === "lg" ? "w-28" : "w-14")}
-        style={{ strokeWidth: size === "lg" ? 7 : 10 }}
-      >
-        <path d={mark.paths[0]} pathLength={1} strokeDasharray={1} className="pn-loader-path" />
-      </svg>
+      <Spinner aria-hidden="true" className={size === "lg" ? "size-8" : "size-6"} />
       <p className="font-mono text-xs font-medium tracking-[0.04em] text-ink-soft">{label}…</p>
       {stages && stages.length > 0 && (
         <ol className="flex flex-col gap-2 text-left text-sm">

@@ -13,7 +13,7 @@ const { catalog, catalogSave, warnings } = vi.hoisted(() => {
   return { catalog, catalogSave, warnings: [] as string[] };
 });
 vi.mock("@/lib/platform", () => ({ isDesktop: () => true }));
-vi.mock("sonner", () => ({
+vi.mock("@/components/atoms/toast", () => ({
   toast: { warning: (m: string) => warnings.push(m), error: (m: string) => warnings.push(m) },
 }));
 vi.mock("@/lib/sqlite/desktop", () => ({

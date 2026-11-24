@@ -6,7 +6,7 @@
  * the catalog) so reading stays synchronous.
  */
 import { useSyncExternalStore } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { STORAGE_KEYS } from "@/constants";
 import { isDesktop } from "@/lib/platform";
 import { desktopDesigns, watchDesktopChanges } from "@/lib/sqlite/desktop";

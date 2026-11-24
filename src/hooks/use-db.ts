@@ -1,7 +1,7 @@
 /** React Query bindings for the SQLite worker. */
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { getSqlite } from "@/lib/sqlite/client";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { buildCount, buildSelect, quoteIdent, type TableQuery } from "@/lib/sqlite/sql";

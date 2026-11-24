@@ -30,7 +30,7 @@ import {
 } from "@/components/atoms/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { ConfirmSqlDialog } from "@/components/organisms/dialogs/simple-dialogs";
 import { Button } from "@/components/atoms/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/atoms/sheet";

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 
 /** How long a copy button says "Copied" before going back to "Copy". */
 const COPIED_MS = 1800;

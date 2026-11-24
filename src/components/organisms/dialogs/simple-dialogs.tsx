@@ -1,6 +1,6 @@
 import { Copy } from "@/components/atoms/icons";
 import { useState } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/atoms/toast";
 import { CodeBlock } from "@/components/molecules/pastel/code-block";
 import {
   AlertDialog,
