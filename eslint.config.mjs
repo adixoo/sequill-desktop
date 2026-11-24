@@ -45,5 +45,7 @@ export default defineConfig([
     // Third-party agent skills and their working files are not app code.
     ".claude/skills/**",
     ".taste-skill/**",
+    // Vendored Claude Code plugin; its test fixtures break the rules on purpose.
+    "tools/atomic-design/**",
   ]),
 ]);

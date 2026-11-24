@@ -1,0 +1,4 @@
+{
+  "preset": "compose",
+  "levels": { "atoms": "src/ui/atoms", "molecules": "src/ui/molecules", "organisms": "src/ui/organisms" }
+}

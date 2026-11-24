@@ -8,5 +8,5 @@
     "pages": "src/pages"
   },
   "tokens": ["src/styles/globals.css"],
-  "ignore": ["**/*.test.*", "**/*.spec.*"]
+  "ignore": ["**/*.test.*", "**/*.spec.*", "tools/atomic-design/**"]
 }

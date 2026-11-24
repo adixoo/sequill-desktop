@@ -9,3 +9,4 @@ public/sqlite
 .taste-skill
 target
 src-tauri/gen
+tools/atomic-design

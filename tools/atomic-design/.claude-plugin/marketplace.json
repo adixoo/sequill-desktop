@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "atomic-design",
+  "description": "Atomic design for Claude Code: plan UI in levels, reuse components, audit every UI edit.",
+  "owner": {
+    "name": "adibitz",
+    "url": "https://github.com/adibitz"
+  },
+  "plugins": [
+    {
+      "name": "atomic-design",
+      "description": "Plan UI as atoms, molecules, organisms, templates and pages; reuse existing components; audit every UI edit for web and app frameworks.",
+      "source": "./",
+      "category": "development"
+    }
+  ]
+}
