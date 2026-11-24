@@ -233,7 +233,7 @@ function ObjectDialog({
               id="object-name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="font-mono max-md:text-base"
+              className="font-mono"
             />
           </div>
           {object.kind === "trigger" && (
@@ -243,7 +243,7 @@ function ObjectDialog({
                 id="object-table"
                 value={table}
                 onChange={(e) => setTable(e.target.value)}
-                className="font-mono max-md:text-base"
+                className="font-mono"
               />
             </div>
           )}

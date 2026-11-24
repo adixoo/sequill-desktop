@@ -354,7 +354,7 @@ export function ImportDialog({
                         id="import-name"
                         value={newName}
                         onChange={(e) => setNewName(e.target.value)}
-                        className="h-8 w-56 font-mono max-md:text-base"
+                        className="w-56 font-mono"
                       />
                     </div>
                   ) : (
@@ -412,11 +412,7 @@ export function ImportDialog({
                                     setTypeOverrides((s) => ({ ...s, [i]: t as ImportType }))
                                   }
                                 >
-                                  <SelectTrigger
-                                    size="sm"
-                                    className="h-7 bg-surface font-mono text-xs"
-                                    aria-label={`Type for ${c}`}
-                                  >
+                                  <SelectTrigger className="font-mono" aria-label={`Type for ${c}`}>
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>
@@ -432,11 +428,7 @@ export function ImportDialog({
                                   value={mapped(i) ?? SKIP}
                                   onValueChange={(t) => setMapping((s) => ({ ...s, [i]: t }))}
                                 >
-                                  <SelectTrigger
-                                    size="sm"
-                                    className="h-7 bg-surface text-xs"
-                                    aria-label={`Target column for ${c}`}
-                                  >
+                                  <SelectTrigger aria-label={`Target column for ${c}`}>
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent>

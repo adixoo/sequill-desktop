@@ -78,7 +78,6 @@ export function SaveAsDialog({ source, schema, draft, onSaved, onClose }: SaveAs
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="max-md:text-base"
             />
           </div>
           {source && (

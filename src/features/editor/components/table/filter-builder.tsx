@@ -146,7 +146,6 @@ export function FilterBuilder({
                         onChange={(e) => update(f.id, { value: e.target.value })}
                         placeholder={f.op === "in" ? "a, b, c" : "Value"}
                         aria-label="Value"
-                        className="h-8 max-md:text-base"
                       />
                     )}
                     {arity === 2 && (
@@ -155,7 +154,6 @@ export function FilterBuilder({
                         onChange={(e) => update(f.id, { value2: e.target.value })}
                         placeholder="and"
                         aria-label="Second value"
-                        className="h-8 max-md:text-base"
                       />
                     )}
                   </div>

@@ -198,7 +198,6 @@ export function NameDialog({
               autoFocus
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="max-md:text-base"
             />
           </div>
           {sql && <SqlPreview sql={sql} />}

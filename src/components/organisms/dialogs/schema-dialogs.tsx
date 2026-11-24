@@ -166,7 +166,7 @@ export function CreateTableDialog({ onClose }: { onClose(): void }) {
           placeholder="customers"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="font-mono max-md:text-base"
+          className="font-mono"
         />
       </div>
       <section className="flex flex-col gap-2" aria-labelledby="table-columns">
@@ -311,7 +311,7 @@ export function CreateIndexDialog({ table, onClose }: { table: string; onClose()
           id="index-name"
           value={indexName}
           onChange={(e) => setName(e.target.value)}
-          className="font-mono max-md:text-base"
+          className="font-mono"
         />
       </div>
       <fieldset className="flex flex-col gap-2">
@@ -360,7 +360,7 @@ export function CreateIndexDialog({ table, onClose }: { table: string; onClose()
           placeholder="deleted_at IS NULL"
           value={where}
           onChange={(e) => setWhere(e.target.value)}
-          className="font-mono max-md:text-base"
+          className="font-mono"
         />
       </div>
     </SchemaDialogFrame>
