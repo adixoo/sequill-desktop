@@ -26,18 +26,14 @@ import {
 } from "@/components/atoms/dropdown-menu";
 import { Input } from "@/components/atoms/input";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/atoms/input-group";
-import type { TableColor } from "@/features/vis/lib/colors";
-import {
-  addColumn,
-  dropTable,
-  renameTable,
-  type DiagramColumn,
-  type DiagramTable,
-} from "@/features/vis/lib/model";
+import type { TableColor } from "@/types/features/vis/lib/colors";
+import { addColumn, dropTable, renameTable } from "@/features/vis/lib/model";
+import type { DiagramTable, DiagramColumn } from "@/types/features/vis/lib/model";
 import { cn } from "@/utils";
 import { ColumnIcon, ColumnName, tableChangeClass, tableChangeLabel } from "./change-marks";
 import { ColorDot } from "./color-picker";
-import { ColumnEditPopover, ColumnType, isEditableTable, type SchemaEditor } from "./column-editor";
+import { ColumnEditPopover, ColumnType, isEditableTable } from "./column-editor";
+import type { SchemaEditor } from "@/types/features/vis/components/column-editor";
 import { ObjectsOutline } from "./objects-outline";
 
 interface SchemaOutlineProps {

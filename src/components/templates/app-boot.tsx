@@ -4,7 +4,7 @@ import { Loader } from "@/components/molecules/pastel/loader";
 import { Button } from "@/components/atoms/button";
 import { bootSqlite } from "@/lib/sqlite/client";
 import { errorMessage } from "@/lib/sqlite/errors";
-import type { BootStage } from "@/lib/sqlite/types";
+import type { BootStage } from "@/types/lib/sqlite/types";
 
 interface AppBootProps {
   /** Downloads the page's UI chunk; runs in parallel with booting SQLite. Must be stable. */

@@ -1,11 +1,7 @@
 import { Check } from "@/components/atoms/icons";
 import { Spinner } from "@/components/atoms/spinner";
+import type { LoaderStage } from "@/types/components/molecules/pastel/loader";
 import { cn } from "@/utils";
-
-export interface LoaderStage {
-  label: string;
-  state: "done" | "active" | "pending";
-}
 
 interface LoaderProps {
   /** Mono status line under the mark. */

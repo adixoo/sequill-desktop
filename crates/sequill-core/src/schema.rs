@@ -1,5 +1,5 @@
 //! Reads the schema of an open database through PRAGMA table-valued functions.
-//! Field names match the web UI's `src/lib/sqlite/types.ts`.
+//! Field names match the web UI's `src/types/lib/sqlite/types.ts`.
 
 use crate::error::Result;
 use rusqlite::types::ValueRef;

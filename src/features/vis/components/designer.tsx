@@ -38,16 +38,11 @@ import { STORAGE_KEYS } from "@/constants";
 import { downloadBlob, safeFileName } from "@/utils/data/export";
 import { getSqlite } from "@/lib/sqlite/client";
 import { errorMessage } from "@/lib/sqlite/errors";
-import type { Schema } from "@/lib/sqlite/types";
+import type { Schema } from "@/types/lib/sqlite/types";
 import { readJson, writeJson } from "@/lib/storage";
 import { cn } from "@/utils";
-import {
-  carryColors,
-  colorFill,
-  sanitizeColors,
-  setColor,
-  type TableColor,
-} from "@/features/vis/lib/colors";
+import { carryColors, colorFill, sanitizeColors, setColor } from "@/features/vis/lib/colors";
+import type { TableColor } from "@/types/features/vis/lib/colors";
 import {
   autoLayout,
   edgeSides,
@@ -57,8 +52,8 @@ import {
   tableHeight,
   TABLE_WIDTH,
   tableWidth,
-  type Point,
 } from "@/features/vis/lib/layout";
+import type { Point } from "@/types/features/vis/lib/layout";
 import {
   buildDiagram,
   connectColumns,
@@ -72,23 +67,25 @@ import {
   referenceTargets,
   saveWarnings,
   validateDraft,
-  type Draft,
   newDatabaseStatements,
   changeDetails,
   currentObjects,
 } from "@/features/vis/lib/model";
+import type { Draft } from "@/types/features/vis/lib/model";
 import { dialectOf } from "@/features/vis/lib/dialects";
 import { DATA_TYPES } from "@/constants/data-types";
-import type { TypeChoices } from "@/components/organisms/dialogs/type-picker";
+import type { TypeChoices } from "@/types/components/organisms/dialogs/type-picker";
 import { isDesktop } from "@/lib/platform";
 import { SaveMenu } from "./save-menu";
 import { ExportSchemaMenu } from "./export-schema-menu";
 import { readDraft, useStoredDraft, writeDraft } from "@/features/vis/lib/drafts";
 import { SaveAsDialog } from "./save-as-dialog";
-import { UnsavedBadge, type SaveState } from "./unsaved-badge";
-import type { SchemaEditor } from "./column-editor";
+import { UnsavedBadge } from "./unsaved-badge";
+import type { SaveState } from "@/types/features/vis/components/unsaved-badge";
+import type { SchemaEditor } from "@/types/features/vis/components/column-editor";
 import { SchemaOutline } from "./schema-outline";
-import { TableNode, type TableNodeType } from "./table-node";
+import { TableNode } from "./table-node";
+import type { TableNodeType } from "@/types/features/vis/components/table-node";
 import { useDesignCheck } from "../hooks/use-design-check";
 
 const nodeTypes = { table: TableNode };

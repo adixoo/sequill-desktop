@@ -4,10 +4,8 @@
  * `crates/sequill-core/src/value.rs`.
  */
 import { bytesToBase64 } from "@/utils/data/export";
-import type { CellValue, Row } from "./types";
-
-export type WireCell =
-  null | number | string | { $bigint: string } | { $blob: string } | { $real: string };
+import type { CellValue, Row } from "@/types/lib/sqlite/types";
+import type { WireCell } from "@/types/lib/sqlite/cell-codec";
 
 export function base64ToBytes(base64: string): Uint8Array {
   const binary = atob(base64);

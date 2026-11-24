@@ -1,12 +1,6 @@
 /** Saved SQL queries: the stored shape and the pure helpers around it. */
 
-export interface SavedQuery {
-  id: string;
-  name: string;
-  sql: string;
-  /** Epoch ms of the last save; the list is newest first. */
-  updatedAt: number;
-}
+import type { SavedQuery } from "@/types/utils/data/saved-queries";
 
 /** Longest name suggested from a query's first line. */
 const SUGGESTED_NAME_LENGTH = 48;

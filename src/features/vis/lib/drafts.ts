@@ -12,7 +12,8 @@ import { isDesktop } from "@/lib/platform";
 import { desktopDesigns, watchDesktopChanges } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { readJson, removeKey, writeJson } from "@/lib/storage";
-import { EMPTY_DRAFT, isDraftEmpty, normalizeDraft, type Draft } from "./model";
+import { EMPTY_DRAFT, isDraftEmpty, normalizeDraft } from "./model";
+import type { Draft } from "@/types/features/vis/lib/model";
 
 const desktop = typeof window !== "undefined" && isDesktop();
 

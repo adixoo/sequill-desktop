@@ -1,7 +1,7 @@
 import { Braces, Image as ImageIcon } from "@/components/atoms/icons";
 import { memo } from "react";
 import { blobImageType, cellPreview, valueKind } from "@/utils/data/format";
-import type { CellValue } from "@/lib/sqlite/types";
+import type { CellValue } from "@/types/lib/sqlite/types";
 import { cn } from "@/utils";
 
 /** How one value looks in a grid cell. Kind is shown by style and glyphs, never colour alone. */

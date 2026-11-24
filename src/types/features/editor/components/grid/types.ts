@@ -1,4 +1,4 @@
-import type { CellValue, ForeignKey } from "@/lib/sqlite/types";
+import type { CellValue, ForeignKey } from "@/types/lib/sqlite/types";
 
 export interface GridColumn {
   name: string;

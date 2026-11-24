@@ -1,46 +1,10 @@
 /** Settings that connect an AI assistant to the desktop app's MCP server, and its requests. */
-import type { CodeLanguage } from "@/utils/highlight-code";
-import type { Filter, FilterOp, SortSpec } from "@/lib/sqlite/sql";
-import type { TableViewState } from "@/store/workspace";
+import type { Filter } from "@/types/lib/sqlite/sql";
+import type { TableViewState } from "@/types/store/workspace";
+import type { ShowRequest, McpCommand, McpActivity, McpClient } from "@/types/lib/mcp";
 
 /** Server name in the client's config; matches the server's own name. */
 export const MCP_SERVER_NAME = "sequill";
-
-/** How an MCP client starts the server: the app itself with `mcp`. */
-export interface McpCommand {
-  command: string;
-  args: string[];
-}
-
-/** The switches in the app, plus how to start the server. */
-export interface McpStatus extends McpCommand {
-  /** Whether assistants may use the databases; the server checks it on every call. */
-  enabled: boolean;
-  /** Whether they may also change things; checked on every call that changes something. */
-  allowChanges: boolean;
-  /** A development build: assistants should use the installed app instead. */
-  devBuild: boolean;
-  /** Days the record of what assistants did is kept; null keeps it forever. */
-  historyDays: number | null;
-}
-
-/** One call an assistant made over MCP, as the server recorded it. */
-export interface McpActivity {
-  id: number;
-  /** When it was called (ms since the Unix epoch). */
-  at: number;
-  tool: string;
-  databaseId: string | null;
-  databaseName: string | null;
-  /** The SQL it ran or showed, if any. */
-  sql: string | null;
-  /** Its other arguments as JSON (table, filters, rows…), if any. */
-  details: string | null;
-  /** False when the call failed or was refused. */
-  ok: boolean;
-  /** Why it failed, if it did. */
-  message: string | null;
-}
 
 /** How long the history can be kept; null is forever. The first is the default. */
 export const MCP_HISTORY_CHOICES: { days: number | null; label: string }[] = [
@@ -180,22 +144,6 @@ export function zedConfig(command: McpCommand): string {
   return JSON.stringify({ context_servers: { [MCP_SERVER_NAME]: entry } }, null, 2);
 }
 
-/** One assistant the MCP guide explains how to connect. */
-export interface McpClient {
-  id: string;
-  name: string;
-  /**
-   * "command": one line to paste into a terminal. "file": text to add to a settings file.
-   */
-  install: "command" | "file";
-  /** What to do, in order. `code` and **bold** are rendered as such. */
-  steps: string[];
-  /** Title of the code window: the file to edit, or "terminal". */
-  fileName: string;
-  language: CodeLanguage;
-  config(command: McpCommand): string;
-}
-
 /** Steps for clients set up with one terminal command. */
 const commandSteps = (app: string, check: string): string[] => [
   "Open a terminal (on Windows: **PowerShell** or **Command Prompt**).",
@@ -324,26 +272,6 @@ export const MCP_CLIENTS: McpClient[] = [
     config: mcpConfig,
   },
 ];
-
-/** A filter as an assistant sends it: values may be numbers, text or lists. */
-export interface McpFilter {
-  column: string;
-  op: FilterOp;
-  value?: unknown;
-  value2?: unknown;
-}
-
-/** What an assistant asked the app to show (sent by `show_in_app` in the MCP server). */
-export interface ShowRequest {
-  databaseId: string;
-  view: "editor" | "table" | "query" | "schema";
-  table?: string;
-  filters: McpFilter[];
-  match: "all" | "any";
-  search: string;
-  sort: SortSpec[];
-  sql?: string;
-}
 
 /** A filter value as the filter builder's text (lists become "a, b"). */
 function filterText(value: unknown): string | undefined {

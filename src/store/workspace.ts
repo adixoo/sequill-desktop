@@ -1,51 +1,18 @@
 /** Editor UI state: active database, open tabs and their view settings. */
 import { create } from "zustand";
 import { DEFAULT_PAGE_SIZE, STORAGE_KEYS } from "@/constants";
-import type { Filter, FilterMatch, SortSpec } from "@/lib/sqlite/sql";
 import { readJson, writeJson } from "@/lib/storage";
 import { newId } from "@/utils";
-
-/** Column layout remembered per table across sessions. */
-export interface ColumnLayout {
-  hidden: string[];
-  order: string[];
-  widths: Record<string, number>;
-  pinned: string[];
-}
-
-export interface TableViewState extends ColumnLayout {
-  filters: Filter[];
-  match: FilterMatch;
-  search: string;
-  sort: SortSpec[];
-  page: number;
-  pageSize: number;
-  mode: "data" | "structure";
-}
-
-export type Tab =
-  | { id: string; kind: "table"; table: string; view: TableViewState }
-  | {
-      id: string;
-      kind: "query";
-      title: string;
-      sql: string;
-      /** The saved query this tab edits; Save updates it in place. */
-      savedId?: string;
-      /** The one tab assistants show queries in (MCP), reused rather than opening new ones. */
-      assistant?: boolean;
-    };
+import type {
+  ColumnLayout,
+  TableViewState,
+  Tab,
+  SavedQueryRef,
+  Density,
+} from "@/types/store/workspace";
 
 /** Title of the tab assistants show queries in. */
 export const ASSISTANT_TAB_TITLE = "Assistant";
-
-/** The saved query a tab is linked to, by id, with the name shown as its title. */
-export interface SavedQueryRef {
-  id: string;
-  name: string;
-}
-
-export type Density = "compact" | "comfortable";
 
 interface WorkspaceState {
   dbId: string | null;

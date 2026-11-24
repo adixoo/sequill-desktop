@@ -1,8 +1,6 @@
 import { AlertCircle, Check } from "@/components/atoms/icons";
+import type { SaveState } from "@/types/features/vis/components/unsaved-badge";
 import { cn } from "@/utils";
-
-export type SaveState =
-  { kind: "unsaved" } | { kind: "blocked"; problems: number } | { kind: "saved" };
 
 interface UnsavedBadgeProps {
   state: SaveState;

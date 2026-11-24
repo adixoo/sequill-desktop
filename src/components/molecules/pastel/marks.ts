@@ -35,5 +35,3 @@ export const MARKS = {
     ],
   },
 } as const;
-
-export type MarkName = keyof typeof MARKS;

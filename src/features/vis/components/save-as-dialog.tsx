@@ -13,8 +13,9 @@ import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { getSqlite } from "@/lib/sqlite/client";
 import { errorMessage } from "@/lib/sqlite/errors";
-import type { DbInfo, Schema } from "@/lib/sqlite/types";
-import { draftStatements, newDatabaseStatements, type Draft } from "@/features/vis/lib/model";
+import type { Schema, DbInfo } from "@/types/lib/sqlite/types";
+import { draftStatements, newDatabaseStatements } from "@/features/vis/lib/model";
+import type { Draft } from "@/types/features/vis/lib/model";
 
 interface SaveAsDialogProps {
   /** The open database. */

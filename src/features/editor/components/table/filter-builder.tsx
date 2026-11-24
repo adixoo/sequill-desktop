@@ -11,7 +11,8 @@ import {
   SelectValue,
 } from "@/components/atoms/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/atoms/toggle-group";
-import { FILTER_OPS, type Filter, type FilterMatch, type FilterOp } from "@/lib/sqlite/sql";
+import { FILTER_OPS } from "@/lib/sqlite/sql";
+import type { FilterMatch, Filter, FilterOp } from "@/types/lib/sqlite/sql";
 import { newId } from "@/utils";
 
 interface FilterBuilderProps {

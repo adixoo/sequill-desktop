@@ -1,7 +1,8 @@
 import { useState, type ReactNode } from "react";
 import { CodeBlock } from "@/components/molecules/pastel/code-block";
 import { useMcpStatus, useSetMcpAllowChanges, useSetMcpEnabled } from "@/hooks/use-mcp";
-import { MCP_CLIENTS, type McpClient, type McpStatus } from "@/lib/mcp";
+import { MCP_CLIENTS } from "@/lib/mcp";
+import type { McpClient, McpStatus } from "@/types/lib/mcp";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { useDialogs } from "@/store/dialogs";
 import { StepNumber } from "@/components/molecules/step-number";

@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { CodeBlock } from "@/components/molecules/pastel/code-block";
 import { Button } from "@/components/atoms/button";
 import { buildDrop, buildDropColumn } from "@/lib/sqlite/ddl";
-import type { RelationInfo, Schema } from "@/lib/sqlite/types";
+import type { Schema, RelationInfo } from "@/types/lib/sqlite/types";
 import { useDialogs } from "@/store/dialogs";
 
 function Section({

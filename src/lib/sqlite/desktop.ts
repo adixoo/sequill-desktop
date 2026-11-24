@@ -1,11 +1,13 @@
 /** The SQLite API backed by the desktop app's native engine (Tauri commands in `src-tauri/src/commands.rs`). */
 import { invoke as tauriInvoke, type InvokeArgs, type InvokeOptions } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
-import type { SavedQuery } from "@/utils/data/saved-queries";
-import type { McpActivity, McpStatus, ShowRequest } from "@/lib/mcp";
-import type { SqliteApi } from "./client";
-import { decodeRows, encodeCell, encodeRow, type WireCell } from "./cell-codec";
-import type { DbInfo, QueryResult, StatementResult } from "./types";
+import type { SavedQuery } from "@/types/utils/data/saved-queries";
+import type { ShowRequest, McpActivity, McpStatus } from "@/types/lib/mcp";
+import type { SqliteApi } from "@/types/lib/sqlite/client";
+import { decodeRows, encodeCell, encodeRow } from "./cell-codec";
+import type { WireCell } from "@/types/lib/sqlite/cell-codec";
+import type { DbInfo, StatementResult, QueryResult } from "@/types/lib/sqlite/types";
+import type { ExternalChanges, StoredDesign } from "@/types/lib/sqlite/desktop";
 
 /** Matches `NAME_HEADER` in `src-tauri/src/commands.rs`. */
 const NAME_HEADER = "x-sequill-name";
@@ -15,14 +17,6 @@ const DIALECT_HEADER = "x-sequill-dialect";
 const EXTERNAL_CHANGE_EVENT = "sequill://external-change";
 /** Matches `SHOW_EVENT` in `src-tauri/src/watch.rs`. */
 const SHOW_EVENT = "sequill://show";
-
-/** What another process (an AI assistant over MCP) changed. */
-export interface ExternalChanges {
-  /** The list of databases (names, sizes, times) changed. */
-  catalog: boolean;
-  /** Id of the open database when its data or schema changed. */
-  database: string | null;
-}
 
 /**
  * Calls a command. Tauri rejects with the command's error text (a string); it becomes an
@@ -125,13 +119,6 @@ export const desktopSavedQueries = {
   upsert: (query: SavedQuery) => invoke<void>("upsert_saved_query", { query }),
   remove: (id: string) => invoke<boolean>("delete_saved_query", { id }),
 };
-
-/** A schema design as the catalog keeps it; `version` goes up by one on every save. */
-export interface StoredDesign {
-  key: string;
-  draft: unknown;
-  version: number;
-}
 
 /** Unsaved schema designs, kept in the catalog on desktop so assistants can edit them too. */
 export const desktopDesigns = {

@@ -1,18 +1,9 @@
 /** Pure helpers behind the data grid: column layout and clipboard text. */
 import { DEFAULT_COLUMN_WIDTH, MAX_COLUMN_WIDTH, MIN_COLUMN_WIDTH, ROWID_ALIAS } from "@/constants";
-import type { ColumnLayout } from "@/store/workspace";
-import type { CellValue, QueryResult, Row } from "@/lib/sqlite/types";
+import type { ColumnLayout } from "@/types/store/workspace";
+import type { CellValue, QueryResult, Row } from "@/types/lib/sqlite/types";
 import { typeAffinity, valueToText } from "./format";
-
-export interface LaidOutColumn {
-  name: string;
-  /** Index into the row arrays. */
-  index: number;
-  width: number;
-  pinned: boolean;
-  /** Sticky left offset for pinned columns (excluding the row-number column). */
-  left: number;
-}
+import type { LaidOutColumn } from "@/types/utils/data/grid";
 
 export function defaultWidth(declaredType: string): number {
   switch (typeAffinity(declaredType)) {

@@ -17,9 +17,10 @@ import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/atoms/responsive-dialog";
 import { Textarea } from "@/components/atoms/textarea";
-import type { ExtraObject } from "@/lib/sqlite/types";
+import type { ExtraObject } from "@/types/lib/sqlite/types";
 import { cn } from "@/utils";
-import { dialectOf, OBJECT_KINDS, type ObjectKind } from "@/features/vis/lib/dialects";
+import { dialectOf, OBJECT_KINDS } from "@/features/vis/lib/dialects";
+import type { ObjectKind } from "@/types/features/vis/lib/dialects";
 import {
   duplicateValues,
   enumValues,
@@ -27,7 +28,7 @@ import {
   revertObject,
   setObject,
 } from "@/features/vis/lib/model";
-import type { SchemaEditor } from "./column-editor";
+import type { SchemaEditor } from "@/types/features/vis/components/column-editor";
 import { EnumValuesEditor, toRows } from "./enum-values-editor";
 
 /** One object as the outline shows it: its key in the draft and what the draft does to it. */

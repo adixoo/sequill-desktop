@@ -4,11 +4,13 @@ import { useCallback, useEffect } from "react";
 import { toast } from "@/components/atoms/toast";
 import { getSqlite } from "@/lib/sqlite/client";
 import { errorMessage } from "@/lib/sqlite/errors";
-import { buildCount, buildSelect, quoteIdent, type TableQuery } from "@/lib/sqlite/sql";
-import type { DbInfo, Schema, SqlStatement } from "@/lib/sqlite/types";
+import { buildCount, buildSelect, quoteIdent } from "@/lib/sqlite/sql";
+import type { TableQuery } from "@/types/lib/sqlite/sql";
+import type { Schema, DbInfo, SqlStatement } from "@/types/lib/sqlite/types";
 import { STORAGE_KEYS } from "@/constants";
 import { readJson } from "@/lib/storage";
 import { useWorkspace } from "@/store/workspace";
+import type { DatabaseScope } from "@/types/hooks/use-db";
 
 export const queryKeys = {
   dbs: ["dbs"] as const,
@@ -26,9 +28,6 @@ export const queryKeys = {
   mcp: ["mcp"] as const,
   mcpActivity: ["mcp", "activity"] as const,
 };
-
-/** Which databases a page lists: the editor's SQLite databases, or those plus designs. */
-export type DatabaseScope = "editor" | "designer";
 
 const editorOnly = (list: DbInfo[]) => list.filter((d) => !d.dialect);
 

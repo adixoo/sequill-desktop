@@ -34,13 +34,14 @@ import { Skeleton } from "@/components/atoms/skeleton";
 import { ROW_HEIGHT, ROW_NUMBER_WIDTH } from "@/constants";
 import { textToValue, valueToText } from "@/utils/data/format";
 import { layoutColumns, parseTsv, reorder, toTsv } from "@/utils/data/grid";
-import type { SortSpec } from "@/lib/sqlite/sql";
-import type { CellValue, Row } from "@/lib/sqlite/types";
-import type { ColumnLayout, Density } from "@/store/workspace";
+import type { SortSpec } from "@/types/lib/sqlite/sql";
+import type { CellValue, Row } from "@/types/lib/sqlite/types";
+import type { Density, ColumnLayout } from "@/types/store/workspace";
 import { cn } from "@/utils";
 import { CellValueView } from "./cell-value";
-import { GridHeaderCell, type ColumnAction } from "./grid-header";
-import type { CellEdit, GridColumn } from "./types";
+import { GridHeaderCell } from "./grid-header";
+import type { ColumnAction } from "@/types/features/editor/components/grid/grid-header";
+import type { CellEdit, GridColumn } from "@/types/features/editor/components/grid/types";
 
 const HEADER_HEIGHT = 36;
 

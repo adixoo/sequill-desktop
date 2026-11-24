@@ -1,5 +1,5 @@
 import { KeyRound, Link, Minus } from "@/components/atoms/icons";
-import type { DiagramColumn, DiagramTable } from "@/features/vis/lib/model";
+import type { DiagramTable, DiagramColumn } from "@/types/features/vis/lib/model";
 import { cn } from "@/utils";
 
 /*

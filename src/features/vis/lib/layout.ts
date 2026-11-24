@@ -1,4 +1,5 @@
 /** Automatic left-to-right layout for the schema diagram (dagre). */
+import type { Side, Point } from "@/types/features/vis/lib/layout";
 import dagre from "@dagrejs/dagre";
 
 /** A card's narrowest width; cards grow to fit long names and types, up to TABLE_MAX_WIDTH. */
@@ -6,11 +7,6 @@ export const TABLE_WIDTH = 248;
 export const TABLE_MAX_WIDTH = 480;
 export const TABLE_HEADER_HEIGHT = 40;
 export const TABLE_ROW_HEIGHT = 28;
-
-export interface Point {
-  x: number;
-  y: number;
-}
 
 export function tableHeight(columnCount: number): number {
   return TABLE_HEADER_HEIGHT + Math.max(1, columnCount) * TABLE_ROW_HEIGHT + 8;
@@ -64,8 +60,6 @@ export function autoLayout(
   }
   return positions;
 }
-
-export type Side = "L" | "R";
 
 /** Handle id for a column (or the table header) on one side of a card. */
 export const handleId = (side: Side, column: string) => `${side}:${column}`;

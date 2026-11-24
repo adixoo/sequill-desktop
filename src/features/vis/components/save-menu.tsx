@@ -8,7 +8,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
-import { changeSummary, type Draft } from "@/features/vis/lib/model";
+import { changeSummary } from "@/features/vis/lib/model";
+import type { Draft } from "@/types/features/vis/lib/model";
 
 interface SaveMenuProps {
   draft: Draft;

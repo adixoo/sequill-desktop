@@ -6,7 +6,8 @@
 import { toast } from "@/components/atoms/toast";
 import { create } from "zustand";
 import { STORAGE_KEYS } from "@/constants";
-import { normalizeSavedQueries, type SavedQuery } from "@/utils/data/saved-queries";
+import { normalizeSavedQueries } from "@/utils/data/saved-queries";
+import type { SavedQuery } from "@/types/utils/data/saved-queries";
 import { isDesktop } from "@/lib/platform";
 import { desktopSavedQueries } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";

@@ -1,8 +1,7 @@
 /** Display helpers for SQLite values. */
 import { CELL_PREVIEW_CHARS } from "@/constants";
-import type { CellValue } from "@/lib/sqlite/types";
-
-export type ValueKind = "null" | "integer" | "real" | "text" | "blob" | "json";
+import type { CellValue } from "@/types/lib/sqlite/types";
+import type { TypeKind, ValueKind } from "@/types/utils/data/format";
 
 export function valueKind(value: CellValue): ValueKind {
   if (value === null) return "null";
@@ -82,19 +81,6 @@ export function typeAffinity(declared: string): "INTEGER" | "TEXT" | "BLOB" | "R
   if (t.includes("REAL") || t.includes("FLOA") || t.includes("DOUB")) return "REAL";
   return "NUMERIC";
 }
-
-export type TypeKind =
-  | "number"
-  | "text"
-  | "boolean"
-  | "date"
-  | "time"
-  | "json"
-  | "binary"
-  | "uuid"
-  | "network"
-  | "array"
-  | "other";
 
 /** What kind of value a declared type holds, in any SQL dialect, for picking an icon. */
 export function typeKind(declared: string): TypeKind {

@@ -4,7 +4,7 @@ import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/atoms/re
 import { NameDialog } from "@/components/organisms/dialogs/simple-dialogs";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { storagePlace } from "@/lib/platform";
-import type { Dialect } from "@/features/vis/lib/dialects";
+import type { Dialect } from "@/types/features/vis/lib/dialects";
 import { DialectTiles } from "./import-schema-dialog";
 
 /**

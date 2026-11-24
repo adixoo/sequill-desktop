@@ -1,4 +1,5 @@
-import { HugeiconsIcon, type HugeiconsIconProps, type IconSvgElement } from "@hugeicons/react";
+import { HugeiconsIcon, type IconSvgElement } from "@hugeicons/react";
+import type { IconProps } from "@/types/components/atoms/icons";
 import {
   Alert02Icon,
   AlertCircleIcon,
@@ -89,9 +90,6 @@ import {
   ViewOffSlashIcon,
   ZapIcon,
 } from "@hugeicons/core-free-icons";
-
-/** Props every app icon accepts: any SVG attribute plus Hugeicons' size and stroke options. */
-export type IconProps = Omit<HugeiconsIconProps, "icon" | "altIcon" | "showAlt">;
 
 /** Turns a Hugeicons glyph into a component: decorative (aria-hidden) unless given an accessible name. */
 function icon(glyph: IconSvgElement, name: string) {

@@ -19,7 +19,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
 import { useDbActions } from "@/hooks/use-db-actions";
-import { useDatabases, type DatabaseScope } from "@/hooks/use-db";
+import { useDatabases } from "@/hooks/use-db";
+import type { DatabaseScope } from "@/types/hooks/use-db";
 import { DialectIcon } from "@/components/molecules/dialect-icon";
 import { formatBytes } from "@/utils/data/format";
 import { isDesktop } from "@/lib/platform";

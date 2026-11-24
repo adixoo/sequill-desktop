@@ -1,13 +1,7 @@
 /** Turns parsed CSV/JSON into typed columns and rows ready for INSERT. */
 import Papa from "papaparse";
-import type { CellValue } from "@/lib/sqlite/types";
-
-export type ImportType = "INTEGER" | "REAL" | "TEXT";
-
-export interface ImportTable {
-  columns: string[];
-  rows: CellValue[][];
-}
+import type { CellValue } from "@/types/lib/sqlite/types";
+import type { ImportType, ImportTable, ParsedImport } from "@/types/utils/data/import";
 
 const INT_RE = /^[+-]?\d+$/;
 const REAL_RE = /^[+-]?(\d+\.\d*|\.\d+|\d+)([eE][+-]?\d+)?$/;
@@ -100,11 +94,6 @@ export function inferJsonTypes(table: ImportTable): ImportType[] {
     return type ?? "TEXT";
   });
 }
-
-/** Import text as read: CSV/TSV rows of strings, or a JSON table with its column types. */
-export type ParsedImport =
-  | { kind: "text"; rows: string[][] }
-  | { kind: "json"; columns: string[]; rows: CellValue[][]; types: ImportType[] };
 
 /**
  * Reads pasted or file text: JSON when `json` is set (a .json file) or the text starts with

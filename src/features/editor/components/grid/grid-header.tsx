@@ -20,12 +20,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
 import { ROW_NUMBER_WIDTH } from "@/constants";
-import { clampWidth, type LaidOutColumn } from "@/utils/data/grid";
-import type { SortSpec } from "@/lib/sqlite/sql";
+import { clampWidth } from "@/utils/data/grid";
+import type { LaidOutColumn } from "@/types/utils/data/grid";
+import type { SortSpec } from "@/types/lib/sqlite/sql";
 import { cn } from "@/utils";
-import type { GridColumn } from "./types";
-
-export type ColumnAction = "filter" | "rename" | "drop";
+import type { GridColumn } from "@/types/features/editor/components/grid/types";
+import type { ColumnAction } from "@/types/features/editor/components/grid/grid-header";
 
 interface GridHeaderCellProps {
   col: LaidOutColumn;

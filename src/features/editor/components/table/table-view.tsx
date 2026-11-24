@@ -14,27 +14,30 @@ import {
   buildInsert,
   buildSelect,
   buildUpdate,
-  type TableQuery,
 } from "@/lib/sqlite/sql";
+import type { TableQuery } from "@/types/lib/sqlite/sql";
 import { buildDropColumn } from "@/lib/sqlite/ddl";
 import { isWritableColumn, visibleColumns } from "@/lib/sqlite/introspect";
 import type {
   CellValue,
-  RelationInfo,
-  Row,
   RowKey,
   Schema,
+  RelationInfo,
   SqlStatement,
-} from "@/lib/sqlite/types";
+  Row,
+} from "@/types/lib/sqlite/types";
 import { useDialogs } from "@/store/dialogs";
-import { useWorkspace, type TableViewState } from "@/store/workspace";
+import { useWorkspace } from "@/store/workspace";
+import type { TableViewState } from "@/types/store/workspace";
 import { DataGrid } from "@/features/editor/components/grid/data-grid";
-import type { CellEdit, GridColumn } from "@/features/editor/components/grid/types";
-import { ExportMenu, type ExportSource } from "@/features/editor/components/export-menu";
+import type { CellEdit, GridColumn } from "@/types/features/editor/components/grid/types";
+import { ExportMenu } from "@/features/editor/components/export-menu";
+import type { ExportSource } from "@/types/features/editor/components/export-menu";
 import { ColumnsMenu } from "./columns-menu";
 import { FilterBuilder, newFilter } from "./filter-builder";
 import { Pagination } from "./pagination";
-import { RowInspector, type InspectorTarget } from "./row-inspector";
+import { RowInspector } from "./row-inspector";
+import type { InspectorTarget } from "@/types/features/editor/components/table/row-inspector";
 import { StructureView } from "./structure-view";
 
 const EMPTY_SELECTION: ReadonlySet<number> = new Set();

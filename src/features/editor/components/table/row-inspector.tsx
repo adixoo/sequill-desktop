@@ -26,13 +26,9 @@ import {
   valueToText,
 } from "@/utils/data/format";
 import { defaultValueText, isWritableColumn, visibleColumns } from "@/lib/sqlite/introspect";
-import type { CellValue, ColumnInfo, RelationInfo, Row } from "@/lib/sqlite/types";
+import type { CellValue, RelationInfo, ColumnInfo } from "@/types/lib/sqlite/types";
 import { cn } from "@/utils";
-
-/** `id` changes for every opening, so the form starts fresh each time. */
-export type InspectorTarget =
-  | { kind: "edit"; id: number; row: Row; index: number }
-  | { kind: "new"; id: number; initial?: Row };
+import type { InspectorTarget } from "@/types/features/editor/components/table/row-inspector";
 
 type FieldState =
   | { mode: "keep" }

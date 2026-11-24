@@ -3,11 +3,10 @@
  * is a class on <html> (`.dark` holds the dark tokens) and is remembered in localStorage;
  * index.html applies it before the first paint.
  */
+import type { ThemeName } from "@/types/lib/theme";
 import { useSyncExternalStore } from "react";
 
 export const THEMES = ["dark", "light"] as const;
-export type ThemeName = (typeof THEMES)[number];
-
 /** Storage key; index.html reads the same one. */
 export const THEME_STORAGE_KEY = "theme";
 

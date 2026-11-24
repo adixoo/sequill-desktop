@@ -2,7 +2,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/atoms/toast";
 import { queryKeys } from "@/hooks/use-db";
-import type { McpStatus } from "@/lib/mcp";
+import type { McpStatus } from "@/types/lib/mcp";
 import { isDesktop } from "@/lib/platform";
 import {
   clearMcpActivity,

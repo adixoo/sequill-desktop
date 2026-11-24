@@ -6,7 +6,7 @@ import {
   encodeCell,
   encodeRow,
 } from "@/lib/sqlite/cell-codec";
-import type { CellValue } from "@/lib/sqlite/types";
+import type { CellValue } from "@/types/lib/sqlite/types";
 
 describe("cell codec", () => {
   test("plain values pass through unchanged", () => {

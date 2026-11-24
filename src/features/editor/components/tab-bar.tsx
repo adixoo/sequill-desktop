@@ -19,7 +19,7 @@ import {
 } from "@/components/atoms/context-menu";
 import { Kbd } from "@/components/atoms/kbd";
 import { ScrollStrip } from "@/components/atoms/scroll-strip";
-import type { Schema } from "@/lib/sqlite/types";
+import type { Schema } from "@/types/lib/sqlite/types";
 import { useSavedQueries } from "@/store/saved-queries";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";

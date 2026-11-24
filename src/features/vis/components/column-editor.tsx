@@ -1,31 +1,12 @@
-import type { TypeChoices } from "@/components/organisms/dialogs/type-picker";
 import { Pencil, RotateCcw, Trash, Undo } from "@/components/atoms/icons";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ColumnFields } from "@/components/organisms/dialogs/column-fields";
 import { Button } from "@/components/atoms/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/popover";
-import type { Schema } from "@/lib/sqlite/types";
-import {
-  columnForEditing,
-  dropColumn,
-  revertColumn,
-  updateColumn,
-  type DiagramColumn,
-  type DiagramTable,
-  type Draft,
-} from "@/features/vis/lib/model";
+import { columnForEditing, dropColumn, revertColumn, updateColumn } from "@/features/vis/lib/model";
+import type { DiagramTable, DiagramColumn } from "@/types/features/vis/lib/model";
 import { cn } from "@/utils";
-
-/** What the outline and the table cards need to edit the schema. Edits stay in the draft until saved. */
-export interface SchemaEditor {
-  draft: Draft;
-  schema: Schema | undefined;
-  /** Tables a column can reference, with their columns. */
-  refTables: { name: string; columns: string[] }[];
-  /** For a schema imported from another database: its types and enums to choose from. */
-  types?: TypeChoices;
-  onChange(draft: Draft): void;
-}
+import type { SchemaEditor } from "@/types/features/vis/components/column-editor";
 
 export const isEditableTable = (t: DiagramTable) =>
   (t.kind === "table" || t.kind === "draft") && t.change !== "dropped";

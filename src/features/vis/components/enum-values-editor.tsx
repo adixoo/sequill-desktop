@@ -5,12 +5,7 @@ import { Input } from "@/components/atoms/input";
 import { cn, newId } from "@/utils";
 import { moveItem } from "@/utils/data/grid";
 import { duplicateValues } from "@/features/vis/lib/model";
-
-/** One enum value being edited; `id` keeps its row (and focus) stable while values move. */
-export interface EnumValueRow {
-  id: string;
-  value: string;
-}
+import type { EnumValueRow } from "@/types/features/vis/components/enum-values-editor";
 
 export const toRows = (values: string[]): EnumValueRow[] =>
   values.map((value) => ({ id: newId(), value }));

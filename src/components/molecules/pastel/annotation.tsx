@@ -2,7 +2,8 @@ import { m } from "motion/react";
 import type { ReactNode } from "react";
 import { dur, ease } from "@/lib/motion";
 import { cn } from "@/utils";
-import { MARKS, type MarkName } from "./marks";
+import { MARKS } from "./marks";
+import type { MarkName } from "@/types/components/molecules/pastel/marks";
 
 interface MarkProps {
   name: MarkName;

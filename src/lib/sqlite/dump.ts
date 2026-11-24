@@ -1,6 +1,6 @@
 /** INSERT statements for exporting rows as SQL. */
 import { quoteIdent, sqlLiteral } from "./sql";
-import type { Row } from "./types";
+import type { Row } from "@/types/lib/sqlite/types";
 
 export function insertStatements(table: string, columns: string[], rows: Row[]): string[] {
   const target = `${quoteIdent(table)} (${columns.map(quoteIdent).join(", ")})`;

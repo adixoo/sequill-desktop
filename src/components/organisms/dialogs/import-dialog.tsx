@@ -25,19 +25,13 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/atoms/toggle-group";
 import { useInvalidate, useSchema } from "@/hooks/use-db";
 import { IMPORT_PREVIEW_ROWS } from "@/constants";
 import { cellPreview, formatCount, textToValue } from "@/utils/data/format";
-import {
-  coerceCell,
-  inferTypes,
-  normalizeHeader,
-  parseImportText,
-  type ImportType,
-  type ParsedImport,
-} from "@/utils/data/import";
+import { coerceCell, inferTypes, normalizeHeader, parseImportText } from "@/utils/data/import";
+import type { ParsedImport, ImportType } from "@/types/utils/data/import";
 import { getSqlite } from "@/lib/sqlite/client";
 import { buildCreateTable, buildDrop, emptyColumn } from "@/lib/sqlite/ddl";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { buildInsertMany } from "@/lib/sqlite/sql";
-import type { CellValue } from "@/lib/sqlite/types";
+import type { CellValue } from "@/types/lib/sqlite/types";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
 import { SqlPreview } from "./simple-dialogs";

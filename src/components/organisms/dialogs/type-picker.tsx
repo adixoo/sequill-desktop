@@ -22,21 +22,16 @@ import {
   SquareSlash,
   TextFont,
   ToggleOn,
-  type IconProps,
 } from "@/components/atoms/icons";
+import type { IconProps } from "@/types/components/atoms/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/popover";
 import { SELECT_TRIGGER_CLASS } from "@/components/atoms/select";
-import { DATA_TYPES, matchDataType, type DataType } from "@/constants/data-types";
+import { DATA_TYPES, matchDataType } from "@/constants/data-types";
+import type { DataType } from "@/types/constants/data-types";
 import { cn } from "@/utils";
-import { typeKind, type TypeKind } from "@/utils/data/format";
-
-/** The types a column can take: a database's own types, and the enums its schema defines. */
-export interface TypeChoices {
-  /** The database's name, for the group heading ("PostgreSQL"). */
-  label: string;
-  types: readonly DataType[];
-  enums: readonly string[];
-}
+import { typeKind } from "@/utils/data/format";
+import type { TypeKind } from "@/types/utils/data/format";
+import type { TypeChoices } from "@/types/components/organisms/dialogs/type-picker";
 
 const SQLITE_CHOICES: TypeChoices = { label: "SQLite", types: DATA_TYPES.sqlite, enums: [] };
 

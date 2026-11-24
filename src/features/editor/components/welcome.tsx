@@ -7,7 +7,7 @@ import { useDbActions } from "@/hooks/use-db-actions";
 import { useTableCount } from "@/hooks/use-db";
 import { enter } from "@/lib/motion";
 import { isDesktop } from "@/lib/platform";
-import type { RelationInfo, Schema } from "@/lib/sqlite/types";
+import type { Schema, RelationInfo } from "@/types/lib/sqlite/types";
 import { useDialogs } from "@/store/dialogs";
 import { useWorkspace } from "@/store/workspace";
 import { formatCount } from "@/utils/data/format";

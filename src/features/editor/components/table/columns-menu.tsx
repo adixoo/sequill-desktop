@@ -9,7 +9,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
-import type { ColumnLayout } from "@/store/workspace";
+import type { ColumnLayout } from "@/types/store/workspace";
 
 interface ColumnsMenuProps {
   columns: string[];

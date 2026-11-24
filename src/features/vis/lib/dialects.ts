@@ -1,3 +1,4 @@
+import type { Dialect, ObjectKind } from "@/types/features/vis/lib/dialects";
 import postgresqlSchemaQuery from "./postgresql-schema.sql?raw";
 
 /**
@@ -5,22 +6,6 @@ import postgresqlSchemaQuery from "./postgresql-schema.sql?raw";
  * schema out of each and the objects it has beside tables. Values are
  * the names `sequill_core::dialects` takes.
  */
-
-export interface Dialect {
-  value: string;
-  label: string;
-  /** How to get the schema out of this database with `command`, in one sentence. */
-  howTo: string;
-  /** A terminal command that prints it, when there is one. */
-  command?: string;
-  /** A query that prints it from any SQL editor (no terminal needed), when there is one. */
-  query?: string;
-  /** Kinds of objects (beside tables) this database has, in the order the outline lists them. */
-  objectKinds: readonly ObjectKind[];
-}
-
-export type ObjectKind =
-  "enum" | "type" | "sequence" | "function" | "procedure" | "view" | "trigger";
 
 /** The databases a schema can be imported from and exported to. */
 export const IMPORT_DIALECTS: readonly Dialect[] = [

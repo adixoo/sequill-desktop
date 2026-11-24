@@ -4,7 +4,8 @@
  * older version, and the designer must end on what the catalog holds.
  */
 import { beforeAll, describe, expect, test, vi } from "vitest";
-import { EMPTY_DRAFT, type Draft } from "@/features/vis/lib/model";
+import { EMPTY_DRAFT } from "@/features/vis/lib/model";
+import type { Draft } from "@/types/features/vis/lib/model";
 import { random, SEED } from "../../helpers/random";
 
 const { catalog, history, catalogSave, delay } = vi.hoisted(() => {

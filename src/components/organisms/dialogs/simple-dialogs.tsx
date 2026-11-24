@@ -27,7 +27,7 @@ import { useRunStatements } from "@/hooks/use-db";
 import { isDesktop } from "@/lib/platform";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { sqlLiteral } from "@/lib/sqlite/sql";
-import type { DbInfo, SqlStatement } from "@/lib/sqlite/types";
+import type { DbInfo, SqlStatement } from "@/types/lib/sqlite/types";
 
 /** Renders statements with parameters inlined, for previews only (execution stays parameterised). */
 export function previewSql(statements: SqlStatement[]): string {

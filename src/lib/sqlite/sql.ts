@@ -3,7 +3,8 @@
  * checked against the known schema and quoted with `quoteIdent`.
  */
 import { MAX_PARAMS_PER_STATEMENT, ROWID_ALIAS } from "@/constants";
-import type { CellValue, RowKey, SqlStatement } from "./types";
+import type { CellValue, RowKey, SqlStatement } from "@/types/lib/sqlite/types";
+import type { Filter, SortSpec, TableQuery } from "@/types/lib/sqlite/sql";
 
 export function quoteIdent(name: string): string {
   return `"${name.replace(/"/g, '""')}"`;
@@ -46,37 +47,6 @@ export const FILTER_OPS = {
   null: { label: "is NULL", arity: 0 },
   not_null: { label: "is not NULL", arity: 0 },
 } as const;
-
-export type FilterOp = keyof typeof FILTER_OPS;
-
-export interface Filter {
-  id: string;
-  column: string;
-  op: FilterOp;
-  value?: string;
-  value2?: string;
-}
-
-export interface SortSpec {
-  column: string;
-  desc: boolean;
-}
-
-export type FilterMatch = "and" | "or";
-
-export interface TableQuery {
-  table: string;
-  /** All selectable columns of the relation, used to validate identifiers. */
-  columns: string[];
-  /** When set, the rowid is selected first under `ROWID_ALIAS`. */
-  rowidName: string | null;
-  filters: Filter[];
-  match: FilterMatch;
-  search: string;
-  sort: SortSpec[];
-  limit: number;
-  offset: number;
-}
 
 const NUMERIC_RE = /^[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?$/;
 

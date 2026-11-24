@@ -25,8 +25,8 @@ import {
 import { useTableCount } from "@/hooks/use-db";
 import { useSavedQueryActions } from "@/hooks/use-saved-queries";
 import { formatCount } from "@/utils/data/format";
-import type { SavedQuery } from "@/utils/data/saved-queries";
-import type { RelationInfo, Schema, SchemaObject } from "@/lib/sqlite/types";
+import type { SavedQuery } from "@/types/utils/data/saved-queries";
+import type { Schema, SchemaObject, RelationInfo } from "@/types/lib/sqlite/types";
 import { useDialogs } from "@/store/dialogs";
 import { useSavedQueries } from "@/store/saved-queries";
 import { useWorkspace } from "@/store/workspace";

@@ -1,15 +1,4 @@
-import type { TypeKind } from "@/utils/data/format";
-
-/** A column type a database offers, as the type picker lists it. */
-export interface DataType {
-  /** The spelling the picker writes into the column. */
-  name: string;
-  kind: TypeKind;
-  /** What it holds, in a few words. */
-  description: string;
-  /** Other spellings of the same type, as schemas and dumps write them. */
-  aliases?: readonly string[];
-}
+import type { DataType } from "@/types/constants/data-types";
 
 /** Common data types of each database, keyed by dialect (see `IMPORT_DIALECTS`). */
 export const DATA_TYPES: Record<string, readonly DataType[]> = {

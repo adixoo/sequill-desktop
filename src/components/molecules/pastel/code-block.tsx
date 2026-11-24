@@ -1,5 +1,6 @@
 import { useCopy } from "@/hooks/use-copy";
-import { highlightLines, type CodeLanguage, type CodeTokenType } from "@/utils/highlight-code";
+import { highlightLines } from "@/utils/highlight-code";
+import type { CodeTokenType, CodeLanguage } from "@/types/utils/highlight-code";
 import { cn } from "@/utils";
 import { Check, Copy } from "@/components/atoms/icons";
 

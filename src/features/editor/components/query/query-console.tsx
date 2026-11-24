@@ -31,10 +31,10 @@ import { QUERY_HISTORY_LIMIT, QUERY_RESULT_ROW_LIMIT, STORAGE_KEYS } from "@/con
 import { formatCount, formatDuration } from "@/utils/data/format";
 import { getSqlite } from "@/lib/sqlite/client";
 import { errorMessage } from "@/lib/sqlite/errors";
-import type { Schema, StatementResult } from "@/lib/sqlite/types";
+import type { Schema, StatementResult } from "@/types/lib/sqlite/types";
 import { readJson, writeJson } from "@/lib/storage";
 import { useSavedQueries } from "@/store/saved-queries";
-import type { ColumnLayout } from "@/store/workspace";
+import type { ColumnLayout } from "@/types/store/workspace";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
 import { ExportMenu } from "@/features/editor/components/export-menu";

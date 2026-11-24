@@ -6,7 +6,7 @@ import { getSqlite } from "@/lib/sqlite/client";
 import { createDesign as createDesignFile, openDatabaseFile } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { SAMPLE_DB_NAME, SAMPLE_DB_SQL } from "@/lib/sqlite/sample";
-import type { DbInfo } from "@/lib/sqlite/types";
+import type { DbInfo } from "@/types/lib/sqlite/types";
 import { removeKey } from "@/lib/storage";
 import { useWorkspace } from "@/store/workspace";
 import { queryKeys } from "./use-db";

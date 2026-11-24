@@ -1,6 +1,7 @@
 /** Types shared by the SQLite worker and the UI. Everything here must be structured-clone safe. */
 
 export type CellValue = string | number | bigint | Uint8Array | null;
+
 export type Row = CellValue[];
 
 export interface SqlStatement {

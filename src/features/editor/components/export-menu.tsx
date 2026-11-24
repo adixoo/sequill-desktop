@@ -9,21 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
-import {
-  downloadBlob,
-  EXPORT_FORMATS,
-  safeFileName,
-  serialize,
-  type ExportFormat,
-} from "@/utils/data/export";
+import { downloadBlob, EXPORT_FORMATS, safeFileName, serialize } from "@/utils/data/export";
+import type { ExportFormat } from "@/types/utils/data/export";
 import { formatCount } from "@/utils/data/format";
 import { errorMessage } from "@/lib/sqlite/errors";
-import type { Row } from "@/lib/sqlite/types";
-
-export interface ExportSource {
-  label: string;
-  load(): Promise<{ columns: string[]; rows: Row[] }>;
-}
+import type { ExportSource } from "@/types/features/editor/components/export-menu";
 
 interface ExportMenuProps {
   /** Used for the file name and as the table name in SQL INSERTs. */

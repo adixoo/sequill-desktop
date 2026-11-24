@@ -19,7 +19,7 @@ import { isDatabaseFile } from "@/hooks/use-db-actions";
 import { useFileDrop } from "@/hooks/use-file-drop";
 import { importSchema } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
-import type { DbInfo } from "@/lib/sqlite/types";
+import type { DbInfo } from "@/types/lib/sqlite/types";
 import { cn } from "@/utils";
 import { formatBytes } from "@/utils/data/format";
 import { DialectIcon } from "@/components/molecules/dialect-icon";
@@ -27,8 +27,8 @@ import {
   IMPORT_DIALECTS,
   SCHEMA_FILE_ACCEPT,
   suggestSchemaName,
-  type Dialect,
 } from "@/features/vis/lib/dialects";
+import type { Dialect } from "@/types/features/vis/lib/dialects";
 
 interface ImportSchemaDialogProps {
   onImported(database: DbInfo, skipped: string[]): void;

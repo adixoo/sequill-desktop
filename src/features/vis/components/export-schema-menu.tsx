@@ -11,7 +11,8 @@ import { FileDown } from "@/components/atoms/icons";
 import { exportSchema } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { downloadBlob, safeFileName } from "@/utils/data/export";
-import { IMPORT_DIALECTS, type Dialect } from "@/features/vis/lib/dialects";
+import { IMPORT_DIALECTS } from "@/features/vis/lib/dialects";
+import type { Dialect } from "@/types/features/vis/lib/dialects";
 
 interface ExportSchemaMenuProps {
   /** The whole design as SQLite statements (the schema with unsaved changes); may throw

@@ -4,18 +4,7 @@ import "prismjs/components/prism-json";
 import "prismjs/components/prism-toml";
 import "prismjs/components/prism-bash";
 import { tokenizeSql } from "@/lib/sqlite/highlight";
-
-/** Languages a code preview can show. */
-export type CodeLanguage = "sql" | "json" | "toml" | "bash";
-
-/** What a piece of code is, for its colour. */
-export type CodeTokenType =
-  "keyword" | "string" | "number" | "comment" | "fn" | "property" | "punct" | "plain";
-
-export interface CodeToken {
-  type: CodeTokenType;
-  text: string;
-}
+import type { CodeLanguage, CodeTokenType, CodeToken } from "@/types/utils/highlight-code";
 
 /** Prism token names (and aliases) to our token types; anything else is plain. */
 const PRISM_TYPES: Record<string, CodeTokenType> = {

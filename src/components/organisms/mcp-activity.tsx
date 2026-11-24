@@ -14,8 +14,8 @@ import {
   describeTool,
   MCP_HISTORY_CHOICES,
   timeAgo,
-  type McpActivity,
 } from "@/lib/mcp";
+import type { McpActivity } from "@/types/lib/mcp";
 import { navigate, ROUTES } from "@/lib/router";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { useWorkspace } from "@/store/workspace";

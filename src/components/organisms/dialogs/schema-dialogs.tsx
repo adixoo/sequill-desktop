@@ -12,13 +12,8 @@ import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/atoms/re
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { useRunStatements, useSchema } from "@/hooks/use-db";
-import {
-  buildAddColumn,
-  buildCreateIndex,
-  buildCreateTable,
-  emptyColumn,
-  type ColumnDef,
-} from "@/lib/sqlite/ddl";
+import { buildAddColumn, buildCreateIndex, buildCreateTable, emptyColumn } from "@/lib/sqlite/ddl";
+import type { ColumnDef } from "@/types/lib/sqlite/ddl";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
 import { Check, ColumnFields } from "./column-fields";

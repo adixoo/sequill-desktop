@@ -5,7 +5,7 @@
 import Papa from "papaparse";
 import { describe, expect, test } from "vitest";
 import { decodeCell, encodeCell } from "@/lib/sqlite/cell-codec";
-import type { CellValue } from "@/lib/sqlite/types";
+import type { CellValue } from "@/types/lib/sqlite/types";
 import { toCsv } from "@/utils/data/export";
 import { valueToText } from "@/utils/data/format";
 import { parseTsv, toTsv } from "@/utils/data/grid";

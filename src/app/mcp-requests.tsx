@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { isDesktop } from "@/lib/platform";
-import { showTableView, type ShowRequest } from "@/lib/mcp";
+import { showTableView } from "@/lib/mcp";
+import type { ShowRequest } from "@/types/lib/mcp";
 import { navigate, ROUTES, usePathname } from "@/lib/router";
 import { setUiState, watchShowRequests } from "@/lib/sqlite/desktop";
 import { useWorkspace } from "@/store/workspace";

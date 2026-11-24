@@ -1,27 +1,18 @@
-import { Handle, Position, useUpdateNodeInternals, type Node, type NodeProps } from "@xyflow/react";
+import { Handle, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
 import { Eye, Table } from "@/components/atoms/icons";
 import { memo, useEffect, useState } from "react";
-import { colorInk, colorWash, type TableColor } from "@/features/vis/lib/colors";
+import { colorInk, colorWash } from "@/features/vis/lib/colors";
 import {
   handleId,
   TABLE_HEADER_HEIGHT,
   TABLE_ROW_HEIGHT,
   tableWidth,
 } from "@/features/vis/lib/layout";
-import { TABLE_HANDLE, type DiagramTable } from "@/features/vis/lib/model";
+import { TABLE_HANDLE } from "@/features/vis/lib/model";
 import { cn } from "@/utils";
 import { ColumnIcon, ColumnName, tableChangeClass, tableChangeLabel } from "./change-marks";
-import { ColumnEditPopover, ColumnType, isEditableTable, type SchemaEditor } from "./column-editor";
-
-export type TableNodeData = {
-  table: DiagramTable;
-  dimmed: boolean;
-  color: TableColor | null;
-  editor: SchemaEditor;
-  /** Showing the schema as saved: nothing can be edited. */
-  readOnly?: boolean;
-};
-export type TableNodeType = Node<TableNodeData, "table">;
+import { ColumnEditPopover, ColumnType, isEditableTable } from "./column-editor";
+import type { TableNodeType } from "@/types/features/vis/components/table-node";
 
 const handleClass =
   "!size-2.5 !min-w-0 !rounded-full !border-2 !border-surface !bg-strong opacity-0 transition-opacity duration-150 group-hover/node:opacity-100";

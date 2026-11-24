@@ -7,6 +7,8 @@
  * logo.test.ts checks they match the tokens in src/styles/globals.css.
  */
 
+import type { LogoShape } from "@/types/utils/logo";
+
 export const LOGO_SIZE = 512;
 
 export const LOGO_COLORS = {
@@ -21,11 +23,6 @@ export const LOGO_COLORS = {
 
 /** Corner radius of the ground tile. */
 export const LOGO_RADIUS = 112;
-
-export interface LogoShape {
-  d: string;
-  fill: string;
-}
 
 /** Filled shapes, back to front: two disks, the nib, then its breather hole and slit. */
 const FULL: LogoShape[] = [

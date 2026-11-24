@@ -1,8 +1,7 @@
 /** Serialises query results for download. */
 import { insertStatements } from "@/lib/sqlite/dump";
-import type { CellValue, Row } from "@/lib/sqlite/types";
-
-export type ExportFormat = "csv" | "json" | "sql";
+import type { CellValue, Row } from "@/types/lib/sqlite/types";
+import type { ExportFormat } from "@/types/utils/data/export";
 
 export const EXPORT_FORMATS: Record<
   ExportFormat,

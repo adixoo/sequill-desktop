@@ -10,9 +10,10 @@ import {
   SelectValue,
 } from "@/components/atoms/select";
 import { FK_ACTIONS } from "@/constants";
-import type { ColumnDef, DefaultKind } from "@/lib/sqlite/ddl";
+import type { ColumnDef, DefaultKind } from "@/types/lib/sqlite/ddl";
 import { cn } from "@/utils";
-import { TypePicker, type TypeChoices } from "./type-picker";
+import { TypePicker } from "./type-picker";
+import type { TypeChoices } from "@/types/components/organisms/dialogs/type-picker";
 
 /** Column definition editor shared by the schema dialogs and the visualizer. */
 const NONE = "__none__";

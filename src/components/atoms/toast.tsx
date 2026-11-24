@@ -7,35 +7,16 @@ import { useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode 
 import { createPortal } from "react-dom";
 import { getSvgPath } from "figma-squircle";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { Toaster as Sonner, toast as sonner, type ExternalToast, type ToasterProps } from "sonner";
+import { Toaster as Sonner, toast as sonner } from "sonner";
 import { cn } from "cn";
 import { X } from "@/components/atoms/icons";
 import { Spinner } from "@/components/atoms/spinner";
-
-export type ToastType = "default" | "success" | "error" | "warning" | "info" | "loading";
-
-export type ToastAction = {
-  label: string;
-  onClick: () => void;
-};
-
-// sonner's own styling options don't reach a custom toast, so they're left out
-type SonnerStyling =
-  | "icon"
-  | "richColors"
-  | "invert"
-  | "closeButton"
-  | "unstyled"
-  | "classNames"
-  | "descriptionClassName"
-  | "cancel"
-  | "cancelButtonStyle"
-  | "actionButtonStyle";
-
-export type ToastOptions = Omit<ExternalToast, SonnerStyling | "description" | "action"> & {
-  description?: ReactNode;
-  action?: ToastAction;
-};
+import type {
+  RareToasterProps,
+  ToastAction,
+  ToastOptions,
+  ToastType,
+} from "@/types/components/atoms/toast";
 
 // card radius = tile radius + padding, so the corners stay concentric: --radius-xs + 8 = --radius-xl
 const PADDING = 8;
@@ -308,11 +289,6 @@ export const toast = Object.assign(variant("default"), {
   info: variant("info"),
   loading: variant("loading"),
 });
-
-export type RareToasterProps = Omit<
-  ToasterProps,
-  "theme" | "richColors" | "invert" | "closeButton" | "icons"
->;
 
 export function Toaster({
   position = "bottom-right",

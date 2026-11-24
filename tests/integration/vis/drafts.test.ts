@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, test, vi } from "vitest";
 import { STORAGE_KEYS } from "@/constants";
-import { EMPTY_DRAFT, type Draft } from "@/features/vis/lib/model";
+import { EMPTY_DRAFT } from "@/features/vis/lib/model";
+import type { Draft } from "@/types/features/vis/lib/model";
 
 // The desktop build: designs live in the catalog (faked here with the same versioning rules).
 const { catalog, catalogSave, warnings } = vi.hoisted(() => {

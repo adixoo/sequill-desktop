@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
-import { highlightLines, type CodeToken } from "@/utils/highlight-code";
+import { highlightLines } from "@/utils/highlight-code";
+import type { CodeToken } from "@/types/utils/highlight-code";
 
 const typeOf = (line: CodeToken[], text: string) => line.find((t) => t.text === text)?.type;
 

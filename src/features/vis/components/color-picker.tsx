@@ -2,13 +2,8 @@ import { Ban, Check, Pipette } from "@/components/atoms/icons";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/popover";
 import { cn } from "@/utils";
 import { LOGO_COLORS } from "@/utils/logo";
-import {
-  colorFill,
-  colorInk,
-  colorLabel,
-  PRESET_COLORS,
-  type TableColor,
-} from "@/features/vis/lib/colors";
+import { colorFill, colorInk, colorLabel, PRESET_COLORS } from "@/features/vis/lib/colors";
+import type { TableColor } from "@/types/features/vis/lib/colors";
 
 interface ColorSwatchesProps {
   value: TableColor | null;
