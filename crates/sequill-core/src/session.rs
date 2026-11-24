@@ -82,6 +82,11 @@ impl Session {
         &self.conn
     }
 
+    /// For settings that need it, such as an authorizer.
+    pub fn connection_mut(&mut self) -> &mut Connection {
+        &mut self.conn
+    }
+
     /// Runs one statement and returns at most `limit` rows.
     pub fn query(
         &self,

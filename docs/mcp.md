@@ -69,10 +69,8 @@ Why relay instead of opening the files directly?
 | [`crates/sequill-mcp/src/pipe.rs`](../crates/sequill-mcp/src/pipe.rs)                                   | Named pipe (Windows) / Unix socket transport between relay and app.                            |
 | [`crates/sequill-mcp/src/host.rs`](../crates/sequill-mcp/src/host.rs)                                   | App side: accepts pipe connections, one `SequillServer` per session.                           |
 | [`crates/sequill-mcp/src/server.rs`](../crates/sequill-mcp/src/server.rs)                               | `SequillServer`: tool definitions (args, descriptions, hints), history recording, server info. |
-| [`crates/sequill-mcp/src/tools/mod.rs`](../crates/sequill-mcp/src/tools/mod.rs)                         | Permission checks, `open_db`, `record_call`, schema/query/execute tools.                       |
-| [`crates/sequill-mcp/src/tools/data.rs`](../crates/sequill-mcp/src/tools/data.rs)                       | `find_rows`, `insert_rows`, `update_rows`, `delete_rows`.                                      |
-| [`crates/sequill-mcp/src/tools/schema.rs`](../crates/sequill-mcp/src/tools/schema.rs)                   | Tables, columns, indexes, triggers, views, drops.                                              |
-| [`crates/sequill-mcp/src/tools/app.rs`](../crates/sequill-mcp/src/tools/app.rs)                         | Databases, saved queries, `show_in_app`.                                                       |
+| [`crates/sequill-mcp/src/tools/mod.rs`](../crates/sequill-mcp/src/tools/mod.rs)                         | Permission checks, `open_db`, `record_call`, `query`, `execute` (authorizer).                  |
+| [`crates/sequill-mcp/src/tools/app.rs`](../crates/sequill-mcp/src/tools/app.rs)                         | `app_info`, databases, `get_schema`/`set_design`, `show_in_app`.                               |
 | [`crates/sequill-core/src/store.rs`](../crates/sequill-core/src/store.rs)                               | Catalog: MCP switches, `mcp_activity` history, `ui_requests` queue, change detection.          |
 | [`src-tauri/src/main.rs`](../src-tauri/src/main.rs)                                                     | Dispatches `sequill mcp`; starts `host::serve` when the app launches.                          |
 | [`src-tauri/src/commands.rs`](../src-tauri/src/commands.rs)                                             | Tauri commands for the MCP switches and history.                                               |
@@ -205,10 +203,10 @@ Inside the app, [`SequillServer`](../crates/sequill-mcp/src/server.rs):
 
 Two settings live in the catalog's `settings` table ([`store.rs`](../crates/sequill-core/src/store.rs)):
 
-| Key                 | UI label                     | Default | Gates                                                      |
-| ------------------- | ---------------------------- | ------- | ---------------------------------------------------------- |
-| `mcp_enabled`       | _Let assistants use Sequill_ | off     | Every tool                                                 |
-| `mcp_allow_changes` | _Allow changes_              | off     | Tools that change data, schema, databases or saved queries |
+| Key                 | UI label                     | Default | Gates                                                     |
+| ------------------- | ---------------------------- | ------- | --------------------------------------------------------- |
+| `mcp_enabled`       | _Let assistants use Sequill_ | off     | Every tool                                                |
+| `mcp_allow_changes` | _Allow changes_              | off     | Changes: `execute`'s writes, database tools, `set_design` |
 
 They are **read from disk on every call**, not at startup, so flipping a switch takes effect
 immediately, even mid-conversation, without reconfiguring the assistant.
@@ -236,18 +234,18 @@ destructive.
 `open_db` in [`tools/mod.rs`](../crates/sequill-mcp/src/tools/mod.rs):
 
 - Resolves the database by **id or exact name** (`store.resolve`), case-insensitively for names.
-- Opens **read-only** (`Session::open_read_only`) unless the tool writes, so SQLite itself refuses
-  writes from `query`, `find_rows`, etc.
+- Opens **read-only** (`Session::open_read_only`), so SQLite itself refuses writes from `query`
+  and `get_schema`. `query` also refuses any statement SQLite doesn't mark read-only
+  (`sqlite3_stmt_readonly`), which catches `VACUUM INTO` (it writes a new file even on a
+  read-only connection).
 - Sets `SQLITE_LIMIT_ATTACHED` to `0`, so `ATTACH` can't reach files outside Sequill's list.
 - After a write, `record_write` updates the catalog's size and last-change time.
 
 Other guards:
 
-- `query` / `find_rows` return 200 rows by default, 5000 at most (`DEFAULT_MAX_ROWS`,
-  `MAX_ROWS_LIMIT`) to keep answers inside a model's context.
+- `query` returns 200 rows by default, 5000 at most (`DEFAULT_MAX_ROWS`, `MAX_ROWS_LIMIT`) to
+  keep answers inside a model's context; `execute` returns up to 200 rows per statement.
 - `query` takes `?` placeholders with `params`; values are bound, never spliced into SQL.
-- `update_rows` / `delete_rows` need filters or an explicit `all_rows: true`.
-- `insert_rows` is all-or-nothing.
 - `delete_database` on a file opened in place only removes it from the list; the file stays.
 - Store opened from the server uses `Store::open_shared`, which never repairs the catalog, so it
   can't race the app while it imports a file.
@@ -257,34 +255,53 @@ Values cross the wire as JSON: blobs as `{"$blob": "<base64>"}`, integers too bi
 
 ## 8. The tools
 
-Read tools (need _Let assistants use Sequill_):
+Nine tools in two groups. Reading needs _Let assistants use Sequill_; changing also needs
+_Allow changes_.
 
-| Tool                 | Implementation            | Notes                                                                |
-| -------------------- | ------------------------- | -------------------------------------------------------------------- |
-| `list_databases`     | `tools::list_databases`   | id, name, size, updatedAt; `file` for in-place files                 |
-| `get_schema`         | `tools::get_schema`       | tables, views, indexes, triggers with SQL                            |
-| `describe_table`     | `tools::describe_table`   | columns, keys, FKs, indexes, triggers, row count                     |
-| `find_rows`          | `data::find_rows`         | editor filters (15 ops), all/any, search, sort, paging               |
-| `query`              | `tools::query`            | one read-only statement, bound params                                |
-| `explain_query`      | `tools::explain_query`    | `EXPLAIN QUERY PLAN`, nothing runs                                   |
-| `list_saved_queries` | `app::list_saved_queries` |                                                                      |
-| `show_in_app`        | `app::show_in_app`        | see [section 10](#10-show_in_app-assistant--window)                  |
-| `get_design`         | `app::get_design`         | the designer's draft (`sequill_core::design::Draft`) and its version |
+| Tool              | Group  | Implementation         | Notes                                                                                                             |
+| ----------------- | ------ | ---------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `app_info`        | List   | `app::app_info`        | version, `appOpen`, `page` (`editor`/`schema`), `database` shown, `changesAllowed`, every database and `designs`¹ |
+| `query`           | List   | `tools::query`         | one read-only statement, bound params; schema via `sqlite_schema` and `PRAGMA`s                                   |
+| `get_schema`      | List   | `app::get_schema`      | schema designer only: tables, views, indexes, triggers with SQL; `design` (version, draft); `dialect`, `objects`¹ |
+| `show_in_app`     | Window | `app::show_in_app`     | switches page or shows a table/query; see [section 10](#10-show_in_app-assistant--window)                         |
+| `execute`         | Edit   | `tools::execute`       | any script, one transaction, each statement checked by kind (below)                                               |
+| `create_database` | Edit   | `app::create_database` |                                                                                                                   |
+| `rename_database` | Edit   | `app::rename_database` |                                                                                                                   |
+| `delete_database` | Edit   | `app::delete_database` | a file opened in place is only removed from the list                                                              |
+| `set_design`      | Edit   | `app::set_design`      | replaces the draft if its version is unchanged; names must exist; never touches the database                      |
 
-Write tools (also need _Allow changes_):
+¹ Designs of other databases (PostgreSQL, MySQL, MSSQL, DuckDB; `DbInfo::dialect` set) are listed
+apart under `designs`. Only `get_schema`, `set_design` and `show_in_app`'s `schema` view find them
+(`Store::resolve_any`); every other tool uses `Store::resolve`, which skips them.
 
-| Tool                                                                                          | Implementation                                                                                                          |
-| --------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `insert_rows`, `update_rows`, `delete_rows`                                                   | `data.rs`                                                                                                               |
-| `create_table`, `alter_table`, `create_index`, `create_trigger`, `create_view`, `drop_object` | `schema.rs` (built from `sequill_core::ddl` specs; returns the SQL it ran)                                              |
-| `create_database`, `rename_database`, `delete_database`                                       | `app.rs`                                                                                                                |
-| `save_query`, `delete_saved_query`                                                            | `app.rs`                                                                                                                |
-| `set_design`                                                                                  | `app.rs` — replaces the draft if its version is unchanged; names must exist in the database; never touches the database |
-| `execute`                                                                                     | `tools::execute` — any script; each statement commits on its own; reports up to the first error                         |
+**Where the page comes from.** The window calls the `set_ui_state` command whenever its route or
+database changes ([`mcp-requests.tsx`](../src/app/mcp-requests.tsx)); it lands in the catalog's
+`settings` under `ui_state`. `app_info` reports it only when the server runs inside the app
+(`SequillServer::new(dir, in_app: true)` in `host.rs`); the relay's own server passes `false`, so a
+closed app never reports a stale page.
 
-The server also sends `INSTRUCTIONS` (in `server.rs`) at initialisation: start with
-`list_databases`, prefer `find_rows`/`query` for reading, say what you'll change before writing,
-and ask the user to flip the switches when refused.
+**How `execute` checks a script.** It opens the file read-only when changes are off, runs
+`BEGIN`, then installs a SQLite **authorizer** (`rusqlite` `hooks` feature). While each statement
+is prepared, SQLite reports every action it would take, including what triggers would do, and
+`check` sorts it:
+
+| Action                                                                                 | Kind                 | Needs         |
+| -------------------------------------------------------------------------------------- | -------------------- | ------------- |
+| `SELECT`, reads, functions, `PRAGMA x` / reporting `PRAGMA x(t)`                       | read                 | MCP on        |
+| `INSERT`, `UPDATE`, `DELETE`                                                           | insert/update/delete | Allow changes |
+| `CREATE`/`ALTER`/`DROP` table, index, view, trigger                                    | create/alter/drop    | Allow changes |
+| `PRAGMA x = value`, `ANALYZE`, `REINDEX`                                               | setting/maintain     | Allow changes |
+| `ATTACH`, `DETACH`, `BEGIN`/`COMMIT`/`ROLLBACK`, `PRAGMA writable_schema = …`, unknown | —                    | never         |
+
+A refused action denies the statement; any refused or failing statement rolls the whole script
+back and the call fails with "Nothing was changed. Statement N (…) …" and the reason (which switch
+to turn on, or why it is never allowed). On success each statement's result carries `does`, the
+actions it took (`{"kind": "delete", "on": "customer"}`), with SQLite's own `sqlite_master`
+bookkeeping left out. `VACUUM` can't run inside the transaction, so it always fails.
+
+The server also sends `INSTRUCTIONS` (in `server.rs`) at initialisation: start with `app_info`,
+read with `query`, change with `execute`, say what you'll change before writing, and ask the user
+to flip the switches when refused, never work around them.
 
 ## 9. Call history
 
@@ -330,12 +347,12 @@ sequenceDiagram
 ```
 
 - Request shape (`ShowRequest` in [`app.rs`](../crates/sequill-mcp/src/tools/app.rs) and
-  [`mcp.ts`](../src/lib/mcp.ts)): `databaseId`, `view` (`table` | `query` | `schema`),
+  [`mcp.ts`](../src/lib/mcp.ts)): `databaseId`, `view` (`editor` | `table` | `query` | `schema`),
   `table`, `filters`, `match`, `search`, `sort`, `sql`.
 - The server validates everything **before** queueing (table exists, filters build, sort columns
   exist, query view has SQL), so the window never receives a broken request.
 - In the window, [`mcp-requests.tsx`](../src/app/mcp-requests.tsx) maps the request:
-  `schema` → visualizer route; `table` → `workspace.openTable(...)` with `showTableView`;
+  `schema` → visualizer route; `editor` → editor route; `table` → `workspace.openTable(...)` with `showTableView`;
   `query` → `workspace.showAssistantQuery(sql)` — always the single **Assistant** tab, not a new
   tab each time. The SQL is not run.
 
@@ -364,7 +381,7 @@ All MCP UI is desktop-only (`isDesktop()`).
      JSON for each (built from `mcp_status`'s `command`/`args`, i.e. the running executable's
      path + `mcp`). In a development build (`devBuild`) it suggests the installed app instead,
      since a dev binary opens a console and disappears on rebuild.
-  3. _Try it_: ask the assistant to list your Sequill databases.
+  3. _Try it_: ask the assistant which databases Sequill has.
 - **History button / sheet** (`McpHistoryButton`, `McpActivitySheet`): every call grouped by day,
   with database, SQL, arguments, result/error, retention picker and clear. Links open the query
   in the Assistant tab or show the table.
@@ -415,10 +432,9 @@ the assistant to list your Sequill databases.
 
 1. **Implement the logic** as a plain function in the right file under
    [`tools/`](../crates/sequill-mcp/src/tools/), taking `dir: &Path` and returning
-   `sequill_core::Result<serde_json::Value>`. Get the database with
-   `open_db(dir, database, writable)` — pass `writable = true` for anything that changes data so
-   the _Allow changes_ check applies. For catalog-level work use `open_store` /
-   `open_store_for_changes`. Call `db.record_write()` after a write. Put reusable SQL logic in
+   `sequill_core::Result<serde_json::Value>`. Get the database read-only with
+   `open_db(dir, database)` (or `open_design` to reach designs too). Changes to a database go
+   through `execute`; for catalog-level work use `open_store` / `open_store_for_changes`. Call `db.record_write()` after a write. Put reusable SQL logic in
    `sequill-core`, not here.
 2. **Expose it** in [`server.rs`](../crates/sequill-mcp/src/server.rs):
    - an `…Args` struct deriving `Deserialize, JsonSchema`, with `///` doc comments on fields

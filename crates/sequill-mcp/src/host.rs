@@ -26,7 +26,7 @@ pub async fn serve_on(mut listener: Listener, data_dir: PathBuf) -> io::Result<(
 }
 
 async fn session(stream: impl pipe::Stream, data_dir: PathBuf) {
-    match SequillServer::new(data_dir).serve(stream).await {
+    match SequillServer::new(data_dir, true).serve(stream).await {
         Ok(service) => {
             if let Err(error) = service.waiting().await {
                 eprintln!("sequill mcp: an assistant's session stopped: {error}");

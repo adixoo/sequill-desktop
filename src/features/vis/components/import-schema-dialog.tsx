@@ -22,7 +22,7 @@ import { errorMessage } from "@/lib/sqlite/errors";
 import type { DbInfo } from "@/lib/sqlite/types";
 import { cn } from "@/utils";
 import { formatBytes } from "@/utils/data/format";
-import { DialectIcon } from "@/features/vis/components/dialect-icon";
+import { DialectIcon } from "@/components/molecules/dialect-icon";
 import {
   IMPORT_DIALECTS,
   SCHEMA_FILE_ACCEPT,
@@ -67,28 +67,41 @@ export function ImportSchemaDialog({ onImported, onClose }: ImportSchemaDialogPr
                 triggers and views come in as a new design. Nothing connects to your database.
               </DialogDescription>
             </DialogHeader>
-            {/* Wrapping rows, centred, so a short last row sits in the middle instead of the left. */}
-            <ul
-              aria-label="Database types"
-              className="flex flex-wrap justify-center gap-2 md:flex-1 md:content-center md:gap-3"
-            >
-              {IMPORT_DIALECTS.map((d) => (
-                <li
-                  key={d.value}
-                  className="basis-[calc((100%-0.5rem)/2)] sm:basis-[calc((100%-1rem)/3)] md:basis-[calc((100%-1.5rem)/3)]"
-                >
-                  <Tile
-                    icon={<DialectIcon dialect={d.value} className="size-9 md:size-12" />}
-                    label={d.label}
-                    onClick={() => setDialect(d)}
-                  />
-                </li>
-              ))}
-            </ul>
+            <DialectTiles onPick={setDialect} className="md:flex-1 md:content-center" />
           </>
         )}
       </ResponsiveDialogContent>
     </ResponsiveDialog>
+  );
+}
+
+/** The databases to choose from, as large tiles in wrapping rows. */
+export function DialectTiles({
+  onPick,
+  className,
+}: {
+  onPick(dialect: Dialect): void;
+  className?: string;
+}) {
+  return (
+    // Wrapping rows, centred, so a short last row sits in the middle instead of the left.
+    <ul
+      aria-label="Database types"
+      className={cn("flex flex-wrap justify-center gap-2 md:gap-3", className)}
+    >
+      {IMPORT_DIALECTS.map((d) => (
+        <li
+          key={d.value}
+          className="basis-[calc((100%-0.5rem)/2)] sm:basis-[calc((100%-1rem)/3)] md:basis-[calc((100%-1.5rem)/3)]"
+        >
+          <Tile
+            icon={<DialectIcon dialect={d.value} className="size-9 md:size-12" />}
+            label={d.label}
+            onClick={() => onPick(d)}
+          />
+        </li>
+      ))}
+    </ul>
   );
 }
 

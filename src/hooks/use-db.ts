@@ -5,7 +5,7 @@ import { toast } from "@/components/atoms/toast";
 import { getSqlite } from "@/lib/sqlite/client";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { buildCount, buildSelect, quoteIdent, type TableQuery } from "@/lib/sqlite/sql";
-import type { Schema, SqlStatement } from "@/lib/sqlite/types";
+import type { DbInfo, Schema, SqlStatement } from "@/lib/sqlite/types";
 import { STORAGE_KEYS } from "@/constants";
 import { readJson } from "@/lib/storage";
 import { useWorkspace } from "@/store/workspace";
@@ -27,20 +27,42 @@ export const queryKeys = {
   mcpActivity: ["mcp", "activity"] as const,
 };
 
-export function useDatabases() {
-  return useQuery({ queryKey: queryKeys.dbs, queryFn: () => getSqlite().listDatabases() });
+/** Which databases a page lists: the editor's SQLite databases, or those plus designs. */
+export type DatabaseScope = "editor" | "designer";
+
+const editorOnly = (list: DbInfo[]) => list.filter((d) => !d.dialect);
+
+/**
+ * The saved databases. The editor sees SQLite databases only; schemas imported from other
+ * databases are designs, which only the schema designer lists.
+ */
+export function useDatabases(scope: DatabaseScope = "editor") {
+  return useQuery({
+    queryKey: queryKeys.dbs,
+    queryFn: () => getSqlite().listDatabases(),
+    select: scope === "editor" ? editorOnly : undefined,
+  });
 }
 
-/** Reopens the last used database (or the most recent one) when none is selected. */
-export function useRestoreLastDatabase() {
-  const dbs = useDatabases();
+/**
+ * Reopens the last used database (or the most recent one) when none is selected. The
+ * editor also leaves a design the schema designer had open, for a SQLite database.
+ */
+export function useRestoreLastDatabase(scope: DatabaseScope = "editor") {
+  const dbs = useDatabases(scope);
+  const all = useDatabases("designer");
   const dbId = useWorkspace((s) => s.dbId);
   const setDb = useWorkspace((s) => s.setDb);
+  const onDesign = scope === "editor" && !!all.data?.find((d) => d.id === dbId)?.dialect;
   useEffect(() => {
-    if (dbId || !dbs.data || dbs.data.length === 0) return;
+    if ((dbId && !onDesign) || !dbs.data) return;
+    if (dbs.data.length === 0) {
+      if (onDesign) setDb(null);
+      return;
+    }
     const last = readJson<string | null>(STORAGE_KEYS.lastDatabase, null);
     setDb((dbs.data.find((d) => d.id === last) ?? dbs.data[0]).id);
-  }, [dbs.data, dbId, setDb]);
+  }, [dbs.data, dbId, onDesign, setDb]);
 }
 
 export function useSchema(dbId: string | null) {

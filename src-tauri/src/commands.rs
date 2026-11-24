@@ -61,6 +61,16 @@ pub async fn create_database(
     with_store(&state, move |s| s.create(&name, seed_sql.as_deref())).await
 }
 
+/// A new, empty design for another database type (the schema designer's only).
+#[tauri::command]
+pub async fn create_design(
+    state: State<'_, AppState>,
+    name: String,
+    dialect: String,
+) -> CmdResult<DbInfo> {
+    with_store(&state, move |s| s.create_design(&name, &dialect)).await
+}
+
 /// The file's bytes arrive as the raw request body (no JSON number arrays for big files).
 #[tauri::command]
 pub async fn import_database(
@@ -400,4 +410,28 @@ pub async fn set_mcp_allow_changes(
         mcp_status_of(s)
     })
     .await
+}
+
+/// What the window shows, for assistants asking over MCP (`app_info`).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct UiState {
+    page: &'static str,
+    database_id: Option<String>,
+}
+
+/// Saves the window's page ("editor" or "schema") and database whenever either changes.
+#[tauri::command]
+pub async fn set_ui_state(
+    state: State<'_, AppState>,
+    page: String,
+    database_id: Option<String>,
+) -> CmdResult<()> {
+    let page = match page.as_str() {
+        "schema" => "schema",
+        _ => "editor",
+    };
+    let ui = UiState { page, database_id };
+    let json = serde_json::to_string(&ui).expect("UI state serializes");
+    with_store(&state, move |s| s.set_ui_state(&json)).await
 }

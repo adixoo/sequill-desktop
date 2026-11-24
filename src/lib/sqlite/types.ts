@@ -35,6 +35,11 @@ export interface DbInfo {
    * keeps the database in its own storage.
    */
   path: string | null;
+  /**
+   * The database type of a schema imported from another database ("postgresql"…): a design
+   * that only the schema designer opens. null for SQLite databases.
+   */
+  dialect: string | null;
 }
 
 /** The result of checking a schema design on a copy of the database's structure. */

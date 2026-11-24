@@ -5,7 +5,7 @@ import { STORAGE_KEYS } from "@/constants";
 import { downloadBlob, safeFileName } from "@/utils/data/export";
 import { isDesktop } from "@/lib/platform";
 import { getSqlite } from "@/lib/sqlite/client";
-import { openDatabaseFile } from "@/lib/sqlite/desktop";
+import { createDesign as createDesignFile, openDatabaseFile } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { SAMPLE_DB_NAME, SAMPLE_DB_SQL } from "@/lib/sqlite/sample";
 import type { DbInfo } from "@/lib/sqlite/types";
@@ -59,6 +59,18 @@ export function useDbActions() {
         await withToast(
           "Creating database",
           () => getSqlite().createDatabase(name.trim() || "Untitled"),
+          (i) => `Created ${i.name}`,
+        ),
+      ),
+    [activate, withToast],
+  );
+
+  const createDesign = useCallback(
+    async (name: string, dialect: string) =>
+      activate(
+        await withToast(
+          "Creating design",
+          () => createDesignFile(name.trim() || "Untitled", dialect),
           (i) => `Created ${i.name}`,
         ),
       ),
@@ -204,6 +216,7 @@ export function useDbActions() {
   return useMemo(
     () => ({
       createEmpty,
+      createDesign,
       createSample,
       pickFile,
       openFile,
@@ -212,7 +225,17 @@ export function useDbActions() {
       remove,
       rename,
     }),
-    [createEmpty, createSample, pickFile, openFile, download, downloadDump, remove, rename],
+    [
+      createEmpty,
+      createDesign,
+      createSample,
+      pickFile,
+      openFile,
+      download,
+      downloadDump,
+      remove,
+      rename,
+    ],
   );
 }
 

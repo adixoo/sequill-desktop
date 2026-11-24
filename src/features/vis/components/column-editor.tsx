@@ -20,8 +20,8 @@ import { cn } from "@/utils";
 export interface SchemaEditor {
   draft: Draft;
   schema: Schema | undefined;
-  /** The open database, for "Open in editor" links; null for a blank design. */
-  dbId: string | null;
+  /** The open database, for "Open in editor" links. */
+  dbId: string;
   /** Tables a column can reference, with their columns. */
   refTables: { name: string; columns: string[] }[];
   /** For a schema imported from another database: its types and enums to choose from. */

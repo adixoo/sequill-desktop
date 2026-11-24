@@ -1,6 +1,6 @@
 //! The MCP server: the tools in `tools/`, described for AI assistants.
 
-use crate::tools::{self, app, data, schema};
+use crate::tools::{self, app};
 use rmcp::handler::server::router::tool::ToolRouter;
 use rmcp::handler::server::tool::ToolCallContext;
 use rmcp::handler::server::wrapper::Parameters;
@@ -11,65 +11,49 @@ use rmcp::service::RequestContext;
 use rmcp::{ErrorData, RoleServer, ServerHandler, tool, tool_handler, tool_router};
 use schemars::JsonSchema;
 use sequill_core::CellValue;
-use sequill_core::ddl::{ColumnSpec, IndexSpec, ObjectKind, TableSpec, TriggerSpec};
 use sequill_core::design::Draft;
 use sequill_core::filter::{Filter, FilterMatch};
 use sequill_core::rows::Sort;
 use serde::Deserialize;
-use serde_json::{Map, Value};
+use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-const INSTRUCTIONS: &str = "Sequill keeps the user's SQLite databases; these tools do what its \
-editor does, and work whether or not the Sequill app is open (show_in_app needs it open). \
-Start with list_databases, then \
-get_schema or describe_table. Read rows with find_rows (filters, search, sort, paging) or \
-query (one read-only SELECT; use ? and params). Use show_in_app to put a table (with filters), a query or the schema diagram on the user's \
-screen. Tools that change things (rows, tables, indexes, triggers, views, databases, saved \
-queries) work only while the user allows changes in Sequill: say what you will change before \
-calling them. If a tool says MCP access or changes are off, ask the user to turn them on with \
-the MCP button in Sequill. To propose schema changes for the user to review instead of making \
-them, read the schema designer's draft with get_design and write it back with set_design; the \
-user saves it to the database.";
+const INSTRUCTIONS: &str = "Sequill keeps the user's SQLite databases. Start with app_info: \
+the app's version, whether its window is open, the page it shows (editor or schema) and the \
+database there, and every database. Read with query (one read-only statement: SELECT, WITH, \
+PRAGMA or EXPLAIN; use ? and params); read the schema with SQL too, such as \
+SELECT name, type, sql FROM sqlite_schema or PRAGMA table_info(t). Change data or schema with \
+execute: the whole script runs as one transaction, all or nothing, and the result says what \
+each statement did. Reading works whenever MCP access is on; changes (execute's writes, \
+creating, renaming or deleting databases, set_design) only while the user allows changes in \
+Sequill: say what you will change before calling them. If a tool says MCP access or changes \
+are off, ask the user to turn them on with the MCP button in Sequill; never work around it. \
+Use show_in_app to switch the window between the editor and the schema page, or to show a \
+table (with filters) or a query. get_schema is for the schema designer: it reads the schema \
+and the unsaved design, which set_design changes for the user to review and save. \
+app_info also lists designs of other databases (PostgreSQL, MySQL…): only get_schema, \
+set_design and show_in_app's schema page work on those.";
 
-/// Tools that change data, schema, databases or saved queries; they need "Allow changes"
-/// in the app, checked on every call.
-pub const WRITE_TOOLS: [&str; 16] = [
+/// Tools that change data, schema or databases; they need "Allow changes" in the app,
+/// checked on every call (execute checks each statement, so it still reads without it).
+pub const WRITE_TOOLS: [&str; 5] = [
     "execute",
-    "insert_rows",
-    "update_rows",
-    "delete_rows",
-    "create_table",
-    "alter_table",
-    "create_index",
-    "create_trigger",
-    "create_view",
-    "drop_object",
     "create_database",
     "rename_database",
     "delete_database",
-    "save_query",
-    "delete_saved_query",
     "set_design",
 ];
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct DatabaseArgs {
-    /// The database's id, or its exact name, from list_databases.
+    /// The database's id, or its exact name, from app_info.
     pub database: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct TableArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    /// The table or view.
-    pub table: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct QueryArgs {
-    /// The database's id, or its exact name, from list_databases.
+    /// The database's id, or its exact name, from app_info.
     pub database: String,
     /// One read-only SQL statement (SELECT, WITH, PRAGMA or EXPLAIN). Use ? for values.
     pub sql: String,
@@ -82,126 +66,10 @@ pub struct QueryArgs {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct SqlArgs {
-    /// The database's id, or its exact name, from list_databases.
+    /// The database's id, or its exact name, from app_info.
     pub database: String,
     /// One or more SQL statements separated by semicolons.
     pub sql: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct FindRowsArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    /// The table or view.
-    pub table: String,
-    /// Conditions on columns, as in the editor's filter builder.
-    #[serde(default)]
-    pub filters: Vec<Filter>,
-    /// "all" filters must match (default) or "any" one.
-    #[serde(default, rename = "match")]
-    pub matching: FilterMatch,
-    /// Text to look for in every column.
-    pub search: Option<String>,
-    #[serde(default)]
-    pub sort: Vec<Sort>,
-    /// Most rows to return (default 200, at most 5000).
-    pub limit: Option<usize>,
-    /// Rows to skip, for the next page.
-    pub offset: Option<usize>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct InsertRowsArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    pub table: String,
-    /// Rows as {"column": value} objects; missing columns get their defaults.
-    /// Blobs as {"$blob": base64}. All rows are added, or none.
-    pub rows: Vec<Map<String, Value>>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct UpdateRowsArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    pub table: String,
-    /// New values as {"column": value}.
-    pub set: Map<String, Value>,
-    /// Which rows to change. Required unless all_rows is true.
-    #[serde(default)]
-    pub filters: Vec<Filter>,
-    #[serde(default, rename = "match")]
-    pub matching: FilterMatch,
-    /// Change every row of the table (only when no filters are given).
-    #[serde(default)]
-    pub all_rows: bool,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct DeleteRowsArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    pub table: String,
-    /// Which rows to delete. Required unless all_rows is true.
-    #[serde(default)]
-    pub filters: Vec<Filter>,
-    #[serde(default, rename = "match")]
-    pub matching: FilterMatch,
-    /// Delete every row of the table (only when no filters are given).
-    #[serde(default)]
-    pub all_rows: bool,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CreateTableArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    pub table: TableSpec,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct AlterTableArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    pub table: String,
-    pub action: schema::AlterAction,
-    /// The column to rename or drop.
-    pub column: Option<String>,
-    /// The new name, for rename_column and rename_table.
-    pub new_name: Option<String>,
-    /// The column to add, for add_column.
-    pub definition: Option<ColumnSpec>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CreateIndexArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    pub index: IndexSpec,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CreateTriggerArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    pub trigger: TriggerSpec,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct CreateViewArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    pub name: String,
-    /// The SELECT the view shows.
-    pub select: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct DropObjectArgs {
-    /// The database's id, or its exact name, from list_databases.
-    pub database: String,
-    pub kind: ObjectKind,
-    pub name: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -211,41 +79,26 @@ pub struct CreateDatabaseArgs {
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct RenameDatabaseArgs {
-    /// The database's id, or its exact name, from list_databases.
+    /// The database's id, or its exact name, from app_info.
     pub database: String,
     /// The new name.
     pub name: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
-pub struct SaveQueryArgs {
-    pub name: String,
-    pub sql: String,
-    /// Updates this saved query (from list_saved_queries). Without it, a query with the
-    /// same name is updated, or a new one is added.
-    pub id: Option<String>,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct SavedQueryIdArgs {
-    /// The saved query's id, from list_saved_queries.
-    pub id: String,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
 pub struct SetDesignArgs {
-    /// The database's id, or its exact name, from list_databases.
+    /// The database's id, or its exact name, from app_info.
     pub database: String,
-    /// The version get_design returned; the save is refused if the design changed since.
+    /// The design's version from get_schema; the save is refused if the design changed since.
     pub version: i64,
-    /// The whole design: what get_design returned, with your changes. It replaces the
+    /// The whole design: get_schema's design.draft, with your changes. It replaces the
     /// stored one. Name existing tables and columns as they are in the database now.
     pub draft: Draft,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct ShowArgs {
-    /// The database's id, or its exact name, from list_databases.
+    /// The database's id, or its exact name, from app_info.
     pub database: String,
     pub view: app::ShowView,
     /// The table or view, for view "table".
@@ -267,15 +120,18 @@ pub struct ShowArgs {
 #[derive(Clone)]
 pub struct SequillServer {
     data_dir: Arc<PathBuf>,
+    /// Runs inside the app, so its window is open (the relay runs one itself when it isn't).
+    in_app: bool,
     tool_router: ToolRouter<Self>,
 }
 
 impl SequillServer {
     /// A server over the databases in `data_dir`. Every tool is offered; the switches in the
     /// app decide on each call whether assistants may read, and whether they may change things.
-    pub fn new(data_dir: PathBuf) -> Self {
+    pub fn new(data_dir: PathBuf, in_app: bool) -> Self {
         Self {
             data_dir: Arc::new(data_dir),
+            in_app,
             tool_router: Self::tool_router(),
         }
     }
@@ -303,51 +159,20 @@ impl SequillServer {
 impl SequillServer {
     // ---- Reading -------------------------------------------------------------------------
 
-    /// Lists the user's Sequill databases with their ids, names, sizes and last change times.
-    #[tool(annotations(title = "List databases", read_only_hint = true))]
-    async fn list_databases(&self) -> Result<String, String> {
-        self.run(tools::list_databases).await
+    /// Where things stand: the app's version, whether its window is open, the page it shows
+    /// ("editor" or "schema") and the database there, whether changes are allowed, and every
+    /// database (ids, names, sizes, last change) and design of another database.
+    #[tool(annotations(title = "App info", read_only_hint = true))]
+    async fn app_info(&self) -> Result<String, String> {
+        let in_app = self.in_app;
+        self.run(move |dir| app::app_info(dir, in_app)).await
     }
 
-    /// Shows a database's tables, views, indexes and triggers with the SQL that defines them.
-    #[tool(annotations(title = "Get schema", read_only_hint = true))]
-    async fn get_schema(&self, Parameters(a): Parameters<DatabaseArgs>) -> Result<String, String> {
-        self.run(move |dir| tools::get_schema(dir, &a.database))
-            .await
-    }
-
-    /// One table or view in detail: columns (types, keys, defaults), foreign keys, indexes,
-    /// triggers and its row count.
-    #[tool(annotations(title = "Describe table", read_only_hint = true))]
-    async fn describe_table(&self, Parameters(a): Parameters<TableArgs>) -> Result<String, String> {
-        self.run(move |dir| tools::describe_table(dir, &a.database, &a.table))
-            .await
-    }
-
-    /// Reads rows of a table or view like the editor's table view: filters (eq, neq,
-    /// contains, not_contains, starts, ends, gt, gte, lt, lte, between, in, empty, null,
-    /// not_null), a text search over every column, sorting and paging. Returns the matching
-    /// total too.
-    #[tool(annotations(title = "Find rows", read_only_hint = true))]
-    async fn find_rows(&self, Parameters(a): Parameters<FindRowsArgs>) -> Result<String, String> {
-        self.run(move |dir| {
-            data::find_rows(
-                dir,
-                &a.database,
-                &a.table,
-                a.filters,
-                a.matching,
-                a.search,
-                a.sort,
-                a.limit,
-                a.offset,
-            )
-        })
-        .await
-    }
-
-    /// Runs one read-only SQL statement and returns its columns and rows.
-    /// Blobs come back as {"$blob": base64} and very large integers as {"$bigint": "…"}.
+    /// Runs one read-only SQL statement and returns its columns and rows. Read the schema
+    /// with it too: SELECT name, type, sql FROM sqlite_schema, PRAGMA table_info(t),
+    /// PRAGMA foreign_key_list(t), EXPLAIN QUERY PLAN … Statements that would change
+    /// anything are refused. Blobs come back as {"$blob": base64} and very large integers
+    /// as {"$bigint": "…"}.
     #[tool(annotations(title = "Query", read_only_hint = true))]
     async fn query(&self, Parameters(a): Parameters<QueryArgs>) -> Result<String, String> {
         let params = a
@@ -360,31 +185,20 @@ impl SequillServer {
             .await
     }
 
-    /// Shows how SQLite would run each statement (EXPLAIN QUERY PLAN), without running it.
-    /// Use it to check whether a query uses an index.
-    #[tool(annotations(title = "Explain query", read_only_hint = true))]
-    async fn explain_query(&self, Parameters(a): Parameters<SqlArgs>) -> Result<String, String> {
-        self.run(move |dir| tools::explain_query(dir, &a.database, &a.sql))
-            .await
+    /// For the schema designer: the schema as its diagram shows it (tables, views, indexes
+    /// and triggers with their SQL), and the unsaved design ("design": version and draft,
+    /// the changes planned in the designer). Works for designs of other databases too, with
+    /// their type ("dialect") and "objects" (enums, functions… that set_design's "objects"
+    /// changes by "kind:name"). To read rows, use query.
+    #[tool(annotations(title = "Get schema", read_only_hint = true))]
+    async fn get_schema(&self, Parameters(a): Parameters<DatabaseArgs>) -> Result<String, String> {
+        self.run(move |dir| app::get_schema(dir, &a.database)).await
     }
 
-    /// Lists the user's saved queries (shared by every database) with their ids and SQL.
-    #[tool(annotations(title = "List saved queries", read_only_hint = true))]
-    async fn list_saved_queries(&self) -> Result<String, String> {
-        self.run(app::list_saved_queries).await
-    }
-
-    /// Reads the database's unsaved schema design: the changes the user (or an assistant)
-    /// planned in Sequill's schema designer but hasn't saved to the database yet, with its
-    /// version. The database itself is unchanged until the user saves the design there.
-    #[tool(annotations(title = "Get design", read_only_hint = true))]
-    async fn get_design(&self, Parameters(a): Parameters<DatabaseArgs>) -> Result<String, String> {
-        self.run(move |dir| app::get_design(dir, &a.database)).await
-    }
-
-    /// Shows something in the open Sequill window: a table with filters, search and sort
-    /// ("table"), a new query tab with SQL in it ("query", not run), or the schema diagram
-    /// ("schema"). Fails if Sequill isn't open.
+    /// Switches the open Sequill window and shows something there: the editor page
+    /// ("editor"), the schema page ("schema"), a table with filters, search and sort
+    /// ("table"), or a new query tab with SQL in it ("query", not run). Fails if Sequill
+    /// isn't open.
     #[tool(annotations(
         title = "Show in Sequill",
         read_only_hint = false,
@@ -408,162 +222,18 @@ impl SequillServer {
         .await
     }
 
-    // ---- Changing data -------------------------------------------------------------------
+    // ---- Changing --------------------------------------------------------------------------
 
-    /// Runs SQL that changes data or schema (INSERT, UPDATE, DELETE, CREATE, ALTER, DROP).
-    /// Each statement commits on its own; reports every statement up to the first error.
+    /// Runs SQL that changes data or schema: INSERT, UPDATE, DELETE, CREATE, ALTER, DROP…
+    /// The whole script is one transaction: if any statement fails or is refused, nothing
+    /// changes. Each statement's result says what it did ("does": insert, update, delete,
+    /// create, alter, drop, setting or maintain, and on what). Changes need "Allow changes"
+    /// in Sequill; ATTACH, DETACH, BEGIN/COMMIT and PRAGMA writable_schema are never allowed.
     #[tool(annotations(title = "Execute SQL", read_only_hint = false, destructive_hint = true))]
     async fn execute(&self, Parameters(a): Parameters<SqlArgs>) -> Result<String, String> {
         self.run(move |dir| tools::execute(dir, &a.database, &a.sql))
             .await
     }
-
-    /// Adds rows to a table, all or none.
-    #[tool(annotations(
-        title = "Insert rows",
-        read_only_hint = false,
-        destructive_hint = false
-    ))]
-    async fn insert_rows(
-        &self,
-        Parameters(a): Parameters<InsertRowsArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| data::insert_rows(dir, &a.database, &a.table, &a.rows))
-            .await
-    }
-
-    /// Sets columns to new values on the rows that match the filters.
-    #[tool(annotations(title = "Update rows", read_only_hint = false, destructive_hint = true))]
-    async fn update_rows(
-        &self,
-        Parameters(a): Parameters<UpdateRowsArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| {
-            data::update_rows(
-                dir,
-                &a.database,
-                &a.table,
-                &a.set,
-                &a.filters,
-                a.matching,
-                a.all_rows,
-            )
-        })
-        .await
-    }
-
-    /// Deletes the rows that match the filters.
-    #[tool(annotations(title = "Delete rows", read_only_hint = false, destructive_hint = true))]
-    async fn delete_rows(
-        &self,
-        Parameters(a): Parameters<DeleteRowsArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| {
-            data::delete_rows(
-                dir,
-                &a.database,
-                &a.table,
-                &a.filters,
-                a.matching,
-                a.all_rows,
-            )
-        })
-        .await
-    }
-
-    // ---- Changing the schema -------------------------------------------------------------
-
-    /// Creates a table from column definitions (types, primary key, NOT NULL, UNIQUE,
-    /// defaults, foreign keys), optionally STRICT or WITHOUT ROWID. Returns the SQL it ran.
-    #[tool(annotations(
-        title = "Create table",
-        read_only_hint = false,
-        destructive_hint = false
-    ))]
-    async fn create_table(
-        &self,
-        Parameters(a): Parameters<CreateTableArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| schema::create_table(dir, &a.database, &a.table))
-            .await
-    }
-
-    /// Changes a table: add_column (with definition), rename_column, drop_column or
-    /// rename_table. Returns the SQL it ran.
-    #[tool(annotations(title = "Alter table", read_only_hint = false, destructive_hint = true))]
-    async fn alter_table(
-        &self,
-        Parameters(a): Parameters<AlterTableArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| {
-            schema::alter_table(
-                dir,
-                &a.database,
-                &a.table,
-                a.action,
-                &a.column,
-                &a.new_name,
-                a.definition.as_ref(),
-            )
-        })
-        .await
-    }
-
-    /// Creates an index on one or more columns (each optionally descending), optionally
-    /// UNIQUE or partial (where). Returns the SQL it ran.
-    #[tool(annotations(
-        title = "Create index",
-        read_only_hint = false,
-        destructive_hint = false
-    ))]
-    async fn create_index(
-        &self,
-        Parameters(a): Parameters<CreateIndexArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| schema::create_index(dir, &a.database, &a.index))
-            .await
-    }
-
-    /// Creates a trigger that runs SQL before or after an insert, update or delete
-    /// (instead_of on views). The body and condition may use NEW. and OLD.
-    #[tool(annotations(
-        title = "Create trigger",
-        read_only_hint = false,
-        destructive_hint = false
-    ))]
-    async fn create_trigger(
-        &self,
-        Parameters(a): Parameters<CreateTriggerArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| schema::create_trigger(dir, &a.database, &a.trigger))
-            .await
-    }
-
-    /// Creates a view from a SELECT.
-    #[tool(annotations(
-        title = "Create view",
-        read_only_hint = false,
-        destructive_hint = false
-    ))]
-    async fn create_view(
-        &self,
-        Parameters(a): Parameters<CreateViewArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| schema::create_view(dir, &a.database, &a.name, &a.select))
-            .await
-    }
-
-    /// Drops a table, view, index or trigger. Dropping a table deletes its rows.
-    #[tool(annotations(title = "Drop object", read_only_hint = false, destructive_hint = true))]
-    async fn drop_object(
-        &self,
-        Parameters(a): Parameters<DropObjectArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| schema::drop_object(dir, &a.database, a.kind, &a.name))
-            .await
-    }
-
-    // ---- Databases and saved queries -----------------------------------------------------
 
     /// Creates a new, empty database in Sequill.
     #[tool(annotations(
@@ -609,33 +279,12 @@ impl SequillServer {
             .await
     }
 
-    /// Saves SQL as a named query in the editor's saved queries, or updates one.
-    #[tool(annotations(title = "Save query", read_only_hint = false, destructive_hint = true))]
-    async fn save_query(&self, Parameters(a): Parameters<SaveQueryArgs>) -> Result<String, String> {
-        self.run(move |dir| app::save_query(dir, &a.name, &a.sql, a.id.as_deref()))
-            .await
-    }
-
-    /// Replaces the database's unsaved schema design (from get_design, with your changes)
-    /// for the user to review in Sequill's schema designer. The database itself doesn't
-    /// change: the user saves the design there, and sees any error then.
+    /// Replaces the database's unsaved schema design (get_schema's design.draft, with your
+    /// changes) for the user to review in Sequill's schema designer. The database itself
+    /// doesn't change: the user saves the design there, and sees any error then.
     #[tool(annotations(title = "Set design", read_only_hint = false, destructive_hint = true))]
     async fn set_design(&self, Parameters(a): Parameters<SetDesignArgs>) -> Result<String, String> {
         self.run(move |dir| app::set_design(dir, &a.database, a.version, &a.draft))
-            .await
-    }
-
-    /// Removes a saved query.
-    #[tool(annotations(
-        title = "Delete saved query",
-        read_only_hint = false,
-        destructive_hint = true
-    ))]
-    async fn delete_saved_query(
-        &self,
-        Parameters(a): Parameters<SavedQueryIdArgs>,
-    ) -> Result<String, String> {
-        self.run(move |dir| app::delete_saved_query(dir, &a.id))
             .await
     }
 }
@@ -715,30 +364,20 @@ mod tests {
         names
     }
 
-    const READ_TOOLS: [&str; 9] = [
-        "describe_table",
-        "explain_query",
-        "find_rows",
-        "get_design",
-        "get_schema",
-        "list_databases",
-        "list_saved_queries",
-        "query",
-        "show_in_app",
-    ];
+    const READ_TOOLS: [&str; 4] = ["app_info", "get_schema", "query", "show_in_app"];
 
     #[test]
     fn offers_every_tool_so_the_app_switch_alone_decides() {
-        let server = SequillServer::new(PathBuf::from("."));
+        let server = SequillServer::new(PathBuf::from("."), false);
         let mut all: Vec<&str> = READ_TOOLS.iter().chain(&WRITE_TOOLS).copied().collect();
         all.sort();
         assert_eq!(tool_names(&server), all);
-        assert!(server.get_tool("delete_rows").is_some());
+        assert!(server.get_tool("execute").is_some());
     }
 
     #[test]
     fn hints_say_which_tools_change_things() {
-        let server = SequillServer::new(PathBuf::from("."));
+        let server = SequillServer::new(PathBuf::from("."), false);
         for tool in server.tool_router.list_all() {
             let hints = tool.annotations.expect("every tool is annotated");
             let changes_nothing =
@@ -749,7 +388,7 @@ mod tests {
 
     #[test]
     fn every_input_schema_is_an_object() {
-        let server = SequillServer::new(PathBuf::from("."));
+        let server = SequillServer::new(PathBuf::from("."), false);
         for tool in server.tool_router.list_all() {
             assert_eq!(
                 tool.input_schema.get("type"),

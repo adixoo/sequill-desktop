@@ -1,5 +1,5 @@
 /**
- * Unsaved schema designs, one per database id (or "blank"), until the user saves them into
+ * Unsaved schema designs, one per database id, until the user saves them into
  * a database or discards them. In browsers they live in this browser's storage. In the
  * desktop app they live in the catalog, so assistants over MCP can read and edit them too;
  * this module keeps a copy in memory (loaded at start, reloaded when an assistant changes
@@ -13,8 +13,6 @@ import { desktopDesigns, watchDesktopChanges } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { readJson, removeKey, writeJson } from "@/lib/storage";
 import { EMPTY_DRAFT, isDraftEmpty, normalizeDraft, type Draft } from "./model";
-
-export const BLANK_DESIGN = "blank";
 
 const desktop = typeof window !== "undefined" && isDesktop();
 

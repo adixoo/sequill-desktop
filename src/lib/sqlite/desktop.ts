@@ -102,6 +102,11 @@ export function setMcpAllowChanges(allowed: boolean): Promise<McpStatus> {
   return invoke("set_mcp_allow_changes", { allowed });
 }
 
+/** Saves the window's page and database, so assistants can ask what it shows (MCP `app_info`). */
+export function setUiState(page: "editor" | "schema", databaseId: string | null): Promise<void> {
+  return invoke("set_ui_state", { page, databaseId });
+}
+
 /** What assistants did over MCP, newest first. */
 export function mcpActivity(limit: number): Promise<McpActivity[]> {
   return invoke("mcp_activity", { limit });
@@ -116,7 +121,7 @@ export function setMcpHistoryDays(days: number | null): Promise<McpStatus> {
   return invoke("set_mcp_history_days", { days });
 }
 
-/** Saved queries, kept in the catalog on desktop so assistants can use them too. */
+/** Saved queries, kept in the catalog on desktop. */
 export const desktopSavedQueries = {
   list: () => invoke<SavedQuery[]>("list_saved_queries"),
   upsert: (query: SavedQuery) => invoke<void>("upsert_saved_query", { query }),
@@ -137,6 +142,11 @@ export const desktopDesigns = {
   save: (key: string, draft: unknown, version: number) =>
     invoke<number | null>("save_design", { key, draft, version }),
 };
+
+/** A new, empty design for another database type (`dialect` such as "postgresql"). */
+export function createDesign(name: string, dialect: string): Promise<DbInfo> {
+  return invoke("create_design", { name, dialect });
+}
 
 /** A new database with only the structure of a SQLite file or a SQL script, not linked to it. */
 export function importSchema(

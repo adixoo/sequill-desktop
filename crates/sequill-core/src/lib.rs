@@ -1,7 +1,6 @@
 //! Sequill's SQLite engine: the same behavior as the web app's SQLite worker, on real
 //! files, shared by the desktop app (`src-tauri`) and the MCP server (`sequill-mcp`).
 
-pub mod ddl;
 pub mod design;
 pub mod dialects;
 pub mod dump;

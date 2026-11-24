@@ -9,10 +9,10 @@ const CHECK_DELAY_MS = 300;
 
 /**
  * Runs the design's SQL on a copy of the database's structure (no rows) as the person edits,
- * so SQLite's own errors show up before anything touches the database. `dbId` null checks a
- * blank design (a new, empty database). Returns why saving would fail, or null.
+ * so SQLite's own errors show up before anything touches the database. Returns why saving
+ * would fail, or null.
  */
-export function useDesignCheck(dbId: string | null, statements: string[]): string | null {
+export function useDesignCheck(dbId: string, statements: string[]): string | null {
   const [settled, setSettled] = useState(statements);
   useEffect(() => {
     const t = setTimeout(() => setSettled(statements), CHECK_DELAY_MS);

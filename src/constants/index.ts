@@ -35,7 +35,7 @@ export const STORAGE_KEYS = {
   savedQueries: "sbe:saved-queries",
   density: "sbe:density",
   lastDatabase: "sbe:last-db",
-  /** Visualizer draft design and table positions, per database id (or "blank"). */
+  /** Visualizer draft design and table positions, per database id. */
   visDraft: "sbe:vis-draft:",
   visLayout: "sbe:vis-layout:",
   visColors: "sbe:vis-colors:",

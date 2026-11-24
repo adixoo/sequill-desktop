@@ -993,37 +993,6 @@ export function isNewColumn(diagram: Diagram, end: { table: string; column: stri
   return !!table?.columns.find((c) => c.name === end.column)?.draft;
 }
 
-/** Removes a pending relationship (from a new column, or one added to an existing column). */
-export function disconnectColumn(
-  draft: Draft,
-  diagram: Diagram,
-  edge: DiagramEdge,
-  schema?: Schema | null,
-): Draft {
-  const source = diagram.tables.find((t) => t.id === edge.source);
-  if (!source || !edge.draft) return draft;
-  const clear = (c: ColumnDef): ColumnDef =>
-    c.name === edge.sourceColumn ? { ...c, references: null } : c;
-  if (source.draftId) {
-    return {
-      ...draft,
-      tables: draft.tables.map((t) =>
-        t.id === source.draftId ? { ...t, columns: t.columns.map(clear) } : t,
-      ),
-    };
-  }
-  const column = source.columns.find((c) => c.name === edge.sourceColumn);
-  if (column?.change === "edited" && column.originalName) {
-    const rel = schema?.tables.find((t) => t.name === source.originalName);
-    const def = rel && currentColumnDef(draft, rel, column.originalName);
-    return rel && def
-      ? editExistingColumn(draft, rel, column.originalName, { ...def, references: null })
-      : draft;
-  }
-  const key = source.originalName ?? source.name;
-  return setAddedColumns(draft, key, (draft.addedColumns[key] ?? []).map(clear));
-}
-
 /* ---- Editing from the outline: one interface for every kind of column ---- */
 
 export type ColumnEditMode = "create" | "add";

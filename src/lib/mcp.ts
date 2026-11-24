@@ -51,8 +51,12 @@ export const MCP_HISTORY_CHOICES: { days: number | null; label: string }[] = [
   { days: null, label: "Forever" },
 ];
 
-/** What each MCP tool does, in a word or two, and whether it changes anything. */
+/**
+ * What each MCP tool does, in a word or two, and whether it changes anything. Tools older
+ * versions offered stay listed so their calls still read well in the history.
+ */
 const TOOL_LABELS: Record<string, { label: string; changes?: true }> = {
+  app_info: { label: "App info" },
   list_databases: { label: "List databases" },
   get_schema: { label: "Read schema" },
   describe_table: { label: "Describe table" },
@@ -332,7 +336,7 @@ export interface McpFilter {
 /** What an assistant asked the app to show (sent by `show_in_app` in the MCP server). */
 export interface ShowRequest {
   databaseId: string;
-  view: "table" | "query" | "schema";
+  view: "editor" | "table" | "query" | "schema";
   table?: string;
   filters: McpFilter[];
   match: "all" | "any";

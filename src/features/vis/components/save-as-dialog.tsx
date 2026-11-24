@@ -12,14 +12,13 @@ import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/atoms/re
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { getSqlite } from "@/lib/sqlite/client";
-import { storagePlace } from "@/lib/platform";
 import { errorMessage } from "@/lib/sqlite/errors";
 import type { DbInfo, Schema } from "@/lib/sqlite/types";
 import { draftStatements, newDatabaseStatements, type Draft } from "@/features/vis/lib/model";
 
 interface SaveAsDialogProps {
-  /** The open database, or null for a blank design. */
-  source: { id: string; name: string } | null;
+  /** The open database. */
+  source: { id: string; name: string };
   schema: Schema | undefined;
   draft: Draft;
   onSaved(info: DbInfo): void;
@@ -28,7 +27,7 @@ interface SaveAsDialogProps {
 
 /** Creates a separate database from the current schema plus the design; the source is untouched. */
 export function SaveAsDialog({ source, schema, draft, onSaved, onClose }: SaveAsDialogProps) {
-  const [name, setName] = useState(source ? `${source.name} (new)` : "");
+  const [name, setName] = useState(`${source.name} (new)`);
   const [copyRows, setCopyRows] = useState(false);
   const [busy, setBusy] = useState(false);
   const tables =
@@ -39,10 +38,9 @@ export function SaveAsDialog({ source, schema, draft, onSaved, onClose }: SaveAs
     try {
       const api = getSqlite();
       // With rows: a full dump of the source, then the design. Without: schema only.
-      const script =
-        copyRows && source
-          ? `${await api.dump(source.id)}\n${draftStatements(draft).join("\n")}`
-          : newDatabaseStatements(schema, draft).join("\n");
+      const script = copyRows
+        ? `${await api.dump(source.id)}\n${draftStatements(draft).join("\n")}`
+        : newDatabaseStatements(schema, draft).join("\n");
       const info = await api.createDatabase(name.trim(), script);
       onSaved(info);
       onClose();
@@ -66,9 +64,7 @@ export function SaveAsDialog({ source, schema, draft, onSaved, onClose }: SaveAs
           <DialogHeader>
             <DialogTitle>Save as a new database</DialogTitle>
             <DialogDescription>
-              {source
-                ? `A new database with ${source.name}'s schema and your changes. ${source.name} stays exactly as it is.`
-                : `A new database built from this design, saved ${storagePlace()}.`}
+              {`A new database with ${source.name}'s schema and your changes. ${source.name} stays exactly as it is.`}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-2">
@@ -80,21 +76,19 @@ export function SaveAsDialog({ source, schema, draft, onSaved, onClose }: SaveAs
               onChange={(e) => setName(e.target.value)}
             />
           </div>
-          {source && (
-            <label className="flex items-start gap-2.5 text-sm">
-              <Checkbox
-                checked={copyRows}
-                onCheckedChange={(v) => setCopyRows(v === true)}
-                className="mt-0.5"
-              />
-              <span>
-                <span className="font-medium text-ink">Copy the existing rows too</span>
-                <span className="block text-ink-muted">
-                  Leave this off to start with empty tables.
-                </span>
+          <label className="flex items-start gap-2.5 text-sm">
+            <Checkbox
+              checked={copyRows}
+              onCheckedChange={(v) => setCopyRows(v === true)}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="font-medium text-ink">Copy the existing rows too</span>
+              <span className="block text-ink-muted">
+                Leave this off to start with empty tables.
               </span>
-            </label>
-          )}
+            </span>
+          </label>
           <p className="text-xs text-ink-muted">
             {tables} {tables === 1 ? "table" : "tables"}, including {draft.tables.length} new
             {Object.keys(draft.addedColumns).length > 0 && ", with your new columns"}.

@@ -24,7 +24,7 @@ Contributions are welcome; see [Contributing](#contributing) to get started.
   new database. Each edit is checked on a copy of the database's structure (no rows), and nothing
   touches the database until you review the SQL and confirm. Changes SQLite can't make in place
   rebuild the table and keep its rows. Unsaved designs are kept until you save or discard them;
-  in the desktop app assistants can read and edit them over MCP (`get_design`, `set_design`), and you
+  in the desktop app assistants can read and edit them over MCP (`get_schema`, `set_design`), and you
   see their edits live.
 - **Schemas from other databases** (desktop app): choose PostgreSQL, MySQL / MariaDB, SQL Server,
   DuckDB or SQLite, and the import shows how to get that database's schema (`pg_dump --schema-only`,
@@ -192,30 +192,21 @@ For other clients, add this to their MCP settings (Claude Desktop: `claude_deskt
 
 These read and show things (while access is on):
 
-| Tool                 | What it does                                                                         |
-| -------------------- | ------------------------------------------------------------------------------------ |
-| `list_databases`     | Ids, names, sizes and last change times.                                             |
-| `get_schema`         | Tables, views, indexes and triggers with the SQL that defines them.                  |
-| `describe_table`     | One table or view: columns, keys, foreign keys, indexes, triggers and its row count. |
-| `find_rows`          | Rows with the editor's filters (15 operators, all/any), search, sort and paging.     |
-| `query`              | One read-only statement with `?` parameters; 200 rows by default, 5000 at most.      |
-| `explain_query`      | EXPLAIN QUERY PLAN for a script, without running it.                                 |
-| `list_saved_queries` | The editor's saved queries.                                                          |
-| `show_in_app`        | Opens a table (with filters, search and sort), a query tab or the schema in the app. |
-| `get_design`         | The schema designer's unsaved design for a database, with its version.               |
+| Tool          | What it does                                                                                                                        |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `app_info`    | The app's version, whether it's open, the page it shows (editor or schema) and its database, and every database.                    |
+| `query`       | One read-only statement with `?` parameters (200 rows by default, 5000 at most); the schema too, via `sqlite_schema` and `PRAGMA`s. |
+| `get_schema`  | For the schema designer: the schema with its SQL and the unsaved design, with its version.                                          |
+| `show_in_app` | Switches the window to the editor or the schema page, or opens a table (with filters, search and sort) or a query tab.              |
 
 These change things, so they also need **Allow changes**; until then they're refused with a message
 asking the user to turn it on:
 
-| Tool                                                    | What it does                                                                                                                                |
-| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `insert_rows`, `update_rows`, `delete_rows`             | Rows by column name; update and delete need filters or `all_rows`.                                                                          |
-| `create_table`, `alter_table`, `drop_object`            | Tables and columns (add, rename, drop), and dropping any object.                                                                            |
-| `create_index`, `create_trigger`, `create_view`         | Indexes (unique, partial, descending), triggers and views.                                                                                  |
-| `create_database`, `rename_database`, `delete_database` | Databases in Sequill.                                                                                                                       |
-| `save_query`, `delete_saved_query`                      | The editor's saved queries.                                                                                                                 |
-| `set_design`                                            | Replaces the schema designer's unsaved design (refused if it changed since `get_design`). The user reviews it and saves it to the database. |
-| `execute`                                               | Any SQL script, for whatever the tools above don't cover.                                                                                   |
+| Tool                                                    | What it does                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `execute`                                               | Any SQL script, as one transaction (all or nothing). SQLite reports what each statement would do (add, change or delete rows, create, alter or drop…), and every change is checked against the switches first. ATTACH, DETACH, BEGIN/COMMIT and `PRAGMA writable_schema` are never allowed. Reading statements work without **Allow changes**. |
+| `create_database`, `rename_database`, `delete_database` | Databases in Sequill.                                                                                                                                                                                                                                                                                                                          |
+| `set_design`                                            | Replaces the schema designer's unsaved design (refused if it changed since `get_schema`). The user reviews it and saves it to the database.                                                                                                                                                                                                    |
 
 Reads always run on a read-only connection. `--allow-writes`, which older versions needed, is still
 accepted and does nothing. ATTACH is turned off, so a call can only reach the databases in Sequill's list, including files you

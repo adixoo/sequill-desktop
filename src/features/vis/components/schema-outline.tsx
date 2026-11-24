@@ -334,7 +334,8 @@ function TableMenu({
 }) {
   const editable = isEditableTable(table);
   const existing = !table.draftId && table.kind !== "virtual";
-  const canOpen = !!editor.dbId && !table.draftId && table.change !== "dropped";
+  // Only SQLite databases open in the editor; a design of another database has no table there.
+  const canOpen = !editor.schema?.dialect && !table.draftId && table.change !== "dropped";
   const canDrop = table.kind === "table" || table.kind === "draft";
   // Rename and Add column focus a field. They run once the menu has closed: while open it
   // traps focus, and on close it would pull focus back to its button.

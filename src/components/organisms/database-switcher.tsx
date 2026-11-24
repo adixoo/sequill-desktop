@@ -1,11 +1,9 @@
 import {
   ChevronsUpDown,
-  Database,
   Download,
   FileCode,
   FileUp,
   FolderOpen,
-  PencilRuler,
   Pencil,
   Plus,
   Sparkles,
@@ -22,8 +20,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
 import { useDbActions } from "@/hooks/use-db-actions";
-import { useDatabases } from "@/hooks/use-db";
+import { useDatabases, type DatabaseScope } from "@/hooks/use-db";
 import { DbFileInput } from "@/components/organisms/db-file-input";
+import { DialectIcon } from "@/components/molecules/dialect-icon";
 import { formatBytes } from "@/utils/data/format";
 import { isDesktop } from "@/lib/platform";
 import { useDialogs } from "@/store/dialogs";
@@ -31,16 +30,18 @@ import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
 
 interface DatabaseSwitcherProps {
-  /** The database shown as current; null when none (or a blank design) is open. */
+  /** The database shown as current; null when none is open. */
   dbId: string | null;
   /** Lets a page step in before switching (e.g. to ask about unsaved work). Defaults to switching. */
   onSwitch?(dbId: string): void;
-  /** The schema page also offers a design that isn't tied to any database. */
-  blankDesign?: { active: boolean; onSelect(): void; hasDraft: boolean };
+  /** "designer" also lists designs of other databases (the schema page). */
+  scope?: DatabaseScope;
   /** The schema page marks databases with an unsaved schema design. */
   hasDraft?(dbId: string): boolean;
   /** The schema page can also make a database from another database's schema. */
   onImportSchema?(): void;
+  /** Replaces the plain "new database" dialog (the schema page asks which database first). */
+  onNewDatabase?(): void;
   /** "panel" fills a sidebar; "inline" is a single-line header control. */
   variant?: "panel" | "inline";
   className?: string;
@@ -53,20 +54,23 @@ interface DatabaseSwitcherProps {
 export function DatabaseSwitcher({
   dbId,
   onSwitch,
-  blankDesign,
+  scope = "editor",
   hasDraft,
   onImportSchema,
+  onNewDatabase,
   variant = "panel",
   className,
 }: DatabaseSwitcherProps) {
-  const dbs = useDatabases();
+  const dbs = useDatabases(scope);
+  const databases = dbs.data?.filter((d) => !d.dialect);
+  const designs = dbs.data?.filter((d) => d.dialect) ?? [];
   const setDb = useWorkspace((s) => s.setDb);
   const openDialog = useDialogs((s) => s.open);
   const actions = useDbActions();
   const fileInput = useRef<HTMLInputElement>(null);
-  const current = blankDesign?.active ? undefined : dbs.data?.find((d) => d.id === dbId);
+  const current = dbs.data?.find((d) => d.id === dbId);
   const switchTo = onSwitch ?? setDb;
-  const label = blankDesign?.active ? "Blank design" : (current?.name ?? "No database");
+  const label = current?.name ?? "No database";
 
   return (
     <DropdownMenu>
@@ -90,11 +94,10 @@ export function DatabaseSwitcher({
             </span>
           ) : (
             <span className="flex min-w-0 items-center gap-2">
-              {blankDesign?.active ? (
-                <PencilRuler className="text-ink-muted" aria-hidden />
-              ) : (
-                <Database className="text-ink-muted" aria-hidden />
-              )}
+              <DialectIcon
+                dialect={current ? (current.dialect ?? "sqlite") : ""}
+                className="size-(--icon) text-ink-muted"
+              />
               <span className="truncate text-sm font-semibold text-ink">{label}</span>
               {current && (
                 <span className="font-mono text-[0.6875rem] text-ink-muted max-sm:hidden">
@@ -113,14 +116,14 @@ export function DatabaseSwitcher({
         <DropdownMenuLabel className="q-label text-ink-muted">
           {isDesktop() ? "On this computer" : "In this browser"}
         </DropdownMenuLabel>
-        {dbs.data?.map((d) => (
+        {databases?.map((d) => (
           <DropdownMenuItem
             key={d.id}
             onSelect={() => switchTo(d.id)}
             title={d.path ?? undefined}
             className={cn(d.id === current?.id && "bg-sky-wash")}
           >
-            <Database />
+            <DialectIcon dialect="sqlite" className="size-(--icon)" />
             <span className="truncate">{d.name}</span>
             {hasDraft?.(d.id) && (
               <span
@@ -135,19 +138,35 @@ export function DatabaseSwitcher({
             </span>
           </DropdownMenuItem>
         ))}
-        {dbs.data?.length === 0 && (
+        {databases?.length === 0 && (
           <p className="px-2 py-1.5 text-sm text-ink-muted">Nothing saved yet</p>
         )}
-        {blankDesign && (
-          <DropdownMenuItem
-            onSelect={blankDesign.onSelect}
-            className={cn(blankDesign.active && "bg-sky-wash")}
-          >
-            <PencilRuler /> Blank design
-            {blankDesign.hasDraft && (
-              <span className="q-table-head ml-auto text-peach-ink">draft</span>
-            )}
-          </DropdownMenuItem>
+        {designs.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="q-label text-ink-muted">
+              Designs of other databases
+            </DropdownMenuLabel>
+            {designs.map((d) => (
+              <DropdownMenuItem
+                key={d.id}
+                onSelect={() => switchTo(d.id)}
+                className={cn(d.id === current?.id && "bg-sky-wash")}
+              >
+                <DialectIcon dialect={d.dialect ?? ""} className="size-(--icon)" />
+                <span className="truncate">{d.name}</span>
+                {hasDraft?.(d.id) && (
+                  <span
+                    className="q-table-head shrink-0 text-peach-ink"
+                    title="Has an unsaved schema design"
+                  >
+                    draft
+                  </span>
+                )}
+                <span className="q-table-head ml-auto text-ink-muted">{d.dialect}</span>
+              </DropdownMenuItem>
+            ))}
+          </>
         )}
         {onImportSchema && (
           <DropdownMenuItem onSelect={onImportSchema}>
@@ -155,7 +174,7 @@ export function DatabaseSwitcher({
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => openDialog({ kind: "newDatabase" })}>
+        <DropdownMenuItem onSelect={onNewDatabase ?? (() => openDialog({ kind: "newDatabase" }))}>
           <Plus /> New empty database
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => actions.pickFile(fileInput.current)}>
@@ -176,12 +195,17 @@ export function DatabaseSwitcher({
                 Changes save to {current.path}
               </p>
             )}
-            <DropdownMenuItem onSelect={() => void actions.download(current)}>
-              <Download /> Download .sqlite
-            </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => void actions.downloadDump(current)}>
-              <FileCode /> Download SQL dump
-            </DropdownMenuItem>
+            {/* A design is kept as a SQLite file inside Sequill; its real SQL comes from Export. */}
+            {!current.dialect && (
+              <>
+                <DropdownMenuItem onSelect={() => void actions.download(current)}>
+                  <Download /> Download .sqlite
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => void actions.downloadDump(current)}>
+                  <FileCode /> Download SQL dump
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuItem
               onSelect={() =>
                 openDialog({ kind: "renameDatabase", dbId: current.id, name: current.name })

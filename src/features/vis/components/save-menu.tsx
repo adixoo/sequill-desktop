@@ -14,10 +14,11 @@ interface SaveMenuProps {
   draft: Draft;
   statements: string[];
   problems: string[];
-  /** Name of the open database; null for a blank design. */
-  dbName: string | null;
+  /** Name of the open database. */
+  dbName: string;
   onUpdate(): void;
-  onSaveAsNew(): void;
+  /** Missing for a design of another database, which can't become a SQLite database. */
+  onSaveAsNew?(): void;
   onDownload(): void;
   onDiscard(): void;
 }
@@ -62,28 +63,24 @@ export function SaveMenu({
           </ul>
         )}
         <DropdownMenuSeparator />
-        {dbName && (
-          <DropdownMenuItem disabled={blocked} onSelect={onUpdate} className="items-start py-2">
-            <DatabaseZap className="mt-0.5" />
+        <DropdownMenuItem disabled={blocked} onSelect={onUpdate} className="items-start py-2">
+          <DatabaseZap className="mt-0.5" />
+          <span className="flex flex-col">
+            <span className="font-medium">Review and save to {dbName}</span>
+            <span className="text-xs text-ink-muted">See the SQL before it runs</span>
+          </span>
+        </DropdownMenuItem>
+        {onSaveAsNew && (
+          <DropdownMenuItem disabled={blocked} onSelect={onSaveAsNew} className="items-start py-2">
+            <FilePlus className="mt-0.5" />
             <span className="flex flex-col">
-              <span className="font-medium">Review and save to {dbName}</span>
-              <span className="text-xs text-ink-muted">See the SQL before it runs</span>
+              <span className="font-medium">Save as a new database</span>
+              <span className="text-xs text-ink-muted">
+                Copy the schema with your changes; this one stays as it is
+              </span>
             </span>
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem disabled={blocked} onSelect={onSaveAsNew} className="items-start py-2">
-          <FilePlus className="mt-0.5" />
-          <span className="flex flex-col">
-            <span className="font-medium">
-              {dbName ? "Save as a new database" : "Save as database"}
-            </span>
-            <span className="text-xs text-ink-muted">
-              {dbName
-                ? "Copy the schema with your changes; this one stays as it is"
-                : "Create a database from this design"}
-            </span>
-          </span>
-        </DropdownMenuItem>
         <DropdownMenuItem disabled={blocked} onSelect={onDownload}>
           <Download /> Download SQL
           <span className="ml-auto text-xs text-ink-muted">

@@ -1,4 +1,4 @@
-import { Table } from "@/components/atoms/icons";
+import { FileUp, Plus, Table } from "@/components/atoms/icons";
 import { navigate, ROUTES } from "@/lib/router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -6,6 +6,7 @@ import { toast } from "@/components/atoms/toast";
 import { AppProviders } from "@/app/app-providers";
 import { DatabaseSwitcher } from "@/components/organisms/database-switcher";
 import { AppHeader } from "@/components/organisms/app-header";
+import { McpButton, McpHistoryButton } from "@/components/organisms/mcp-button";
 import { DialogHost } from "@/components/organisms/dialogs/dialog-host";
 import { Loader } from "@/components/molecules/pastel/loader";
 import {
@@ -22,59 +23,45 @@ import { Button } from "@/components/atoms/button";
 import { queryKeys, useDatabases, useRestoreLastDatabase, useSchema } from "@/hooks/use-db";
 import { isDesktop } from "@/lib/platform";
 import { useWorkspace } from "@/store/workspace";
-import {
-  BLANK_DESIGN,
-  hasUnsavedDesign,
-  useDraftsLoaded,
-  writeDraft,
-} from "@/features/vis/lib/drafts";
+import { hasUnsavedDesign, useDraftsLoaded, writeDraft } from "@/features/vis/lib/drafts";
 import { EMPTY_DRAFT } from "@/features/vis/lib/model";
 import { Designer } from "./designer";
 import { ImportSchemaDialog } from "./import-schema-dialog";
+import { NewDatabaseDialog } from "./new-database-dialog";
 
-/** Somewhere to go that would leave the current design: another database, a blank design, the editor. */
-type Leave = { kind: "db"; id: string } | { kind: "blank" } | { kind: "editor" };
+/** Somewhere to go that would leave the current design: another database, or the editor. */
+type Leave = { kind: "db"; id: string } | { kind: "editor" };
 
 function Visualizer() {
-  useRestoreLastDatabase();
+  useRestoreLastDatabase("designer");
   const dbId = useWorkspace((s) => s.dbId);
   const setDb = useWorkspace((s) => s.setDb);
-  const dbs = useDatabases();
-  // Blank mode is tied to the database that was open when it was chosen, so any
-  // switch (including creating or opening a database from the menu) leaves it.
-  const [blankAt, setBlankAt] = useState<string | null | undefined>(undefined);
-  // With no saved databases there is nothing to visualize yet, so start a blank design.
-  const blank = blankAt === dbId || dbs.data?.length === 0;
-  const activeDb = blank ? null : dbId;
+  const dbs = useDatabases("designer");
+  // A design always belongs to a database: with none saved, the page asks to make one first.
+  const activeDb = dbs.data?.length === 0 ? null : dbId;
   const schema = useSchema(activeDb);
   const current = dbs.data?.find((d) => d.id === activeDb);
-  const storageKey = blank ? BLANK_DESIGN : activeDb;
   const [pending, setPending] = useState<Leave | null>(null);
   const [badgeSlot, setBadgeSlot] = useState<HTMLDivElement | null>(null);
   const [importing, setImporting] = useState(false);
+  const [creating, setCreating] = useState(false);
   const queryClient = useQueryClient();
 
   const go = (to: Leave) => {
     if (to.kind === "editor") navigate(ROUTES.editor);
-    else if (to.kind === "blank") setBlankAt(dbId);
-    else {
-      setBlankAt(undefined);
-      setDb(to.id);
-    }
+    else setDb(to.id);
   };
 
   /** The real database only changes on save, so leaving with a design asks what to do with it. */
   const leave = (to: Leave) => {
-    const same =
-      (to.kind === "db" && to.id === activeDb && !blank) || (to.kind === "blank" && blank);
-    if (same) return;
-    if (storageKey && hasUnsavedDesign(storageKey)) setPending(to);
+    if (to.kind === "db" && to.id === activeDb) return;
+    if (activeDb && hasUnsavedDesign(activeDb)) setPending(to);
     else go(to);
   };
 
   const draftsLoaded = useDraftsLoaded();
-  const ready = draftsLoaded && (blank || (activeDb !== null && schema.data !== undefined));
-  const designName = blank ? "the blank design" : (current?.name ?? "this database");
+  const ready = draftsLoaded && activeDb !== null && schema.data !== undefined;
+  const designName = current?.name ?? "this database";
 
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
@@ -85,37 +72,55 @@ function Visualizer() {
             <Table /> <span className="max-sm:sr-only">Editor</span>
           </Button>
         }
+        actions={
+          <>
+            <McpButton />
+            <McpHistoryButton />
+          </>
+        }
       >
         <div className="flex min-w-0 items-center gap-2">
           <DatabaseSwitcher
             variant="inline"
             dbId={activeDb}
             onSwitch={(id) => leave({ kind: "db", id })}
-            blankDesign={{
-              active: blank,
-              onSelect: () => leave({ kind: "blank" }),
-              hasDraft: hasUnsavedDesign(BLANK_DESIGN),
-            }}
+            scope="designer"
             hasDraft={hasUnsavedDesign}
             onImportSchema={isDesktop() ? () => setImporting(true) : undefined}
+            onNewDatabase={() => setCreating(true)}
           />
           {/* The designer shows its save state here: "Unsaved" (click to save), "Saved". */}
           <div ref={setBadgeSlot} className="flex items-center" />
         </div>
       </AppHeader>
-      {ready ? (
+      {dbs.data?.length === 0 ? (
+        <div className="m-auto flex max-w-sm flex-col items-center gap-3 p-6 text-center">
+          <p className="text-lg font-semibold text-ink">No database yet</p>
+          <p className="text-sm text-ink-soft">
+            A design belongs to a database. Make one for the database you want to design, or import
+            an existing schema.
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Button onClick={() => setCreating(true)}>
+              <Plus /> New database
+            </Button>
+            {isDesktop() && (
+              <Button variant="outline" onClick={() => setImporting(true)}>
+                <FileUp /> Import a schema
+              </Button>
+            )}
+          </div>
+        </div>
+      ) : ready ? (
         <Designer
-          key={storageKey!}
-          storageKey={storageKey!}
+          key={activeDb}
+          storageKey={activeDb}
           dbId={activeDb}
-          dbName={blank ? "Blank design" : (current?.name ?? "Database")}
-          dbPath={blank ? null : (current?.path ?? null)}
+          dbName={current?.name ?? "Database"}
+          dbPath={current?.path ?? null}
           schema={schema.data}
           badgeSlot={badgeSlot}
-          onDatabaseCreated={(id) => {
-            setBlankAt(undefined);
-            setDb(id);
-          }}
+          onDatabaseCreated={setDb}
         />
       ) : schema.error ? (
         <p role="alert" className="m-auto max-w-md p-6 text-center text-sm text-ink-soft">
@@ -130,10 +135,8 @@ function Visualizer() {
           <AlertDialogHeader>
             <AlertDialogTitle>You have unsaved changes</AlertDialogTitle>
             <AlertDialogDescription>
-              {blank
-                ? "The blank design hasn't been saved as a database yet."
-                : `Your design hasn't been saved to ${designName}, so the database is unchanged.`}{" "}
-              Keep it as a draft to finish later, or discard it.
+              Your design hasn&apos;t been saved to {designName}, so the database is unchanged. Keep
+              it as a draft to finish later, or discard it.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -142,7 +145,7 @@ function Visualizer() {
               variant="ghost"
               className="text-rose-ink"
               onClick={() => {
-                if (storageKey) writeDraft(storageKey, EMPTY_DRAFT);
+                if (activeDb) writeDraft(activeDb, EMPTY_DRAFT);
                 const to = pending!;
                 setPending(null);
                 go(to);
@@ -162,6 +165,7 @@ function Visualizer() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {creating && <NewDatabaseDialog onClose={() => setCreating(false)} />}
       {importing && (
         <ImportSchemaDialog
           onClose={() => setImporting(false)}

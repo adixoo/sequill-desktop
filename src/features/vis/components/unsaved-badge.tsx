@@ -6,8 +6,8 @@ export type SaveState =
 
 interface UnsavedBadgeProps {
   state: SaveState;
-  /** Where a click saves to; null for a blank design (it becomes a new database). */
-  dbName: string | null;
+  /** Where a click saves to. */
+  dbName: string;
   onClick(): void;
 }
 
@@ -41,14 +41,8 @@ export function UnsavedBadge({ state, dbName, onClick }: UnsavedBadgeProps) {
     <button
       type="button"
       onClick={onClick}
-      aria-label={
-        dbName ? `Unsaved changes. Save to ${dbName}` : "Unsaved design. Save as a database"
-      }
-      title={
-        dbName
-          ? `Click to review and save the changes to ${dbName}`
-          : "Click to save this design as a database"
-      }
+      aria-label={`Unsaved changes. Save to ${dbName}`}
+      title={`Click to review and save the changes to ${dbName}`}
       className={cn(pill, "bg-peach-wash text-peach-ink hover:bg-peach-wash/80")}
     >
       <span aria-hidden className="size-1.5 rounded-full bg-peach-ink" /> Unsaved

@@ -80,7 +80,7 @@ test("an assistant's changes show in the open app, and it keeps working after th
   await allowAssistants(app.page);
 
   const assistant = await mcp();
-  expect(await assistant.call("list_databases")).toContain("Sample shop");
+  expect(await assistant.call("app_info")).toContain("Sample shop");
   await assistant.call("execute", {
     database: "Sample shop",
     sql: "CREATE TABLE from_ai (id INTEGER PRIMARY KEY, note TEXT); INSERT INTO from_ai (note) VALUES ('hello');",
@@ -89,10 +89,10 @@ test("an assistant's changes show in the open app, and it keeps working after th
   await expect(sidebarTable(app.page, "from_ai")).toBeVisible({ timeout: 10_000 });
 
   // A design proposed over MCP appears in the open schema designer.
-  const { version } = JSON.parse(await assistant.call("get_design", { database: "Sample shop" }));
+  const { design } = JSON.parse(await assistant.call("get_schema", { database: "Sample shop" }));
   await assistant.call("set_design", {
     database: "Sample shop",
-    version,
+    version: design.version,
     draft: {
       tables: [
         {
@@ -110,10 +110,9 @@ test("an assistant's changes show in the open app, and it keeps working after th
 
   await app.close();
   // Sequill is closed: sequill mcp runs the call itself on the same folder.
-  await assistant.call("insert_rows", {
+  await assistant.call("execute", {
     database: "Sample shop",
-    table: "from_ai",
-    rows: [{ note: "while closed" }],
+    sql: "INSERT INTO from_ai (note) VALUES ('while closed');",
   });
   expect(existsSync(join(dataDir, "catalog.sqlite3"))).toBe(true);
 
@@ -214,10 +213,9 @@ test("stress: 4 assistant sessions write 200 rows at once while a person runs 20
   const insert = async (assistant: McpClient, who: number, n: number) => {
     for (let attempt = 0; ; attempt++) {
       try {
-        return await assistant.call("insert_rows", {
+        return await assistant.call("execute", {
           database: "Sample shop",
-          table: "hits",
-          rows: [{ who, n }],
+          sql: `INSERT INTO hits (who, n) VALUES (${who}, ${n});`,
         });
       } catch (error) {
         if (attempt >= 10 || !/database is locked/.test(String(error))) throw error;

@@ -24,9 +24,7 @@ import {
   Maximize,
   PanelLeftClose,
   PanelLeftOpen,
-  PanelRight,
   Plus,
-  X,
 } from "@/components/atoms/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -36,7 +34,6 @@ import { Button } from "@/components/atoms/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/atoms/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/atoms/tooltip";
 import { queryKeys } from "@/hooks/use-db";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { STORAGE_KEYS } from "@/constants";
 import { downloadBlob, safeFileName } from "@/utils/data/export";
 import { getSqlite } from "@/lib/sqlite/client";
@@ -66,7 +63,6 @@ import {
   buildDiagram,
   connectColumns,
   createDraftTable,
-  disconnectColumn,
   draftStatements,
   edgeTypeProblems,
   EMPTY_DRAFT,
@@ -74,9 +70,7 @@ import {
   isDraftEmpty,
   isNewColumn,
   referenceTargets,
-  removeDraftTable,
   saveWarnings,
-  updateDraftTable,
   validateDraft,
   type Draft,
   newDatabaseStatements,
@@ -90,7 +84,6 @@ import { isDesktop } from "@/lib/platform";
 import { SaveMenu } from "./save-menu";
 import { ExportSchemaMenu } from "./export-schema-menu";
 import { readDraft, useStoredDraft, writeDraft } from "@/features/vis/lib/drafts";
-import { Inspector, type Selection } from "./inspector";
 import { SaveAsDialog } from "./save-as-dialog";
 import { UnsavedBadge, type SaveState } from "./unsaved-badge";
 import type { SchemaEditor } from "./column-editor";
@@ -101,15 +94,18 @@ import { useDesignCheck } from "../hooks/use-design-check";
 const nodeTypes = { table: TableNode };
 const ARROW = { type: MarkerType.Arrow, width: 16, height: 16, color: "var(--strong)" } as const;
 
+/** What is selected on the canvas: highlighted there and in the outline. */
+type Selection = { kind: "table"; id: string } | { kind: "edge"; id: string } | null;
+
 interface DesignerProps {
-  /** Storage key: a database id, or "blank" for a design without a database. */
+  /** Storage key for the design: the database id. */
   storageKey: string;
-  dbId: string | null;
+  dbId: string;
   dbName: string;
   /** The file on this computer that saving changes, for a database opened in place. */
   dbPath: string | null;
   schema: Schema | undefined;
-  /** A blank design was turned into a database. */
+  /** The design was saved as a new database. */
   onDatabaseCreated(id: string): void;
   /** Element in the page header where the save-state badge is shown. */
   badgeSlot: HTMLElement | null;
@@ -150,8 +146,6 @@ function DesignerCanvas({
   const [dialog, setDialog] = useState<"update" | "saveAs" | null>(null);
   /** The structure version the design was last checked against, for the save to confirm. */
   const [saveBase, setSaveBase] = useState<number | null>(null);
-  const [panelOpen, setPanelOpen] = useState(false);
-  const isMobile = useIsMobile();
   // Phones: the outline is a sheet. Wide screens: a sidebar that can be hidden.
   const [outlineOpen, setOutlineOpen] = useState(false);
   const [outlineShown, setOutlineShown] = useState(() => readJson(STORAGE_KEYS.visOutline, true));
@@ -342,8 +336,6 @@ function DesignerCanvas({
     setDraft(next);
     setPositions((p) => ({ ...p, [id]: at }));
     focusTable(id, at, table.columns.length);
-    // On phones the details live in a sheet; on wider screens they're always beside the canvas.
-    if (isMobile) setPanelOpen(true);
   };
 
   const arrange = () => {
@@ -407,7 +399,6 @@ function DesignerCanvas({
    * they confirm.
    */
   const reviewSave = async () => {
-    if (!dbId) return;
     try {
       const preview = await getSqlite().previewDesign(dbId, statements);
       if (preview.error) {
@@ -421,14 +412,10 @@ function DesignerCanvas({
     }
   };
 
-  /** The header badge: review and save to the open database, or save a blank design. */
+  /** The header badge: review and save to the open database. */
   const saveNow = async () => {
     if (saveProblems.length > 0) {
       toast.error(`Fix before saving: ${saveProblems.join(" · ")}`);
-      return;
-    }
-    if (!dbId) {
-      setDialog("saveAs");
       return;
     }
     await reviewSave();
@@ -447,32 +434,6 @@ function DesignerCanvas({
     : justSaved
       ? { kind: "saved" }
       : null;
-
-  const inspector = (
-    <Inspector
-      types={dialectTypes}
-      selection={selection}
-      diagram={diagram}
-      draft={draft}
-      colors={colors}
-      onColorChange={changeColor}
-      onDraftTableChange={(t) => setDraft((d) => updateDraftTable(d, t.id, t))}
-      onRemoveDraftTable={(id) => {
-        setDraft((d) => removeDraftTable(d, id));
-        setSelection(null);
-      }}
-      onDisconnect={(edge) => {
-        setDraft((d) => disconnectColumn(d, diagram, edge, schema));
-        setSelection(null);
-      }}
-    />
-  );
-  // The details panel only exists while a new table or a relationship is selected.
-  const hasDetails =
-    !viewingOriginal &&
-    (selection?.kind === "table"
-      ? diagram.tables.some((t) => t.id === selection.id && t.kind === "draft")
-      : selection?.kind === "edge" && diagram.edges.some((e) => e.id === selection.id));
 
   const outline = (
     <SchemaOutline
@@ -497,20 +458,16 @@ function DesignerCanvas({
         createPortal(
           <span className="flex items-center gap-0.5">
             {saveState && (
-              <UnsavedBadge
-                state={saveState}
-                dbName={dbId ? dbName : null}
-                onClick={() => void saveNow()}
-              />
+              <UnsavedBadge state={saveState} dbName={dbName} onClick={() => void saveNow()} />
             )}
             {!isDraftEmpty(draft) && (
               <SaveMenu
                 draft={draft}
                 statements={statements}
                 problems={saveProblems}
-                dbName={dbId ? dbName : null}
+                dbName={dbName}
                 onUpdate={() => void reviewSave()}
-                onSaveAsNew={() => setDialog("saveAs")}
+                onSaveAsNew={schema?.dialect ? undefined : () => setDialog("saveAs")}
                 onDownload={() =>
                   downloadBlob(
                     `${statements.join("\n\n")}\n`,
@@ -676,17 +633,6 @@ function DesignerCanvas({
                 </TooltipContent>
               </Tooltip>
             )}
-            {hasDetails && (
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="md:hidden"
-                aria-label="Details"
-                onClick={() => setPanelOpen(true)}
-              >
-                <PanelRight />
-              </Button>
-            )}
           </Panel>
           {viewingOriginal && (
             <Panel
@@ -708,35 +654,6 @@ function DesignerCanvas({
           )}
         </ReactFlow>
       </div>
-
-      {hasDetails && (
-        <aside
-          aria-label="Details"
-          className="relative w-88 shrink-0 overflow-y-auto border-l-2 border-hairline bg-surface p-4 max-md:hidden [&>div>section:first-child>div:first-child]:pr-8"
-        >
-          {/* The pr-8 above keeps the first section's header row clear of this button. */}
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            className="absolute top-2.5 right-2.5"
-            aria-label="Close details"
-            onClick={() => setSelection(null)}
-          >
-            <X />
-          </Button>
-          {inspector}
-        </aside>
-      )}
-      <Sheet open={panelOpen && hasDetails} onOpenChange={setPanelOpen}>
-        <SheetContent
-          side="bottom"
-          className="max-h-[75dvh] overflow-y-auto bg-surface p-4 md:hidden"
-          aria-describedby={undefined}
-        >
-          <SheetTitle className="sr-only">Details</SheetTitle>
-          {inspector}
-        </SheetContent>
-      </Sheet>
 
       {dialog === "update" && (
         <ConfirmSqlDialog
@@ -761,7 +678,7 @@ function DesignerCanvas({
       )}
       {dialog === "saveAs" && (
         <SaveAsDialog
-          source={dbId ? { id: dbId, name: dbName } : null}
+          source={{ id: dbId, name: dbName }}
           schema={schema}
           draft={draft}
           onSaved={async (info) => {

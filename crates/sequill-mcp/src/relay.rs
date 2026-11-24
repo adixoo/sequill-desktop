@@ -44,7 +44,7 @@ fn unreachable_app(error: impl std::fmt::Display) -> ErrorData {
 impl Relay {
     /// A relay to the app serving `data_dir`.
     pub fn new(data_dir: PathBuf) -> Self {
-        let local = (!in_app_package()).then(|| SequillServer::new(data_dir.clone()));
+        let local = (!in_app_package()).then(|| SequillServer::new(data_dir.clone(), false));
         Self {
             data_dir,
             tools: SequillServer::tools(),
@@ -231,11 +231,16 @@ mod tests {
         let assistant = assistant(dir.path(), false).await;
 
         let result = assistant
-            .call_tool(call("list_databases", json!({})))
+            .call_tool(call("app_info", json!({})))
             .await
             .unwrap();
         assert_ne!(result.is_error, Some(true), "{}", text(&result));
         assert!(text(&result).contains(&id), "{}", text(&result));
+        assert!(
+            text(&result).contains(r#""appOpen":false"#),
+            "{}",
+            text(&result)
+        );
         let renamed = assistant
             .call_tool(call(
                 "rename_database",
@@ -260,7 +265,7 @@ mod tests {
         assert_eq!(tools.len(), SequillServer::tools().len());
 
         let result = assistant
-            .call_tool(call("list_databases", json!({})))
+            .call_tool(call("app_info", json!({})))
             .await
             .unwrap();
         assert_eq!(result.is_error, Some(true));
@@ -279,13 +284,18 @@ mod tests {
     async fn reaches_the_app_once_it_opens_and_again_after_a_restart() {
         let (dir, id) = store_with_shop();
         let assistant = assistant(dir.path(), true).await;
-        let list = || assistant.call_tool(call("list_databases", json!({})));
+        let list = || assistant.call_tool(call("app_info", json!({})));
 
         assert_eq!(text(&list().await.unwrap()), APP_CLOSED_MESSAGE);
 
         let app = open_app(dir.path()).await;
         let opened = list().await.unwrap();
         assert!(text(&opened).contains(&id), "{}", text(&opened));
+        assert!(
+            text(&opened).contains(r#""appOpen":true"#),
+            "{}",
+            text(&opened)
+        );
 
         app.abort();
         let _ = app.await;
