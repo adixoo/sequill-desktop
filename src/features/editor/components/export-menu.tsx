@@ -32,11 +32,7 @@ interface ExportMenuProps {
   disabled?: boolean;
 }
 
-export async function exportRows(
-  source: ExportSource,
-  format: ExportFormat,
-  name: string,
-): Promise<void> {
+async function exportRows(source: ExportSource, format: ExportFormat, name: string): Promise<void> {
   const id = toast.loading(`Preparing ${EXPORT_FORMATS[format].label}…`);
   try {
     const { columns, rows } = await source.load();

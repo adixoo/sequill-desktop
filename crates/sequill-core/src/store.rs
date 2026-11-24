@@ -455,25 +455,6 @@ impl Store {
         }
     }
 
-    pub fn import(&mut self, name: &str, bytes: &[u8]) -> Result<DbInfo> {
-        if !bytes.starts_with(SQLITE_HEADER) {
-            return Err(not_sqlite("it has no SQLite header"));
-        }
-        let id = uuid::Uuid::new_v4().to_string();
-        let path = self.managed_file(&id);
-        let partial = path.with_extension("sqlite3.part");
-        fs::write(&partial, bytes)?;
-        let checked = Session::open_read_only(&partial)
-            .and_then(|s| s.count("SELECT count(*) FROM sqlite_schema", &[]));
-        drop_side_files(&partial);
-        if let Err(error) = checked {
-            let _ = fs::remove_file(&partial);
-            return Err(not_sqlite(&error.to_string()));
-        }
-        fs::rename(&partial, &path)?;
-        self.register(&id, name, bytes.len() as u64)
-    }
-
     /// A new database with only the structure (no rows) of `bytes`, and no link back to them:
     /// a SQLite file, or a SQL script written for `dialect` (see [`dialects::to_sqlite`]).
     pub fn import_schema(
@@ -617,10 +598,7 @@ impl Store {
     }
 
     pub fn rename(&mut self, id: &str, name: &str) -> Result<DbInfo> {
-        let name = name.trim();
-        if name.is_empty() {
-            return Err(Error::msg("The name is empty"));
-        }
+        let name = required_name(name)?;
         self.info(id)?;
         self.catalog.execute(
             "UPDATE databases SET name = ? WHERE id = ?",
@@ -779,30 +757,6 @@ impl Store {
             params![query.id, query.name.trim(), query.sql, query.updated_at],
         )?;
         Ok(())
-    }
-
-    /// Saves `sql` under `name`: updates the query with `id`, or the one already called `name`
-    /// (any case), or adds a new one.
-    pub fn save_query(&self, name: &str, sql: &str, id: Option<&str>) -> Result<SavedQuery> {
-        let name = required_name(name)?;
-        let existing = self.saved_queries()?;
-        let target = match id {
-            Some(id) => Some(
-                existing
-                    .iter()
-                    .find(|q| q.id == id)
-                    .ok_or_else(|| Error::msg(format!("No saved query has the id {id}")))?,
-            ),
-            None => existing.iter().find(|q| q.name.eq_ignore_ascii_case(name)),
-        };
-        let query = SavedQuery {
-            id: target.map_or_else(|| uuid::Uuid::new_v4().to_string(), |q| q.id.clone()),
-            name: name.to_owned(),
-            sql: sql.to_owned(),
-            updated_at: now_ms(),
-        };
-        self.upsert_saved_query(&query)?;
-        Ok(query)
     }
 
     /// Removes a saved query; false when there was none with that id.
@@ -1088,7 +1042,7 @@ pub struct McpActivity {
     pub id: i64,
     /// When it was called (ms since the Unix epoch).
     pub at: i64,
-    /// The tool's name, such as `query` or `insert_rows`.
+    /// The tool's name, such as `query` or `execute`.
     pub tool: String,
     pub database_id: Option<String>,
     pub database_name: Option<String>,
@@ -1187,32 +1141,25 @@ mod tests {
     }
 
     #[test]
-    fn exports_and_imports_a_database() {
+    fn exports_a_database() {
         let (_dir, mut store) = store();
         let a = store
             .create("A", Some("CREATE TABLE t(a); INSERT INTO t VALUES ('x');"))
             .unwrap();
         let bytes = store.export(&a.id).unwrap();
         assert!(bytes.starts_with(SQLITE_HEADER));
-
-        let b = store.import("B", &bytes).unwrap();
-        let rows = store
-            .session(&b.id)
-            .unwrap()
-            .query("SELECT a FROM t", &[], None)
-            .unwrap()
-            .rows;
-        assert_eq!(rows, vec![vec![crate::CellValue::Text("x".into())]]);
     }
 
     #[test]
     fn rejects_files_that_are_not_sqlite() {
         let (dir, mut store) = store();
-        let error = store.import("X", b"hello").unwrap_err().to_string();
-        assert!(error.starts_with("This file does not look like a SQLite database"));
         let mut corrupt = SQLITE_HEADER.to_vec();
         corrupt.extend([0xff; 100]);
-        assert!(store.import("Y", &corrupt).is_err());
+        let error = store
+            .import_schema("Y", "sqlite", &corrupt)
+            .unwrap_err()
+            .to_string();
+        assert!(error.starts_with("This file does not look like a SQLite database"));
         assert!(store.list().unwrap().is_empty());
         assert_eq!(
             fs::read_dir(dir.path().join(DATABASES_DIR))
@@ -1289,17 +1236,21 @@ mod tests {
     }
 
     #[test]
-    fn saves_queries_by_id_or_name() {
+    fn saves_queries() {
         let (dir, store) = store();
-        let first = store.save_query("Top customers", "SELECT 1", None).unwrap();
-        let same = store.save_query("top CUSTOMERS", "SELECT 2", None).unwrap();
-        assert_eq!(same.id, first.id, "same name updates it");
-        let renamed = store
-            .save_query("Best customers", "SELECT 3", Some(&first.id))
+        let query = |id: &str, name: &str, updated_at: i64| SavedQuery {
+            id: id.into(),
+            name: name.into(),
+            sql: "SELECT 1".into(),
+            updated_at,
+        };
+        store
+            .upsert_saved_query(&query("a", "Top customers", 1))
             .unwrap();
-        assert_eq!(renamed.id, first.id);
-        std::thread::sleep(std::time::Duration::from_millis(2));
-        store.save_query("Other", "SELECT 4", None).unwrap();
+        store
+            .upsert_saved_query(&query("a", " Best customers ", 2))
+            .unwrap();
+        store.upsert_saved_query(&query("b", "Other", 3)).unwrap();
 
         let other = Store::open_shared(dir.path()).unwrap();
         let names: Vec<String> = other
@@ -1308,11 +1259,14 @@ mod tests {
             .into_iter()
             .map(|q| q.name)
             .collect();
-        assert_eq!(names, ["Other", "Best customers"], "newest first, shared");
-        assert!(store.save_query(" ", "SELECT 1", None).is_err());
-        assert!(store.save_query("x", "SELECT 1", Some("missing")).is_err());
-        assert!(store.delete_saved_query(&first.id).unwrap());
-        assert!(!store.delete_saved_query(&first.id).unwrap());
+        assert_eq!(
+            names,
+            ["Other", "Best customers"],
+            "newest first, shared, trimmed"
+        );
+        assert!(store.upsert_saved_query(&query("c", " ", 4)).is_err());
+        assert!(store.delete_saved_query("a").unwrap());
+        assert!(!store.delete_saved_query("a").unwrap());
     }
 
     #[test]

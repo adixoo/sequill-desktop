@@ -17,7 +17,6 @@ import {
   Clock01Icon,
   BulbIcon,
   Cancel01Icon,
-  CancelCircleIcon,
   CheckmarkCircle02Icon,
   ChevronFirstIcon,
   ChevronLastIcon,
@@ -65,10 +64,8 @@ import {
   ToggleOnIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
-  PanelRightIcon,
   PanelRightOpenIcon,
   PencilEdit02Icon,
-  PencilRulerIcon,
   PinIcon,
   PinOffIcon,
   PlayIcon,
@@ -87,7 +84,6 @@ import {
   UndoIcon,
   UnfoldLessIcon,
   UnfoldMoreIcon,
-  Unlink05Icon,
   Upload04Icon,
   ViewIcon,
   ViewOffSlashIcon,
@@ -176,13 +172,10 @@ export const Minus = icon(MinusSignIcon, "Minus");
 export const Moon = icon(Moon02Icon, "Moon");
 export const MoreHorizontal = icon(MoreHorizontalIcon, "MoreHorizontal");
 export const Network = icon(NetworkIcon, "Network");
-export const OctagonX = icon(CancelCircleIcon, "OctagonX");
 export const PanelLeftClose = icon(PanelLeftCloseIcon, "PanelLeftClose");
 export const PanelLeftOpen = icon(PanelLeftOpenIcon, "PanelLeftOpen");
-export const PanelRight = icon(PanelRightIcon, "PanelRight");
 export const PanelRightOpen = icon(PanelRightOpenIcon, "PanelRightOpen");
 export const Pencil = icon(PencilEdit02Icon, "Pencil");
-export const PencilRuler = icon(PencilRulerIcon, "PencilRuler");
 export const Pin = icon(PinIcon, "Pin");
 export const PinOff = icon(PinOffIcon, "PinOff");
 export const Pipette = icon(ColorPickerIcon, "Pipette");
@@ -203,7 +196,6 @@ export const TableProperties = icon(TablePropertiesIcon, "TableProperties");
 export const Trash = icon(Delete02Icon, "Trash");
 export const TriangleAlert = icon(Alert02Icon, "TriangleAlert");
 export const Undo = icon(Undo03Icon, "Undo");
-export const Unlink = icon(Unlink05Icon, "Unlink");
 export const Upload = icon(Upload04Icon, "Upload");
 export const X = icon(Cancel01Icon, "X");
 export const Zap = icon(ZapIcon, "Zap");

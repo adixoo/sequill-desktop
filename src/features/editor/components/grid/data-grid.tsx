@@ -49,7 +49,7 @@ interface Cursor {
   col: number;
 }
 
-export interface DataGridProps {
+interface DataGridProps {
   columns: GridColumn[];
   rows: Row[];
   /** Number of rows before this page, for row numbers. */

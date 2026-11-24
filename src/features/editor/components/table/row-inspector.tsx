@@ -142,7 +142,7 @@ function InspectorForm({
   onDelete,
   onFollowForeignKey,
 }: RowInspectorProps & { target: InspectorTarget }) {
-  const columns = useMemo(() => visibleColumns(relation), [relation]);
+  const columns = visibleColumns(relation);
   // Fixed for this opening, so a filled-in default doesn't count as the user's change.
   const [defaults] = useState(() => (target.kind === "new" ? defaultFields(columns) : {}));
   const [fields, setFields] = useState<Record<string, FieldState>>(() =>

@@ -11,7 +11,7 @@ import { FileDown } from "@/components/atoms/icons";
 import { exportSchema } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { downloadBlob, safeFileName } from "@/utils/data/export";
-import { EXPORT_TARGETS } from "@/features/vis/lib/dialects";
+import { IMPORT_DIALECTS, type Dialect } from "@/features/vis/lib/dialects";
 
 interface ExportSchemaMenuProps {
   /** The whole design as SQLite statements (the schema with unsaved changes); may throw
@@ -23,7 +23,7 @@ interface ExportSchemaMenuProps {
 
 /** Downloads the design's schema as CREATE statements for another database. */
 export function ExportSchemaMenu({ statements, name }: ExportSchemaMenuProps) {
-  const download = async (target: (typeof EXPORT_TARGETS)[number]) => {
+  const download = async (target: Dialect) => {
     try {
       const sql = await exportSchema(statements(), target.value);
       downloadBlob(sql, `${safeFileName(name)}-${target.value}.sql`, "application/sql");
@@ -42,7 +42,7 @@ export function ExportSchemaMenu({ statements, name }: ExportSchemaMenuProps) {
         <DropdownMenuLabel className="text-xs font-normal text-ink-muted">
           Schema as SQL for
         </DropdownMenuLabel>
-        {EXPORT_TARGETS.map((target) => (
+        {IMPORT_DIALECTS.map((target) => (
           <DropdownMenuItem key={target.value} onSelect={() => void download(target)}>
             {target.label}
           </DropdownMenuItem>

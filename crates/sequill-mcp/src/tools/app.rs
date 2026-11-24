@@ -4,7 +4,7 @@
 use super::{open_db, open_design, open_store, open_store_for_changes, to_json};
 use schemars::JsonSchema;
 use sequill_core::design::Draft;
-use sequill_core::filter::{Filter, FilterMatch, build_where};
+use sequill_core::filter::{Filter, FilterMatch};
 use sequill_core::rows::{Sort, table_columns};
 use sequill_core::schema::{RelationInfo, SchemaObject};
 use sequill_core::{Error, Result};
@@ -205,9 +205,12 @@ pub fn show_in_app(
         ShowView::Table => {
             let table = table.ok_or_else(|| Error::msg("view table needs a table"))?;
             let columns = table_columns(&db.session, table)?;
-            build_where(&columns, filters, matching, search.unwrap_or(""))?;
-            if let Some(bad) = sort.iter().find(|s| !columns.contains(&s.column)) {
-                return Err(Error::msg(format!("Unknown column: {}", bad.column)));
+            let used = filters
+                .iter()
+                .map(|f| &f.column)
+                .chain(sort.iter().map(|s| &s.column));
+            if let Some(bad) = used.into_iter().find(|c| !columns.contains(c)) {
+                return Err(Error::msg(format!("Unknown column: {bad}")));
             }
         }
         ShowView::Query if sql.is_none_or(|s| s.trim().is_empty()) => {

@@ -12,6 +12,7 @@ import {
 } from "@/components/atoms/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/atoms/toggle-group";
 import { FILTER_OPS, type Filter, type FilterMatch, type FilterOp } from "@/lib/sqlite/sql";
+import { newId } from "@/utils";
 
 interface FilterBuilderProps {
   columns: string[];
@@ -22,8 +23,8 @@ interface FilterBuilderProps {
   onOpenChange?(open: boolean): void;
 }
 
-const newFilter = (column: string): Filter => ({
-  id: Math.random().toString(36).slice(2, 9),
+export const newFilter = (column: string): Filter => ({
+  id: newId(),
   column,
   op: "contains",
   value: "",

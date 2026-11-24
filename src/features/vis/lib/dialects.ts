@@ -22,7 +22,7 @@ export interface Dialect {
 export type ObjectKind =
   "enum" | "type" | "sequence" | "function" | "procedure" | "view" | "trigger";
 
-/** The databases a schema can be imported from. */
+/** The databases a schema can be imported from and exported to. */
 export const IMPORT_DIALECTS: readonly Dialect[] = [
   {
     value: "postgresql",
@@ -77,15 +77,6 @@ export const OBJECT_KINDS: Record<ObjectKind, { one: string; many: string }> = {
 /** The import dialect named `value`; undefined for SQLite designs. */
 export const dialectOf = (value: string | null | undefined) =>
   IMPORT_DIALECTS.find((d) => d.value === value);
-
-/** Databases the designer can export a schema for. */
-export const EXPORT_TARGETS = [
-  { value: "postgresql", label: "PostgreSQL" },
-  { value: "mysql", label: "MySQL / MariaDB" },
-  { value: "mssql", label: "SQL Server" },
-  { value: "duckdb", label: "DuckDB" },
-  { value: "sqlite", label: "SQLite" },
-] as const;
 
 /** Files the schema import accepts: SQL scripts and SQLite databases. */
 export const SCHEMA_FILE_ACCEPT = ".sql,.ddl,.txt";

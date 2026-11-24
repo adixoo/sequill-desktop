@@ -114,7 +114,6 @@ function Visualizer() {
       ) : ready ? (
         <Designer
           key={activeDb}
-          storageKey={activeDb}
           dbId={activeDb}
           dbName={current?.name ?? "Database"}
           dbPath={current?.path ?? null}

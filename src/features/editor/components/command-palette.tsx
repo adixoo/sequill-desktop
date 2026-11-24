@@ -17,7 +17,6 @@ import {
 } from "@/components/atoms/icons";
 import { navigate, ROUTES } from "@/lib/router";
 import { useTheme } from "@/lib/theme";
-import { useRef } from "react";
 import {
   Command,
   CommandDialog,
@@ -30,7 +29,6 @@ import {
 } from "@/components/atoms/command";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { useDatabases } from "@/hooks/use-db";
-import { DbFileInput } from "@/components/organisms/db-file-input";
 import type { Schema } from "@/lib/sqlite/types";
 import { useDialogs } from "@/store/dialogs";
 import { useSavedQueries } from "@/store/saved-queries";
@@ -48,7 +46,6 @@ export default function CommandPalette({ open, onOpenChange, schema }: CommandPa
   const dbs = useDatabases();
   const actions = useDbActions();
   const { theme, setTheme } = useTheme();
-  const fileInput = useRef<HTMLInputElement>(null);
   const current = dbs.data?.find((d) => d.id === dbId);
   const savedQueries = useSavedQueries((s) => s.queries);
 
@@ -59,7 +56,6 @@ export default function CommandPalette({ open, onOpenChange, schema }: CommandPa
 
   return (
     <>
-      <DbFileInput ref={fileInput} />
       <CommandDialog
         open={open}
         onOpenChange={onOpenChange}
@@ -146,12 +142,7 @@ export default function CommandPalette({ open, onOpenChange, schema }: CommandPa
                     <Database /> Switch to {d.name}
                   </CommandItem>
                 ))}
-              <CommandItem
-                onSelect={() => {
-                  onOpenChange(false);
-                  actions.pickFile(fileInput.current);
-                }}
-              >
+              <CommandItem onSelect={runAndClose(() => void actions.pickFile())}>
                 <FolderOpen /> Open a database file
               </CommandItem>
               <CommandItem onSelect={runAndClose(() => openDialog({ kind: "newDatabase" }))}>

@@ -46,10 +46,7 @@ const EMPTY_LAYOUT: ColumnLayout = { hidden: [], order: [], widths: {}, pinned: 
 function ResultView({ result }: { result: StatementResult }) {
   const density = useWorkspace((s) => s.density);
   const [layout, setLayout] = useState<ColumnLayout>(EMPTY_LAYOUT);
-  const columns = useMemo(
-    () => result.columns.map((name) => ({ name, type: "", editable: false })),
-    [result.columns],
-  );
+  const columns = result.columns.map((name) => ({ name, type: "", editable: false }));
   if (result.error) {
     return (
       <div role="alert" className="flex items-start gap-2 bg-rose-wash p-4 text-sm text-ink">

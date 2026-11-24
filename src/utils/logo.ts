@@ -1,8 +1,8 @@
 /**
  * The Sequill brand: the mark (a pen nib whose top is stacked database disks,
  * sequel and quill) and the block wordmark, in Pastel Noir colours on the
- * near-black ground. One source for the <Logo> component, the footer, the Open
- * Graph image and the icon files scripts/generate-icons.ts writes. Images render
+ * near-black ground. One source for the footer, the Open Graph image and the
+ * icon files scripts/generate-icons.ts writes. Images render
  * outside the page, so colours are the token values, not CSS variables;
  * logo.test.ts checks they match the tokens in src/styles/globals.css.
  */
@@ -18,13 +18,6 @@ export const LOGO_COLORS = {
   rose: "#f6a8c6", // --rose
   ink: "#ededf0", // light stroke on the dark ground
 } as const;
-
-/**
- * The block wordmark: each letter knocked out of its own pastel block. Tones
- * and heights (share of the band) repeat letter by letter.
- */
-export const WORDMARK_TONES = ["peach", "butter", "mint", "sky", "rose"] as const;
-export const WORDMARK_HEIGHTS = [1, 0.78, 0.92, 0.64, 0.86, 0.7, 1] as const;
 
 /** Corner radius of the ground tile. */
 export const LOGO_RADIUS = 112;

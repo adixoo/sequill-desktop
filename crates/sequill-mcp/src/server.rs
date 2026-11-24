@@ -35,16 +35,6 @@ and the unsaved design, which set_design changes for the user to review and save
 app_info also lists designs of other databases (PostgreSQL, MySQL…): only get_schema, \
 set_design and show_in_app's schema page work on those.";
 
-/// Tools that change data, schema or databases; they need "Allow changes" in the app,
-/// checked on every call (execute checks each statement, so it still reads without it).
-pub const WRITE_TOOLS: [&str; 5] = [
-    "execute",
-    "create_database",
-    "rename_database",
-    "delete_database",
-    "set_design",
-];
-
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct DatabaseArgs {
     /// The database's id, or its exact name, from app_info.
@@ -289,8 +279,6 @@ impl SequillServer {
     }
 }
 
-// The default router is rebuilt per call (`Self::tool_router()`), which would bring back
-// the write tools on a read-only server; route through the field instead.
 /// Whether a call worked, and why not if it didn't.
 fn outcome(response: &Result<CallToolResponse, ErrorData>) -> (bool, Option<String>) {
     match response {
@@ -365,6 +353,13 @@ mod tests {
     }
 
     const READ_TOOLS: [&str; 4] = ["app_info", "get_schema", "query", "show_in_app"];
+    const WRITE_TOOLS: [&str; 5] = [
+        "execute",
+        "create_database",
+        "rename_database",
+        "delete_database",
+        "set_design",
+    ];
 
     #[test]
     fn offers_every_tool_so_the_app_switch_alone_decides() {

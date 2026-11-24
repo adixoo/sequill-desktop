@@ -26,7 +26,7 @@ import {
   PanelLeftOpen,
   Plus,
 } from "@/components/atoms/icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "@/components/atoms/toast";
 import { ConfirmSqlDialog } from "@/components/organisms/dialogs/simple-dialogs";
@@ -98,8 +98,7 @@ const ARROW = { type: MarkerType.Arrow, width: 16, height: 16, color: "var(--str
 type Selection = { kind: "table"; id: string } | { kind: "edge"; id: string } | null;
 
 interface DesignerProps {
-  /** Storage key for the design: the database id. */
-  storageKey: string;
+  /** The open database; its id is also the design's storage key. */
   dbId: string;
   dbName: string;
   /** The file on this computer that saving changes, for a database opened in place. */
@@ -112,7 +111,6 @@ interface DesignerProps {
 }
 
 function DesignerCanvas({
-  storageKey,
   dbId,
   dbName,
   dbPath,
@@ -123,20 +121,20 @@ function DesignerCanvas({
   const flow = useReactFlow();
   const [justSaved, setJustSaved] = useState(false);
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState<Draft>(() => readDraft(storageKey));
+  const [draft, setDraft] = useState<Draft>(() => readDraft(dbId));
   // An assistant can change the stored design (desktop); show its version.
-  const storedDraft = useStoredDraft(storageKey);
+  const storedDraft = useStoredDraft(dbId);
   const [seenStored, setSeenStored] = useState(storedDraft);
   if (storedDraft !== seenStored) {
     setSeenStored(storedDraft);
     setDraft(storedDraft);
   }
   const [positions, setPositions] = useState<Record<string, Point>>(() =>
-    readJson(STORAGE_KEYS.visLayout + storageKey, {}),
+    readJson(STORAGE_KEYS.visLayout + dbId, {}),
   );
   const [showViews, setShowViews] = useState(() => readJson(STORAGE_KEYS.visShowViews, true));
   const [colors, setColors] = useState<Record<string, TableColor>>(() =>
-    sanitizeColors(readJson<unknown>(STORAGE_KEYS.visColors + storageKey, {})),
+    sanitizeColors(readJson<unknown>(STORAGE_KEYS.visColors + dbId, {})),
   );
   const changeColor = (id: string, color: TableColor | null) =>
     setColors((c) => setColor(c, id, color));
@@ -154,22 +152,19 @@ function DesignerCanvas({
     setOutlineShown(shown);
   };
 
-  useEffect(() => writeDraft(storageKey, draft), [draft, storageKey]);
-  useEffect(() => writeJson(STORAGE_KEYS.visColors + storageKey, colors), [colors, storageKey]);
+  useEffect(() => writeDraft(dbId, draft), [draft, dbId]);
+  useEffect(() => writeJson(STORAGE_KEYS.visColors + dbId, colors), [colors, dbId]);
   // Positions change on every drag frame; save once things settle.
   useEffect(() => {
-    const t = setTimeout(() => writeJson(STORAGE_KEYS.visLayout + storageKey, positions), 300);
+    const t = setTimeout(() => writeJson(STORAGE_KEYS.visLayout + dbId, positions), 300);
     return () => clearTimeout(t);
-  }, [positions, storageKey]);
+  }, [positions, dbId]);
 
-  const diagram = useMemo(() => buildDiagram(schema, draft, showViews), [schema, draft, showViews]);
+  const diagram = buildDiagram(schema, draft, showViews);
   // The schema as saved (before the design), shown read-only; the design itself is kept.
   const [showOriginal, setShowOriginal] = useState(false);
   const viewingOriginal = showOriginal && !isDraftEmpty(draft);
-  const shown = useMemo(
-    () => (viewingOriginal ? buildDiagram(schema, EMPTY_DRAFT, showViews) : diagram),
-    [viewingOriginal, schema, showViews, diagram],
-  );
+  const shown = viewingOriginal ? buildDiagram(schema, EMPTY_DRAFT, showViews) : diagram;
 
   // Fit the view once, after every table has been measured (an earlier fit sees zero-size nodes).
   const fitted = useRef(false);
@@ -179,76 +174,57 @@ function DesignerCanvas({
     fitted.current = true;
     void flow.fitView({ padding: 0.15 });
   }, [allMeasured, flow]);
-  const fallback = useMemo(
-    () =>
-      autoLayout(
-        diagram.tables.map((t) => ({ id: t.id, columns: t.columns.length, width: tableWidth(t) })),
-        diagram.edges,
-      ),
-    [diagram],
+  const fallback = autoLayout(
+    diagram.tables.map((t) => ({ id: t.id, columns: t.columns.length, width: tableWidth(t) })),
+    diagram.edges,
   );
   const positionOf = (id: string) => positions[id] ?? fallback[id] ?? { x: 0, y: 0 };
 
   // Focus mode: the selected table and its direct relations stay bright.
-  const focus = useMemo(() => {
-    if (selection?.kind !== "table") return null;
-    const ids = new Set([selection.id]);
-    for (const e of diagram.edges) {
-      if (e.source === selection.id) ids.add(e.target);
-      if (e.target === selection.id) ids.add(e.source);
-    }
-    return ids;
-  }, [selection, diagram.edges]);
+  const focus =
+    selection?.kind === "table"
+      ? new Set([
+          selection.id,
+          ...diagram.edges
+            .filter((e) => e.source === selection.id || e.target === selection.id)
+            .flatMap((e) => [e.source, e.target]),
+        ])
+      : null;
 
   // One editor for the outline and the table cards; both edit the same draft.
   // A schema imported from another database: its own types and enums in the type pickers.
-  const dialectTypes = useMemo<TypeChoices | undefined>(
-    () =>
-      schema?.dialect
-        ? {
-            label: dialectOf(schema.dialect)?.label ?? schema.dialect,
-            types: DATA_TYPES[schema.dialect] ?? [],
-            enums: currentObjects(schema, draft)
-              .filter((o) => o.kind === "enum")
-              .map((o) => o.name),
-          }
-        : undefined,
-    [schema, draft],
-  );
-  const schemaEditor = useMemo<SchemaEditor>(
-    () => ({
-      draft,
-      schema,
-      dbId,
-      refTables: referenceTargets(diagram),
-      types: dialectTypes,
-      onChange: setDraft,
-    }),
-    [draft, schema, dbId, diagram, dialectTypes],
-  );
+  const dialectTypes: TypeChoices | undefined = schema?.dialect
+    ? {
+        label: dialectOf(schema.dialect)?.label ?? schema.dialect,
+        types: DATA_TYPES[schema.dialect] ?? [],
+        enums: currentObjects(schema, draft)
+          .filter((o) => o.kind === "enum")
+          .map((o) => o.name),
+      }
+    : undefined;
+  const schemaEditor: SchemaEditor = {
+    draft,
+    schema,
+    refTables: referenceTargets(diagram),
+    types: dialectTypes,
+    onChange: setDraft,
+  };
 
-  const widths = useMemo(
-    () => Object.fromEntries(shown.tables.map((t) => [t.id, tableWidth(t)])),
-    [shown.tables],
-  );
+  const widths = Object.fromEntries(shown.tables.map((t) => [t.id, tableWidth(t)]));
   const widthOf = (id: string) => widths[id] ?? TABLE_WIDTH;
 
   // Kept apart from positions: a drag frame re-renders only the card being moved, not every card.
-  const nodeData = useMemo(
-    () =>
-      new Map(
-        shown.tables.map((t) => [
-          t.id,
-          {
-            table: t,
-            dimmed: !!focus && !focus.has(t.id),
-            color: colors[t.id] ?? null,
-            editor: schemaEditor,
-            readOnly: viewingOriginal,
-          },
-        ]),
-      ),
-    [shown.tables, focus, colors, schemaEditor, viewingOriginal],
+  const nodeData = new Map(
+    shown.tables.map((t) => [
+      t.id,
+      {
+        table: t,
+        dimmed: !!focus && !focus.has(t.id),
+        color: colors[t.id] ?? null,
+        editor: schemaEditor,
+        readOnly: viewingOriginal,
+      },
+    ]),
   );
 
   const nodes: TableNodeType[] = shown.tables.map((t) => ({
@@ -261,7 +237,7 @@ function DesignerCanvas({
     ariaLabel: `${t.kind === "draft" ? "New table" : t.kind === "view" ? "View" : "Table"} ${t.name}`,
   }));
 
-  const typeProblems = useMemo(() => edgeTypeProblems(diagram), [diagram]);
+  const typeProblems = edgeTypeProblems(diagram);
   const edges: Edge[] = shown.edges.map((e) => {
     const active =
       selection?.kind === "edge"
@@ -343,18 +319,12 @@ function DesignerCanvas({
     requestAnimationFrame(() => void flow.fitView({ padding: 0.15, duration: 400 }));
   };
 
-  const problems = useMemo(() => validateDraft(schema, draft), [schema, draft]);
-  const statements = useMemo(
-    () => (problems.length === 0 ? draftStatements(draft, schema) : []),
-    [draft, problems, schema],
-  );
-  const warnings = useMemo(() => saveWarnings(schema, draft), [schema, draft]);
+  const problems = validateDraft(schema, draft);
+  const statements = problems.length === 0 ? draftStatements(draft, schema) : [];
+  const warnings = saveWarnings(schema, draft);
   // The design also runs on a copy of the structure, so SQLite's own errors block saving too.
   const checkError = useDesignCheck(dbId, statements);
-  const saveProblems = useMemo(
-    () => (checkError ? [...problems, `Saving would fail: ${checkError}`] : problems),
-    [problems, checkError],
-  );
+  const saveProblems = checkError ? [...problems, `Saving would fail: ${checkError}`] : problems;
 
   /**
    * After saving, new tables become real ones and renamed tables get new ids:
@@ -386,7 +356,7 @@ function DesignerCanvas({
 
   /** After the design reached this database: real tables keep their place and color. */
   const finishSave = () => {
-    const adopted = adoptDraftLayout(storageKey);
+    const adopted = adoptDraftLayout(dbId);
     setPositions(adopted.positions);
     setColors(adopted.colors);
     setDraft(EMPTY_DRAFT);
@@ -685,7 +655,7 @@ function DesignerCanvas({
             // The new database takes over the layout and colors; the design now lives there.
             adoptDraftLayout(info.id);
             setDraft(EMPTY_DRAFT);
-            writeDraft(storageKey, EMPTY_DRAFT);
+            writeDraft(dbId, EMPTY_DRAFT);
             await queryClient.invalidateQueries({ queryKey: queryKeys.dbs });
             onDatabaseCreated(info.id);
             toast.success(`Created ${info.name}`);

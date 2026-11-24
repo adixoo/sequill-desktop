@@ -21,7 +21,6 @@ export const CELL_PREVIEW_CHARS = 300;
 
 /** SQLite caps bound parameters; keep batches well under the default 32766. */
 export const MAX_PARAMS_PER_STATEMENT = 500;
-export const IMPORT_BATCH_ROWS = 1000;
 export const IMPORT_PREVIEW_ROWS = 50;
 
 /** SQL console. */

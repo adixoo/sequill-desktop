@@ -16,7 +16,6 @@ import type {
 export interface SqliteApi {
   listDatabases(): Promise<DbInfo[]>;
   createDatabase(name: string, seedSql?: string): Promise<DbInfo>;
-  importDatabase(name: string, bytes: Uint8Array): Promise<DbInfo>;
   exportDatabase(id: string): Promise<Uint8Array>;
   renameDatabase(id: string, name: string): Promise<DbInfo>;
   deleteDatabase(id: string): Promise<void>;

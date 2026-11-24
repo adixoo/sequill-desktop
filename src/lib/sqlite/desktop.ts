@@ -41,8 +41,6 @@ const decodeResult = <T extends QueryResult>(result: Wire<T>): T =>
 export const desktopSqlite: SqliteApi = {
   listDatabases: () => invoke("list_databases"),
   createDatabase: (name, seedSql) => invoke("create_database", { name, seedSql }),
-  importDatabase: (name, bytes) =>
-    invoke("import_database", bytes, { headers: { [NAME_HEADER]: encodeURIComponent(name) } }),
   exportDatabase: async (id) =>
     new Uint8Array(await invoke<ArrayBuffer>("export_database", { id })),
   renameDatabase: (id, name) => invoke("rename_database", { id, name }),

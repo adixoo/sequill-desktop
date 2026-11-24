@@ -1,21 +1,10 @@
 import { RotateCcw } from "@/components/atoms/icons";
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
-import { Loader, type LoaderStage } from "@/components/molecules/pastel/loader";
+import { Loader } from "@/components/molecules/pastel/loader";
 import { Button } from "@/components/atoms/button";
 import { bootSqlite } from "@/lib/sqlite/client";
 import { errorMessage } from "@/lib/sqlite/errors";
 import type { BootStage } from "@/lib/sqlite/types";
-
-const STAGES: { stage: BootStage; label: string }[] = [
-  { stage: "engine", label: "Starting SQLite" },
-];
-const ORDER: BootStage[] = ["engine", "ready"];
-
-function stageState(current: BootStage | null, stage: BootStage): LoaderStage["state"] {
-  if (current === null) return stage === "engine" ? "active" : "pending";
-  const [a, b] = [ORDER.indexOf(current), ORDER.indexOf(stage)];
-  return a > b ? "done" : a === b ? "active" : "pending";
-}
 
 interface AppBootProps {
   /** Downloads the page's UI chunk; runs in parallel with booting SQLite. Must be stable. */
@@ -77,7 +66,7 @@ export function AppBoot({ load, name }: AppBootProps) {
         <Loader
           label={`Starting ${name}`}
           stages={[
-            ...STAGES.map((s) => ({ label: s.label, state: stageState(stage, s.stage) })),
+            { label: "Starting SQLite", state: stage === "ready" ? "done" : "active" },
             {
               label: "Loading the interface",
               state: Shell ? "done" : stage === "ready" ? "active" : "pending",

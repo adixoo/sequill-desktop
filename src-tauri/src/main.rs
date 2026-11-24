@@ -53,7 +53,6 @@ fn run() {
             commands::list_databases,
             commands::create_database,
             commands::create_design,
-            commands::import_database,
             commands::import_schema,
             commands::export_schema,
             commands::open_database_file,

@@ -5,7 +5,6 @@ import { Button } from "@/components/atoms/button";
 import { Kbd } from "@/components/atoms/kbd";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { useTableCount } from "@/hooks/use-db";
-import { DB_FILE_ACCEPT } from "@/constants";
 import { enter } from "@/lib/motion";
 import { isDesktop } from "@/lib/platform";
 import type { RelationInfo, Schema } from "@/lib/sqlite/types";
@@ -31,28 +30,9 @@ export function NoDatabase() {
           Nothing is uploaded, and it all keeps working offline.
         </p>
         <div className="flex flex-wrap gap-2">
-          {isDesktop() ? (
-            // The system's file picker: the file is edited where it is, never copied.
-            <Button onClick={() => actions.pickFile(null)}>
-              <FolderOpen /> Open a .sqlite file
-            </Button>
-          ) : (
-            <Button asChild>
-              <label className="cursor-pointer">
-                <FolderOpen /> Open a .sqlite file
-                <input
-                  type="file"
-                  accept={DB_FILE_ACCEPT}
-                  className="sr-only"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    if (file) void actions.openFile(file);
-                    e.target.value = "";
-                  }}
-                />
-              </label>
-            </Button>
-          )}
+          <Button onClick={() => void actions.pickFile()}>
+            <FolderOpen /> Open a .sqlite file
+          </Button>
           <Button variant="outline" onClick={() => openDialog({ kind: "newDatabase" })}>
             <Plus /> New empty
           </Button>

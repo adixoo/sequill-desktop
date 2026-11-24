@@ -32,7 +32,7 @@ import { DataGrid } from "@/features/editor/components/grid/data-grid";
 import type { CellEdit, GridColumn } from "@/features/editor/components/grid/types";
 import { ExportMenu, type ExportSource } from "@/features/editor/components/export-menu";
 import { ColumnsMenu } from "./columns-menu";
-import { FilterBuilder } from "./filter-builder";
+import { FilterBuilder, newFilter } from "./filter-builder";
 import { Pagination } from "./pagination";
 import { RowInspector, type InspectorTarget } from "./row-inspector";
 import { StructureView } from "./structure-view";
@@ -342,31 +342,19 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
             total > rows.length &&
             relation.editable && (
               <p className="flex flex-wrap items-center justify-center gap-2 border-b border-hairline bg-sky-wash px-3 py-1.5 text-xs text-ink">
-                {allMatching ? (
-                  <>
-                    All {formatCount(total)} matching rows are selected.
-                    <Button
-                      variant="link"
-                      size="xs"
-                      className="h-auto p-0 text-sky-ink"
-                      onClick={() => setAllMatching(false)}
-                    >
-                      Select only this page
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    All {formatCount(rows.length)} rows on this page are selected.
-                    <Button
-                      variant="link"
-                      size="xs"
-                      className="h-auto p-0 text-sky-ink"
-                      onClick={() => setAllMatching(true)}
-                    >
-                      Select all {formatCount(total)} matching rows
-                    </Button>
-                  </>
-                )}
+                {allMatching
+                  ? `All ${formatCount(total)} matching rows are selected.`
+                  : `All ${formatCount(rows.length)} rows on this page are selected.`}
+                <Button
+                  variant="link"
+                  size="xs"
+                  className="h-auto p-0 text-sky-ink"
+                  onClick={() => setAllMatching(!allMatching)}
+                >
+                  {allMatching
+                    ? "Select only this page"
+                    : `Select all ${formatCount(total)} matching rows`}
+                </Button>
               </p>
             )}
           {rowsQuery.error && (
@@ -408,8 +396,7 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
                 filters: [
                   ...view.filters,
                   {
-                    id: Math.random().toString(36).slice(2, 9),
-                    column,
+                    ...newFilter(column),
                     op: value === null ? "null" : "eq",
                     value: valueToText(value),
                   },
@@ -420,17 +407,7 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
             onFollowForeignKey={followForeignKey}
             onColumnAction={(action, column) => {
               if (action === "filter") {
-                patch({
-                  filters: [
-                    ...view.filters,
-                    {
-                      id: Math.random().toString(36).slice(2, 9),
-                      column,
-                      op: "contains",
-                      value: "",
-                    },
-                  ],
-                });
+                patch({ filters: [...view.filters, newFilter(column)] });
                 setFiltersOpen(true);
               } else if (action === "rename")
                 openDialog({ kind: "renameColumn", table: relation.name, column });

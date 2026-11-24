@@ -71,20 +71,6 @@ pub async fn create_design(
     with_store(&state, move |s| s.create_design(&name, &dialect)).await
 }
 
-/// The file's bytes arrive as the raw request body (no JSON number arrays for big files).
-#[tauri::command]
-pub async fn import_database(
-    state: State<'_, AppState>,
-    request: Request<'_>,
-) -> CmdResult<DbInfo> {
-    let InvokeBody::Raw(bytes) = request.body() else {
-        return Err("Expected the file's bytes".into());
-    };
-    let bytes = bytes.clone();
-    let name = header(&request, NAME_HEADER).unwrap_or_else(|| "Untitled".into());
-    with_store(&state, move |s| s.import(&name, &bytes)).await
-}
-
 /// A percent-encoded header's text, if it is there and not blank.
 fn header(request: &Request<'_>, name: &str) -> Option<String> {
     request
@@ -301,7 +287,7 @@ pub async fn dump(state: State<'_, AppState>, id: String) -> CmdResult<String> {
     with_store(&state, move |s| s.session(&id)?.dump()).await
 }
 
-/// Saved queries live in the catalog on desktop, so assistants can read and edit them too.
+/// Saved queries live in the catalog on desktop.
 #[tauri::command]
 pub async fn list_saved_queries(state: State<'_, AppState>) -> CmdResult<Vec<SavedQuery>> {
     with_store(&state, |s| s.saved_queries()).await

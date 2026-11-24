@@ -9,7 +9,6 @@ import {
   Sparkles,
   Trash,
 } from "@/components/atoms/icons";
-import { useRef } from "react";
 import { Button } from "@/components/atoms/button";
 import {
   DropdownMenu,
@@ -21,7 +20,6 @@ import {
 } from "@/components/atoms/dropdown-menu";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { useDatabases, type DatabaseScope } from "@/hooks/use-db";
-import { DbFileInput } from "@/components/organisms/db-file-input";
 import { DialectIcon } from "@/components/molecules/dialect-icon";
 import { formatBytes } from "@/utils/data/format";
 import { isDesktop } from "@/lib/platform";
@@ -67,14 +65,12 @@ export function DatabaseSwitcher({
   const setDb = useWorkspace((s) => s.setDb);
   const openDialog = useDialogs((s) => s.open);
   const actions = useDbActions();
-  const fileInput = useRef<HTMLInputElement>(null);
   const current = dbs.data?.find((d) => d.id === dbId);
   const switchTo = onSwitch ?? setDb;
   const label = current?.name ?? "No database";
 
   return (
     <DropdownMenu>
-      <DbFileInput ref={fileInput} />
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -177,7 +173,7 @@ export function DatabaseSwitcher({
         <DropdownMenuItem onSelect={onNewDatabase ?? (() => openDialog({ kind: "newDatabase" }))}>
           <Plus /> New empty database
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => actions.pickFile(fileInput.current)}>
+        <DropdownMenuItem onSelect={() => void actions.pickFile()}>
           <FolderOpen /> Open a file…
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => void actions.createSample()}>

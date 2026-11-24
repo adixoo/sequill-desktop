@@ -1,9 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
 import { toast } from "@/components/atoms/toast";
 import { STORAGE_KEYS } from "@/constants";
 import { downloadBlob, safeFileName } from "@/utils/data/export";
-import { isDesktop } from "@/lib/platform";
 import { getSqlite } from "@/lib/sqlite/client";
 import { createDesign as createDesignFile, openDatabaseFile } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
@@ -20,80 +18,62 @@ export function useDbActions() {
   const client = useQueryClient();
   const setDb = useWorkspace((s) => s.setDb);
 
-  const refresh = useCallback(
-    () => client.invalidateQueries({ queryKey: queryKeys.dbs }),
-    [client],
-  );
+  const refresh = () => client.invalidateQueries({ queryKey: queryKeys.dbs });
 
-  const withToast = useCallback(
-    async <T>(
-      loading: string,
-      job: () => Promise<T>,
-      success: (result: T) => string,
-    ): Promise<T | null> => {
-      const id = toast.loading(loading);
-      try {
-        const result = await job();
-        toast.success(success(result), { id });
-        return result;
-      } catch (error) {
-        toast.error(errorMessage(error), { id });
-        return null;
-      }
-    },
-    [],
-  );
+  const withToast = async <T>(
+    loading: string,
+    job: () => Promise<T>,
+    success: (result: T) => string,
+  ): Promise<T | null> => {
+    const id = toast.loading(loading);
+    try {
+      const result = await job();
+      toast.success(success(result), { id });
+      return result;
+    } catch (error) {
+      toast.error(errorMessage(error), { id });
+      return null;
+    }
+  };
 
-  const activate = useCallback(
-    async (info: DbInfo | null) => {
-      if (!info) return;
-      await refresh();
-      setDb(info.id);
-    },
-    [refresh, setDb],
-  );
+  const activate = async (info: DbInfo | null) => {
+    if (!info) return;
+    await refresh();
+    setDb(info.id);
+  };
 
-  const createEmpty = useCallback(
-    async (name: string) =>
-      activate(
-        await withToast(
-          "Creating database",
-          () => getSqlite().createDatabase(name.trim() || "Untitled"),
-          (i) => `Created ${i.name}`,
-        ),
+  const createEmpty = async (name: string) =>
+    activate(
+      await withToast(
+        "Creating database",
+        () => getSqlite().createDatabase(name.trim() || "Untitled"),
+        (i) => `Created ${i.name}`,
       ),
-    [activate, withToast],
-  );
+    );
 
-  const createDesign = useCallback(
-    async (name: string, dialect: string) =>
-      activate(
-        await withToast(
-          "Creating design",
-          () => createDesignFile(name.trim() || "Untitled", dialect),
-          (i) => `Created ${i.name}`,
-        ),
+  const createDesign = async (name: string, dialect: string) =>
+    activate(
+      await withToast(
+        "Creating design",
+        () => createDesignFile(name.trim() || "Untitled", dialect),
+        (i) => `Created ${i.name}`,
       ),
-    [activate, withToast],
-  );
+    );
 
-  const createSample = useCallback(
-    async () =>
-      activate(
-        await withToast(
-          "Building the sample database",
-          () => getSqlite().createDatabase(SAMPLE_DB_NAME, SAMPLE_DB_SQL),
-          () => "Sample database ready",
-        ),
+  const createSample = async () =>
+    activate(
+      await withToast(
+        "Building the sample database",
+        () => getSqlite().createDatabase(SAMPLE_DB_NAME, SAMPLE_DB_SQL),
+        () => "Sample database ready",
       ),
-    [activate, withToast],
-  );
+    );
 
   /**
-   * Desktop: opens a file chosen in the system's file picker where it is, so every change
+   * "Open a file": the system's file picker. The file is opened where it is, so every change
    * is saved to that file and no copy is made.
    */
-  const openInPlace = useCallback(async () => {
+  const pickFile = async () => {
     try {
       const info = await openDatabaseFile();
       if (!info) return; // cancelled
@@ -102,141 +82,88 @@ export function useDbActions() {
     } catch (error) {
       toast.error(errorMessage(error));
     }
-  }, [activate]);
+  };
 
-  /**
-   * "Open a file": the system's file picker on desktop; in browsers, clicks `input` (a
-   * hidden `DbFileInput`) because only a file input can read a file there.
-   */
-  const pickFile = useCallback(
-    (input: HTMLInputElement | null) => {
-      if (isDesktop()) void openInPlace();
-      else input?.click();
-    },
-    [openInPlace],
-  );
+  // A dropped file has no path, and a copy would leave the real file unchanged: point at
+  // the picker instead, which edits the file itself.
+  const openFile = (file: File) => {
+    toast.info(`To edit ${file.name} itself, open it with "Open a file…"`, {
+      action: { label: "Open a file…", onClick: () => void pickFile() },
+    });
+  };
 
-  const openFile = useCallback(
-    async (file: File) => {
-      // A dropped file has no path on desktop, and a copy would leave the real file
-      // unchanged: point at the picker instead, which edits the file itself.
-      if (isDesktop()) {
-        toast.info(`To edit ${file.name} itself, open it with "Open a file…"`, {
-          action: { label: "Open a file…", onClick: () => void openInPlace() },
-        });
-        return;
-      }
-      const info = await withToast(
-        `Opening ${file.name}`,
-        async () =>
-          getSqlite().importDatabase(
-            file.name.replace(DB_EXTENSION_RE, "") || file.name,
-            new Uint8Array(await file.arrayBuffer()),
-          ),
-        (i) => `Opened ${i.name}`,
-      );
-      await activate(info);
-    },
-    [activate, openInPlace, withToast],
-  );
+  const download = async (info: DbInfo) => {
+    await withToast(
+      "Preparing download",
+      async () => {
+        const bytes = await getSqlite().exportDatabase(info.id);
+        downloadBlob(
+          bytes as BlobPart,
+          `${safeFileName(info.name)}.sqlite`,
+          "application/vnd.sqlite3",
+        );
+      },
+      () => `Downloaded ${info.name}`,
+    );
+  };
 
-  const download = useCallback(
-    async (info: DbInfo) => {
-      await withToast(
-        "Preparing download",
-        async () => {
-          const bytes = await getSqlite().exportDatabase(info.id);
-          downloadBlob(
-            bytes as BlobPart,
-            `${safeFileName(info.name)}.sqlite`,
-            "application/vnd.sqlite3",
-          );
-        },
-        () => `Downloaded ${info.name}`,
-      );
-    },
-    [withToast],
-  );
-
-  const downloadDump = useCallback(
-    async (info: DbInfo) => {
-      await withToast(
-        "Writing SQL dump",
-        async () =>
-          downloadBlob(
-            await getSqlite().dump(info.id),
-            `${safeFileName(info.name)}.sql`,
-            "application/sql",
-          ),
-        () => "SQL dump downloaded",
-      );
-    },
-    [withToast],
-  );
+  const downloadDump = async (info: DbInfo) => {
+    await withToast(
+      "Writing SQL dump",
+      async () =>
+        downloadBlob(
+          await getSqlite().dump(info.id),
+          `${safeFileName(info.name)}.sql`,
+          "application/sql",
+        ),
+      () => "SQL dump downloaded",
+    );
+  };
 
   /** Deletes a database Sequill keeps; a file opened in place only leaves the list. */
-  const remove = useCallback(
-    async (info: DbInfo) => {
-      const done = await withToast(
-        info.path ? "Removing" : "Deleting",
-        () =>
-          getSqlite()
-            .deleteDatabase(info.id)
-            .then(() => true),
-        () => (info.path ? `Removed ${info.name} from the list` : `Deleted ${info.name}`),
-      );
-      if (!done) return;
-      // The list must be fresh before the open database is cleared: reopening the last
-      // database would otherwise pick the one just removed from the old list.
-      await refresh();
-      if (useWorkspace.getState().dbId === info.id) setDb(null);
-      client.removeQueries({ queryKey: queryKeys.data(info.id) });
-      client.removeQueries({ queryKey: queryKeys.schema(info.id) });
-      // Its schema page state (unsaved design, layout, colors) goes with it.
-      for (const key of [STORAGE_KEYS.visDraft, STORAGE_KEYS.visLayout, STORAGE_KEYS.visColors]) {
-        removeKey(key + info.id);
-      }
-    },
-    [client, refresh, setDb, withToast],
-  );
+  const remove = async (info: DbInfo) => {
+    const done = await withToast(
+      info.path ? "Removing" : "Deleting",
+      () =>
+        getSqlite()
+          .deleteDatabase(info.id)
+          .then(() => true),
+      () => (info.path ? `Removed ${info.name} from the list` : `Deleted ${info.name}`),
+    );
+    if (!done) return;
+    // The list must be fresh before the open database is cleared: reopening the last
+    // database would otherwise pick the one just removed from the old list.
+    await refresh();
+    if (useWorkspace.getState().dbId === info.id) setDb(null);
+    client.removeQueries({ queryKey: queryKeys.data(info.id) });
+    client.removeQueries({ queryKey: queryKeys.schema(info.id) });
+    // Its schema page state (unsaved design, layout, colors) goes with it.
+    for (const key of [STORAGE_KEYS.visDraft, STORAGE_KEYS.visLayout, STORAGE_KEYS.visColors]) {
+      removeKey(key + info.id);
+    }
+  };
 
-  const rename = useCallback(
-    async (id: string, name: string) => {
-      const info = await withToast(
-        "Renaming",
-        () => getSqlite().renameDatabase(id, name),
-        (i) => `Renamed to ${i.name}`,
-      );
-      if (info) await refresh();
-      return info !== null;
-    },
-    [refresh, withToast],
-  );
+  const rename = async (id: string, name: string) => {
+    const info = await withToast(
+      "Renaming",
+      () => getSqlite().renameDatabase(id, name),
+      (i) => `Renamed to ${i.name}`,
+    );
+    if (info) await refresh();
+    return info !== null;
+  };
 
-  return useMemo(
-    () => ({
-      createEmpty,
-      createDesign,
-      createSample,
-      pickFile,
-      openFile,
-      download,
-      downloadDump,
-      remove,
-      rename,
-    }),
-    [
-      createEmpty,
-      createDesign,
-      createSample,
-      pickFile,
-      openFile,
-      download,
-      downloadDump,
-      remove,
-      rename,
-    ],
-  );
+  return {
+    createEmpty,
+    createDesign,
+    createSample,
+    pickFile,
+    openFile,
+    download,
+    downloadDump,
+    remove,
+    rename,
+  };
 }
 
 export function isDatabaseFile(file: File): boolean {

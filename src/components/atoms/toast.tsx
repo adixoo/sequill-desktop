@@ -3,14 +3,7 @@
  * animated status tiles and squircle card, restyled with Sequill's tokens (DESIGN.md:
  * pastel wash tiles with an ink glyph, never a solid red block).
  */
-import {
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-  type ComponentProps,
-  type ReactNode,
-} from "react";
+import { useLayoutEffect, useRef, useState, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { getSvgPath } from "figma-squircle";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -42,12 +35,6 @@ type SonnerStyling =
 export type ToastOptions = Omit<ExternalToast, SonnerStyling | "description" | "action"> & {
   description?: ReactNode;
   action?: ToastAction;
-};
-
-export type ToastPromiseMessages<T> = {
-  loading: ReactNode;
-  success: ReactNode | ((data: T) => ReactNode);
-  error: ReactNode | ((error: unknown) => ReactNode);
 };
 
 // card radius = tile radius + padding, so the corners stay concentric: --radius-xs + 8 = --radius-xl
@@ -311,26 +298,6 @@ function show(
   );
 }
 
-const message = <V,>(value: ReactNode | ((input: V) => ReactNode), input: V) =>
-  typeof value === "function" ? value(input) : value;
-
-function promise<T>(
-  task: Promise<T> | (() => Promise<T>),
-  messages: ToastPromiseMessages<T>,
-  options: ToastOptions = {},
-) {
-  const id = show("loading", messages.loading, { ...options, duration: Infinity });
-  // same id swaps the content in place
-  const settle = (type: ToastType, title: ReactNode) => show(type, title, { ...options, id });
-
-  const pending = typeof task === "function" ? task() : task;
-  // catch after then, so a throwing success message still leaves the spinner
-  pending
-    .then((data) => settle("success", message(messages.success, data)))
-    .catch((error: unknown) => settle("error", message(messages.error, error)));
-  return pending;
-}
-
 const variant = (type: ToastType) => (title: ReactNode, options?: ToastOptions) =>
   show(type, title, options);
 
@@ -340,11 +307,7 @@ export const toast = Object.assign(variant("default"), {
   warning: variant("warning"),
   info: variant("info"),
   loading: variant("loading"),
-  promise,
-  dismiss: sonner.dismiss,
 });
-
-const subscribe = () => () => {};
 
 export type RareToasterProps = Omit<
   ToasterProps,
@@ -357,13 +320,6 @@ export function Toaster({
   toastOptions,
   ...props
 }: RareToasterProps) {
-  const mounted = useSyncExternalStore(
-    subscribe,
-    () => true,
-    () => false,
-  );
-  if (!mounted) return null;
-
   // portaled so a z-index or transform on an ancestor can't trap or clip the stack
   return createPortal(
     <Sonner

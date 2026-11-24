@@ -485,18 +485,6 @@ export function isDraftEmpty(draft: Draft): boolean {
   );
 }
 
-/** How many things the draft changes, for summaries like "3 changes". */
-export function countChanges(draft: Draft): number {
-  return (
-    draft.tables.length +
-    Object.values(draft.addedColumns).flat().length +
-    Object.keys(draft.renamedTables).length +
-    draft.droppedTables.length +
-    Object.values(draft.columnChanges).reduce((n, c) => n + Object.keys(c).length, 0) +
-    Object.keys(draft.objects).length
-  );
-}
-
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** Short phrases for what the draft changes, e.g. ["1 new table", "2 columns changed"]. */
@@ -1028,6 +1016,21 @@ export function columnForEditing(
   return def ? { def, mode: "create" } : null;
 }
 
+/** Edits the columns of a new table ("n" keys) or those added to an existing one ("a" keys). */
+function mapNewColumns(
+  draft: Draft,
+  table: DiagramTable,
+  kind: "n" | "a",
+  f: (columns: ColumnDef[]) => ColumnDef[],
+): Draft {
+  if (kind === "n") {
+    const t = draft.tables.find((x) => x.id === table.draftId);
+    return t ? updateDraftTable(draft, t.id, { ...t, columns: f(t.columns) }) : draft;
+  }
+  const name = table.originalName ?? "";
+  return setAddedColumns(draft, name, f(draft.addedColumns[name] ?? []));
+}
+
 export function updateColumn(
   draft: Draft,
   schema: Schema | null | undefined,
@@ -1036,23 +1039,10 @@ export function updateColumn(
   def: ColumnDef,
 ): Draft {
   const [kind, id] = [key.slice(0, 1), key.slice(2)];
-  if (kind === "n") {
-    const t = draft.tables.find((x) => x.id === table.draftId);
-    return t
-      ? updateDraftTable(draft, t.id, {
-          ...t,
-          columns: t.columns.map((c, i) => (i === Number(id) ? def : c)),
-        })
-      : draft;
-  }
-  if (kind === "a") {
-    const name = table.originalName ?? "";
-    return setAddedColumns(
-      draft,
-      name,
-      (draft.addedColumns[name] ?? []).map((c, i) => (i === Number(id) ? def : c)),
+  if (kind === "n" || kind === "a")
+    return mapNewColumns(draft, table, kind, (cols) =>
+      cols.map((c, i) => (i === Number(id) ? def : c)),
     );
-  }
   const rel = relationOf(schema, table);
   return rel ? editExistingColumn(draft, rel, id, def) : draft;
 }
@@ -1060,23 +1050,8 @@ export function updateColumn(
 /** Deletes a column: new ones disappear, existing ones are marked (revertColumn restores them). */
 export function dropColumn(draft: Draft, table: DiagramTable, key: string): Draft {
   const [kind, id] = [key.slice(0, 1), key.slice(2)];
-  if (kind === "n") {
-    const t = draft.tables.find((x) => x.id === table.draftId);
-    return t
-      ? updateDraftTable(draft, t.id, {
-          ...t,
-          columns: t.columns.filter((_, i) => i !== Number(id)),
-        })
-      : draft;
-  }
-  if (kind === "a") {
-    const name = table.originalName ?? "";
-    return setAddedColumns(
-      draft,
-      name,
-      (draft.addedColumns[name] ?? []).filter((_, i) => i !== Number(id)),
-    );
-  }
+  if (kind === "n" || kind === "a")
+    return mapNewColumns(draft, table, kind, (cols) => cols.filter((_, i) => i !== Number(id)));
   return setColumnChange(draft, table.originalName ?? "", id, { kind: "drop" });
 }
 
