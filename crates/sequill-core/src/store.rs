@@ -1,8 +1,7 @@
 //! The databases Sequill knows: files it keeps in a data directory, and files the user
 //! opened from their computer, which are edited where they are (never copied). A small
-//! catalog database keeps their display names. Mirrors the web worker's OPFS catalog
-//! (`src/lib/sqlite/worker.ts`), with real files that other processes (the MCP
-//! server) can open too.
+//! catalog database keeps their display names. They are real files that other processes
+//! (the MCP server) can open too.
 
 use crate::dialects;
 use crate::error::{Error, Result};

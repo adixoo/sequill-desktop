@@ -78,16 +78,15 @@ Every JavaScript test lives in `tests/` and runs with [Vitest](https://vitest.de
 ```
 tests/
   unit/          one function or module at a time, no SQLite (Vitest)
-  integration/   modules together on a real SQLite (the WASM build, in memory) (Vitest)
+  integration/   modules together against a faked desktop backend (Vitest)
   e2e/desktop/   the compiled desktop app: UI, Tauri IPC, Rust engine and MCP (Playwright)
-  helpers/       shared test code: SQLite sessions, seeded randomness
+  helpers/       shared test code: seeded randomness
 ```
 
-Each layer has stress tests (`*.stress.test.ts` and the desktop "stress" test):
-100,000–200,000-row tables, 120–150-table schemas, 30,000-row imports, thousands of seeded random
-filters and edits checked against plain-JS answers, and assistants writing over MCP while a person
-runs large SQL. Random inputs come from a fixed seed, printed in each test's name; set `STRESS_SEED`
-to try others.
+Each layer has stress tests (`*.stress.test.ts` and the desktop "stress" test): data round-trips
+through clipboard and CSV, a design saved by the designer and an assistant at once thousands of
+times, and assistants writing over MCP while a person runs 200,000-row SQL. Random inputs come from a
+fixed seed, printed in each test's name; set `STRESS_SEED` to try others.
 
 End-to-end tests start `target/debug/sequill.exe` with WebView2's DevTools port open and attach
 Playwright to it (no WebDriver), on a fresh data folder (`SEQUILL_DATA_DIR`) and WebView2 profile,
@@ -141,9 +140,9 @@ copies it, and removing it from the list leaves the file alone. A database file 
 can't be edited in place (the drop gives no path), so the app points you to **Open a file…**.
 Databases you create, the sample and designs saved as a new database live in the app's data folder
 (`%APPDATA%\com.adibitz.sequill` on Windows, `~/Library/Application Support/com.adibitz.sequill` on
-macOS, `~/.local/share/com.adibitz.sequill` on Linux). The browser build keeps every database in the
-browser's own storage. The app checks once a second whether another process (such as an assistant over MCP) changed
-the open database or the list, and refreshes what's on screen.
+macOS, `~/.local/share/com.adibitz.sequill` on Linux). The app checks once a second whether another
+process (such as an assistant over MCP) changed the open database or the list, and refreshes what's on
+screen.
 
 ## MCP server
 

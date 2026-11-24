@@ -1,5 +1,5 @@
-//! The SQLite API the web UI calls, one command per method of the browser build's worker
-//! (`src/lib/sqlite/worker.ts`). The frontend side is `src/lib/sqlite/desktop.ts`.
+//! The SQLite API the web UI calls, one command per method of `SqliteApi`
+//! (`src/lib/sqlite/client.ts`). The frontend side is `src/lib/sqlite/desktop.ts`.
 
 use percent_encoding::percent_decode_str;
 use sequill_core::dialects::{self, Target};

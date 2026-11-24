@@ -2,39 +2,11 @@
 
 export const APP_NAME = "Sequill";
 
-/** SQLite WASM runtime copied into public/ by scripts/copy-sqlite-wasm.ts. */
-export const SQLITE_RUNTIME_URL = "/sqlite/index.mjs";
-
-/**
- * OPFS SAHPool VFS settings. The directory keeps our files apart from other apps on the origin.
- * It keeps the app's earlier name on purpose: renaming it would orphan databases already saved.
- */
-export const VFS_NAME = "opfs-sahpool";
-export const VFS_DIRECTORY = ".pastel-sqlite";
-/** Each database needs a few pool slots (db + journal + temp files). */
-export const VFS_SLOTS_PER_DB = 3;
-export const VFS_MIN_CAPACITY = 8;
-
-/**
- * Windows of the app (tabs, the installed app) hand the database files to each other over
- * this BroadcastChannel. A window that can't get them asks the holder and retries; the
- * holder may be finishing a write, so allow a few seconds.
- */
-export const STORAGE_CHANNEL = "sequill-storage";
-export const STORAGE_RETRY_MS = 250;
-export const STORAGE_RETRIES = 40;
-
-/** Catalog database that maps file ids to display names, sizes and timestamps. */
-export const CATALOG_PATH = "/__catalog.sqlite3";
-export const DB_FILE_PREFIX = "/db-";
-export const DB_FILE_SUFFIX = ".sqlite3";
-
 /** Accepted extensions when opening a database file. */
 export const DB_FILE_ACCEPT = ".sqlite,.sqlite3,.db,.db3,.s3db,.sl3";
 
 /** Column alias for the rowid we select alongside table columns to identify rows. */
 export const ROWID_ALIAS = "__sbe_rowid";
-export const ROWID_CANDIDATES = ["rowid", "_rowid_", "oid"] as const;
 
 /** Grid paging. */
 export const PAGE_SIZES = [100, 250, 500, 1000] as const;

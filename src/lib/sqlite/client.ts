@@ -1,48 +1,63 @@
-/**
- * The pages' handle to SQLite. In browsers it is the SQLite worker (WASM + OPFS, `browser.ts`);
- * in the desktop app it is the native engine (`desktop.ts`).
- */
+/** The pages' handle to SQLite: the desktop app's native engine (`desktop.ts`). */
 import { isDesktop } from "@/lib/platform";
-import { bootBrowser, browserSqlite, watchBrowserStorage } from "@/lib/sqlite/browser";
 import { bootDesktop, desktopSqlite, watchDesktopChanges, type ExternalChanges } from "./desktop";
-import type { SqliteWorkerApi } from "./worker";
-import type { BootProgress, StorageState } from "./types";
+import type {
+  BootProgress,
+  CellValue,
+  DbInfo,
+  DesignPreview,
+  QueryResult,
+  Schema,
+  SqlStatement,
+  StatementResult,
+} from "./types";
 
-type DataMethods = Omit<SqliteWorkerApi, "init" | "watchStorage">;
-
-/** The SQLite API as pages use it: every call is async, whichever engine runs it. */
-export type SqliteApi = {
-  [K in keyof DataMethods]: (
-    ...args: Parameters<DataMethods[K]>
-  ) => Promise<Awaited<ReturnType<DataMethods[K]>>>;
-};
+/** The SQLite API as pages use it. Mirrors the Tauri commands in `src-tauri/src/commands.rs`. */
+export interface SqliteApi {
+  listDatabases(): Promise<DbInfo[]>;
+  createDatabase(name: string, seedSql?: string): Promise<DbInfo>;
+  importDatabase(name: string, bytes: Uint8Array): Promise<DbInfo>;
+  exportDatabase(id: string): Promise<Uint8Array>;
+  renameDatabase(id: string, name: string): Promise<DbInfo>;
+  deleteDatabase(id: string): Promise<void>;
+  open(id: string): Promise<{ info: DbInfo; schema: Schema }>;
+  schema(id: string): Promise<Schema>;
+  count(id: string, sql: string, params: CellValue[]): Promise<number>;
+  query(id: string, sql: string, params?: CellValue[], limit?: number): Promise<QueryResult>;
+  execScript(id: string, sql: string, rowLimit: number): Promise<StatementResult[]>;
+  explainScript(id: string, sql: string): Promise<StatementResult[]>;
+  transaction(id: string, statements: SqlStatement[]): Promise<number>;
+  /**
+   * Checks a schema design on a copy of the database's structure (no rows); the database
+   * itself is untouched. A null id checks a design for a new, empty database.
+   */
+  previewDesign(id: string | null, statements: string[]): Promise<DesignPreview>;
+  /**
+   * Saves a schema design in one transaction. With `base` (from `previewDesign`), refuses
+   * if the database's structure changed since the design was checked.
+   */
+  applyDesign(id: string, statements: string[], base?: number | null): Promise<void>;
+  insertMany(id: string, sql: string, rows: CellValue[][]): Promise<number>;
+  dump(id: string): Promise<string>;
+}
 
 export function getSqlite(): SqliteApi {
-  if (typeof window === "undefined") throw new Error("SQLite runs only in the browser");
-  return isDesktop() ? desktopSqlite : browserSqlite();
+  if (!isDesktop()) throw new Error("Sequill runs only in its desktop app");
+  return desktopSqlite;
 }
 
-/** Boots the engine and storage, reporting each stage. Returns the SQLite version. */
+/** Starts the engine, reporting each stage. Returns the SQLite version. */
 export async function bootSqlite(onProgress: (p: BootProgress) => void): Promise<string> {
-  if (isDesktop()) {
-    onProgress({ stage: "engine", message: "Starting SQLite" });
-    const version = await bootDesktop();
-    onProgress({ stage: "ready", message: "Ready" });
-    return version;
-  }
-  return bootBrowser(onProgress);
-}
-
-/** Calls `listener` whenever this window gets or loses the database files; returns the current state. */
-export function watchStorage(listener: (state: StorageState) => void): Promise<StorageState> {
-  // The desktop app is the only process that manages the files, so they are always here.
-  if (isDesktop()) return Promise.resolve("active");
-  return watchBrowserStorage(listener);
+  getSqlite();
+  onProgress({ stage: "engine", message: "Starting SQLite" });
+  const version = await bootDesktop();
+  onProgress({ stage: "ready", message: "Ready" });
+  return version;
 }
 
 /**
  * Calls `listener` when something outside this app (an AI assistant over MCP) changes the
- * databases. Only the desktop app can see that; in browsers this does nothing.
+ * databases. Does nothing outside the desktop app (the component gallery in a browser).
  */
 export function watchExternalChanges(listener: (changes: ExternalChanges) => void): () => void {
   return isDesktop() ? watchDesktopChanges(listener) : () => undefined;

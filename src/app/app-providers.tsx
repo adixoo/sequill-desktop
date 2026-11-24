@@ -1,7 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { ExternalChanges } from "./external-changes";
-import { StorageHandoff } from "@/components/organisms/storage-handoff";
 import { Toaster } from "@/components/atoms/toast";
 import { TooltipProvider } from "@/components/atoms/tooltip";
 
@@ -19,7 +18,6 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <QueryClientProvider client={client}>
       <TooltipProvider delayDuration={300}>
         {children}
-        <StorageHandoff />
         <ExternalChanges />
         <Toaster />
       </TooltipProvider>

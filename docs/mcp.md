@@ -354,7 +354,7 @@ database's grids/schema, and `queryKeys.mcpActivity`, so the history updates rig
 
 ## 12. The frontend
 
-All MCP UI is desktop-only (`isDesktop()`); the browser build has no MCP.
+All MCP UI is desktop-only (`isDesktop()`).
 
 - **MCP button** (`McpButton`): coloured dot plus state — `off`, `read only` or `on`. Opens the
   MCP dialog.

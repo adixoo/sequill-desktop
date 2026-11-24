@@ -39,7 +39,6 @@ export default defineConfig([
     // Rust/Tauri build output and generated schemas
     "target/**",
     "src-tauri/gen/**",
-    "public/sqlite/**",
     "playwright-report/**",
     "test-results/**",
     // Third-party agent skills and their working files are not app code.

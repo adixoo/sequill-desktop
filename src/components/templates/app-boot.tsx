@@ -2,16 +2,14 @@ import { RotateCcw } from "@/components/atoms/icons";
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { Loader, type LoaderStage } from "@/components/molecules/pastel/loader";
 import { Button } from "@/components/atoms/button";
-import { isDesktop } from "@/lib/platform";
 import { bootSqlite } from "@/lib/sqlite/client";
 import { errorMessage } from "@/lib/sqlite/errors";
 import type { BootStage } from "@/lib/sqlite/types";
 
 const STAGES: { stage: BootStage; label: string }[] = [
-  { stage: "engine", label: "Loading SQLite engine" },
-  { stage: "storage", label: "Opening browser storage" },
+  { stage: "engine", label: "Starting SQLite" },
 ];
-const ORDER: BootStage[] = ["engine", "storage", "ready"];
+const ORDER: BootStage[] = ["engine", "ready"];
 
 function stageState(current: BootStage | null, stage: BootStage): LoaderStage["state"] {
   if (current === null) return stage === "engine" ? "active" : "pending";
@@ -27,7 +25,7 @@ interface AppBootProps {
 }
 
 /**
- * Boots SQLite (worker + wasm + OPFS) and downloads a page's UI in parallel,
+ * Starts the desktop app's SQLite and downloads a page's UI in parallel,
  * showing each stage. The UI chunk never blocks the first paint.
  */
 export function AppBoot({ load, name }: AppBootProps) {
@@ -37,21 +35,9 @@ export function AppBoot({ load, name }: AppBootProps) {
   const started = useRef(false);
 
   const start = useCallback(() => {
-    // The desktop app keeps databases on disk, so only browsers need OPFS.
-    if (!isDesktop() && typeof navigator !== "undefined" && !navigator.storage?.getDirectory) {
-      Promise.resolve().then(() =>
-        setError(
-          "This browser can't store databases (no Origin Private File System). Try a current Chrome, Edge, Firefox or Safari, outside private browsing.",
-        ),
-      );
-      return;
-    }
     const engine = bootSqlite((p) => setStage(p.stage));
     Promise.all([engine, load()]).then(
-      ([, shell]) => {
-        setShell(() => shell);
-        void navigator.storage.persist?.().catch(() => false);
-      },
+      ([, shell]) => setShell(() => shell),
       (e) => setError(errorMessage(e)),
     );
   }, [load]);

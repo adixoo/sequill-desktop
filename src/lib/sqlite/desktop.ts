@@ -1,8 +1,4 @@
-/**
- * The SQLite API backed by the desktop app's native engine (Tauri commands in
- * `src-tauri/src/commands.rs`) instead of the browser worker. Same methods and
- * results as `worker.ts`, so every page works unchanged.
- */
+/** The SQLite API backed by the desktop app's native engine (Tauri commands in `src-tauri/src/commands.rs`). */
 import { invoke as tauriInvoke, type InvokeArgs, type InvokeOptions } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { SavedQuery } from "@/utils/data/saved-queries";
@@ -30,7 +26,7 @@ export interface ExternalChanges {
 
 /**
  * Calls a command. Tauri rejects with the command's error text (a string); it becomes an
- * Error here, so pages read `.message` the same way as with the browser build's worker.
+ * Error here, so pages read `.message` like any other error.
  */
 function invoke<T>(cmd: string, args?: InvokeArgs, options?: InvokeOptions): Promise<T> {
   return tauriInvoke<T>(cmd, args, options).catch((error: unknown) => {
@@ -43,10 +39,6 @@ const decodeResult = <T extends QueryResult>(result: Wire<T>): T =>
   ({ ...result, rows: decodeRows(result.rows) }) as T;
 
 export const desktopSqlite: SqliteApi = {
-  // One process owns the files, so there is nothing to hand between windows.
-  release: async () => undefined,
-  acquire: async () => undefined,
-
   listDatabases: () => invoke("list_databases"),
   createDatabase: (name, seedSql) => invoke("create_database", { name, seedSql }),
   importDatabase: (name, bytes) =>

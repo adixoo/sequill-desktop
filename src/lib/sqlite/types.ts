@@ -134,16 +134,9 @@ export type RowKey =
   | { kind: "rowid"; name: string; value: CellValue }
   | { kind: "pk"; values: { column: string; value: CellValue }[] };
 
-export type BootStage = "engine" | "storage" | "ready";
+export type BootStage = "engine" | "ready";
 
 export interface BootProgress {
   stage: BootStage;
   message: string;
 }
-
-/**
- * Whether this window holds the database files. Only one window can (the installed app and
- * a browser tab of the site count as two): "released" while this window is in the background,
- * "taken" once another window has claimed them.
- */
-export type StorageState = "active" | "released" | "taken";

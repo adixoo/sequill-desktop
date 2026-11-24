@@ -1,5 +1,4 @@
 //! SQL dump in the spirit of the sqlite3 shell's `.dump`.
-//! Mirrors the web app's `src/lib/sqlite/dump.ts`, streaming each table instead of paging it.
 
 use crate::error::Result;
 use crate::value::CellValue;

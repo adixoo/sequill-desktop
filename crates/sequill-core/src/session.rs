@@ -1,5 +1,4 @@
-//! Runs SQL against one open database. Mirrors the web app's `src/lib/sqlite/session.ts`,
-//! so the desktop app behaves the same as the browser build.
+//! Runs SQL against one open database.
 
 use crate::dump::dump_database;
 use crate::error::{Error, Result};
