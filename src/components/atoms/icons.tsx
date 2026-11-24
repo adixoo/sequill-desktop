@@ -18,6 +18,7 @@ import {
   ChevronFirstIcon,
   ChevronLastIcon,
   ClipboardCopyIcon,
+  ClipboardPasteIcon,
   ColorPickerIcon,
   Copy01Icon,
   CopyPlusIcon,
@@ -122,6 +123,7 @@ export const ChevronUp = icon(ArrowUp01Icon, "ChevronUp");
 export const ChevronsDownUp = icon(UnfoldLessIcon, "ChevronsDownUp");
 export const ChevronsUpDown = icon(UnfoldMoreIcon, "ChevronsUpDown");
 export const ClipboardCopy = icon(ClipboardCopyIcon, "ClipboardCopy");
+export const ClipboardPaste = icon(ClipboardPasteIcon, "ClipboardPaste");
 export const Columns3 = icon(Layout3ColumnIcon, "Columns3");
 export const Copy = icon(Copy01Icon, "Copy");
 export const CopyPlus = icon(CopyPlusIcon, "CopyPlus");

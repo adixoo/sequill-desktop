@@ -60,12 +60,14 @@ function Workspace() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Drop a database file anywhere to open it; drop CSV/JSON to import it.
+  // Drop a database file anywhere to open it; drop CSV/JSON to import it. While a dialog is
+  // open the drop belongs to it (the import dialog takes files), so the window stands aside.
   useEffect(() => {
     let depth = 0;
     const hasFiles = (e: DragEvent) => e.dataTransfer?.types.includes("Files") ?? false;
+    const dialogOpen = () => useDialogs.getState().dialog !== null;
     const onEnter = (e: DragEvent) => {
-      if (!hasFiles(e)) return;
+      if (!hasFiles(e) || dialogOpen()) return;
       depth++;
       setDragging(true);
     };
@@ -83,7 +85,7 @@ function Workspace() {
       depth = 0;
       setDragging(false);
       const file = e.dataTransfer?.files[0];
-      if (!file) return;
+      if (!file || dialogOpen()) return;
       if (isDatabaseFile(file)) void actions.openFile(file);
       else if (isDataFile(file)) {
         if (useWorkspace.getState().dbId) openDialog({ kind: "import", file });

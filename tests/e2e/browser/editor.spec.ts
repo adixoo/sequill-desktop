@@ -140,6 +140,38 @@ test("exports CSV and downloads the database file", async ({ page }) => {
   await openTable(page, "products");
   await page.getByRole("button", { name: "Export" }).click();
   const csv = page.waitForEvent("download");
+test("imports pasted spreadsheet rows (tab separated)", async ({ page }) => {
+  await createSample(page);
+  await openImport(page);
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("radio", { name: "Paste" }).click();
+  await dialog.getByLabel("Data").fill("city\tpopulation\nLisbon\t545000\nLagos\t15400000");
+  await expect(dialog).toContainText('"population" INTEGER');
+  await expect(dialog.getByLabel("Table name")).toHaveValue("pasted_data");
+  await dialog.getByRole("button", { name: "Import 2 rows" }).click();
+  await expectRowCount(page, 2);
+  await expect(page.getByRole("grid", { name: "pasted_data rows" })).toContainText("15400000");
+});
+
+test("a file dropped on the import dialog is read, without opening another dialog", async ({
+  page,
+}) => {
+  await createSample(page);
+  await openImport(page);
+  const files = await page.evaluateHandle(() => {
+    const data = new DataTransfer();
+    data.items.add(new File(["sku,qty\nA-1,3\nB-2,5\n"], "stock.csv", { type: "text/csv" }));
+    return data;
+  });
+  await page.getByTestId("import-drop-zone").dispatchEvent("drop", { dataTransfer: files });
+  await expect(page.getByRole("dialog")).toHaveCount(1);
+  await expect(page.getByRole("dialog")).toContainText("stock.csv");
+  await expect(page.getByRole("dialog").getByLabel("Table name")).toHaveValue("stock");
+  await page.getByRole("button", { name: "Import 2 rows" }).click();
+  await expect(page.getByRole("grid", { name: "stock rows" })).toBeVisible();
+  await expectRowCount(page, 2);
+});
+
   await page.getByRole("menuitem", { name: /^CSV/ }).click();
   const csvFile = await csv;
   expect(csvFile.suggestedFilename()).toBe("products.csv");

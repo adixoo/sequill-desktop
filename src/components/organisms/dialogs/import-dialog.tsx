@@ -1,6 +1,5 @@
-import Papa from "papaparse";
-import { FileUp } from "@/components/atoms/icons";
-import { useEffect, useMemo, useState } from "react";
+import { ClipboardPaste, FileUp } from "@/components/atoms/icons";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "@/components/atoms/toast";
 import { Loader } from "@/components/molecules/pastel/loader";
 import { Button } from "@/components/atoms/button";
@@ -14,6 +13,7 @@ import {
 import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/atoms/responsive-dialog";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
+import { Textarea } from "@/components/atoms/textarea";
 import {
   Select,
   SelectContent,
@@ -27,11 +27,11 @@ import { IMPORT_PREVIEW_ROWS } from "@/constants";
 import { cellPreview, formatCount, textToValue } from "@/utils/data/format";
 import {
   coerceCell,
-  inferJsonTypes,
   inferTypes,
-  jsonToTable,
   normalizeHeader,
+  parseImportText,
   type ImportType,
+  type ParsedImport,
 } from "@/utils/data/import";
 import { getSqlite } from "@/lib/sqlite/client";
 import { buildCreateTable, buildDrop, emptyColumn } from "@/lib/sqlite/ddl";
@@ -39,26 +39,18 @@ import { errorMessage } from "@/lib/sqlite/errors";
 import { buildInsertMany } from "@/lib/sqlite/sql";
 import type { CellValue } from "@/lib/sqlite/types";
 import { useWorkspace } from "@/store/workspace";
+import { cn } from "@/utils";
 import { SqlPreview } from "./simple-dialogs";
 
 const SKIP = "__skip__";
 const IMPORT_TYPES: ImportType[] = ["INTEGER", "REAL", "TEXT"];
 
-type Parsed =
-  | { kind: "text"; rows: string[][] }
-  | { kind: "json"; columns: string[]; rows: CellValue[][]; types: ImportType[] };
-
-async function parseFile(file: File): Promise<Parsed> {
-  const text = await file.text();
-  if (/\.json$/i.test(file.name) || /^\s*\[/.test(text)) {
-    const table = jsonToTable(JSON.parse(text));
-    return { kind: "json", ...table, types: inferJsonTypes(table) };
-  }
-  const result = Papa.parse<string[]>(text, { skipEmptyLines: "greedy" });
-  if (result.errors.length > 0 && result.data.length === 0)
-    throw new Error(result.errors[0].message);
-  return { kind: "text", rows: result.data };
-}
+/** A table name from a file name: "Sales 2024.csv" gives "sales_2024". */
+const tableNameFor = (fileName: string) =>
+  fileName
+    .replace(/\.[^.]+$/, "")
+    .replace(/\W+/g, "_")
+    .toLowerCase();
 
 export function ImportDialog({
   file: initialFile,
@@ -77,9 +69,14 @@ export function ImportDialog({
     (t) => t.editable && t.name !== "sqlite_sequence",
   );
 
+  const [mode, setMode] = useState<"file" | "paste">("file");
   const [file, setFile] = useState<File | undefined>(initialFile);
-  const [parsed, setParsed] = useState<Parsed | null>(null);
-  const [parseError, setParseError] = useState<string | null>(null);
+  const [pasted, setPasted] = useState("");
+  // Re-parse pasted text once typing settles, not on every key.
+  const pastedText = useDeferredValue(pasted);
+  const [dragOver, setDragOver] = useState(false);
+  const [fileParsed, setFileParsed] = useState<ParsedImport | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [header, setHeader] = useState(true);
   const [emptyAsNull, setEmptyAsNull] = useState(true);
   const [target, setTarget] = useState<"new" | "existing">(initialTable ? "existing" : "new");
@@ -92,26 +89,46 @@ export function ImportDialog({
   useEffect(() => {
     if (!file) return;
     let cancelled = false;
-    parseFile(file).then(
-      (p) => {
+    file.text().then(
+      (text) => {
         if (cancelled) return;
-        setParsed(p);
-        setParseError(null);
-        setNewName(
-          (n) =>
-            n ||
-            file.name
-              .replace(/\.[^.]+$/, "")
-              .replace(/\W+/g, "_")
-              .toLowerCase(),
-        );
+        try {
+          setFileParsed(parseImportText(text, /\.json$/i.test(file.name)));
+          setFileError(null);
+          setNewName((n) => n || tableNameFor(file.name));
+        } catch (error) {
+          setFileError(errorMessage(error));
+        }
       },
-      (error) => !cancelled && setParseError(errorMessage(error)),
+      (error) => !cancelled && setFileError(errorMessage(error)),
     );
     return () => {
       cancelled = true;
     };
   }, [file]);
+
+  const pastedParse = useMemo(() => {
+    if (!pastedText.trim()) return null;
+    try {
+      return { parsed: parseImportText(pastedText), error: null };
+    } catch (error) {
+      return { parsed: null, error: errorMessage(error) };
+    }
+  }, [pastedText]);
+  const parsed = mode === "paste" ? (pastedParse?.parsed ?? null) : fileParsed;
+  const parseError = mode === "paste" ? (pastedParse?.error ?? null) : fileError;
+
+  // Column types and mapping are per source column, so a new source starts them over.
+  const resetColumns = () => {
+    setTypeOverrides({});
+    setMapping({});
+  };
+  const chooseFile = (next: File) => {
+    setFile(next);
+    setFileParsed(null);
+    setFileError(null);
+    resetColumns();
+  };
 
   const source = useMemo(() => {
     if (!parsed) return null;
@@ -226,30 +243,91 @@ export function ImportDialog({
           />
         ) : (
           <div className="flex flex-col gap-5">
-            <label className="flex cursor-pointer items-center gap-3 rounded-sm border-2 border-dashed border-strong bg-raised px-4 py-3 text-sm hover:bg-active">
-              <FileUp className="size-5 text-ink-muted" />
-              <span className="flex-1 truncate text-ink-soft">
-                {file ? file.name : "Choose a .csv, .tsv or .json file"}
-              </span>
-              <span className="text-sky-ink">{file ? "Change" : "Browse"}</span>
-              <input
-                type="file"
-                accept=".csv,.tsv,.txt,.json"
-                className="sr-only"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) {
-                    setFile(f);
-                    setParsed(null);
-                    setTypeOverrides({});
-                    setMapping({});
-                  }
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              size="sm"
+              value={mode}
+              onValueChange={(v) => {
+                if (!v) return;
+                setMode(v as typeof mode);
+                resetColumns();
+              }}
+              aria-label="Import from"
+              className="self-start"
+            >
+              <ToggleGroupItem value="file">
+                <FileUp /> File
+              </ToggleGroupItem>
+              <ToggleGroupItem value="paste">
+                <ClipboardPaste /> Paste
+              </ToggleGroupItem>
+            </ToggleGroup>
+
+            {mode === "file" ? (
+              <label
+                data-testid="import-drop-zone"
+                onDragOver={(e) => {
+                  if (!e.dataTransfer.types.includes("Files")) return;
+                  e.preventDefault();
+                  setDragOver(true);
                 }}
-              />
-            </label>
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  // Keep the editor's window-wide drop from opening another import.
+                  e.stopPropagation();
+                  setDragOver(false);
+                  const dropped = e.dataTransfer.files[0];
+                  if (dropped) chooseFile(dropped);
+                }}
+                className={cn(
+                  "flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center text-sm transition-colors duration-150",
+                  dragOver
+                    ? "border-sky-ink bg-sky-wash"
+                    : "border-strong bg-raised hover:bg-active",
+                )}
+              >
+                {/* Children ignore the pointer so moving over them doesn't end the drag-over. */}
+                <FileUp className="pointer-events-none size-6 text-ink-muted" />
+                <span className="pointer-events-none max-w-full truncate font-medium text-ink">
+                  {file ? file.name : "Drop a .csv, .tsv or .json file here"}
+                </span>
+                <span className="pointer-events-none text-ink-muted">
+                  or <span className="text-sky-ink">{file ? "choose another" : "browse"}</span>
+                </span>
+                <input
+                  type="file"
+                  accept=".csv,.tsv,.txt,.json"
+                  className="sr-only"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) chooseFile(f);
+                  }}
+                />
+              </label>
+            ) : (
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="import-paste">Data</Label>
+                <Textarea
+                  id="import-paste"
+                  value={pasted}
+                  onChange={(e) => {
+                    setPasted(e.target.value);
+                    resetColumns();
+                    setNewName((n) => n || "pasted_data");
+                  }}
+                  placeholder={
+                    "Paste CSV, TSV (from a spreadsheet) or a JSON array\nid,name\n1,Asha"
+                  }
+                  spellCheck={false}
+                  className="max-h-72 min-h-40 font-mono"
+                />
+              </div>
+            )}
             {parseError && (
               <p role="alert" className="text-sm text-rose-ink">
-                Could not read the file: {parseError}
+                Could not read the {mode === "file" ? "file" : "pasted data"}: {parseError}
               </p>
             )}
 

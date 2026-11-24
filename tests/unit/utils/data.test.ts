@@ -13,6 +13,7 @@ import {
   inferTypes,
   jsonToTable,
   normalizeHeader,
+  parseImportText,
 } from "@/utils/data/import";
 
 describe("format", () => {
@@ -104,5 +105,36 @@ describe("import", () => {
     expect(inferJsonTypes(table)).toEqual(["REAL", "INTEGER", "TEXT"]);
     expect(() => jsonToTable({})).toThrow();
     expect(() => jsonToTable([1])).toThrow();
+  });
+
+  test("parseImportText reads CSV, TSV and JSON text", () => {
+    expect(parseImportText('name,age\n"Berg, Farah",31\n\n')).toEqual({
+      kind: "text",
+      rows: [
+        ["name", "age"],
+        ["Berg, Farah", "31"],
+      ],
+    });
+    // Pasted from a spreadsheet: tab separated.
+    expect(parseImportText("a\tb\n1\t2")).toEqual({
+      kind: "text",
+      rows: [
+        ["a", "b"],
+        ["1", "2"],
+      ],
+    });
+    // JSON is told by its first character.
+    expect(parseImportText(' [{"a":1}]')).toEqual({
+      kind: "json",
+      columns: ["a"],
+      rows: [[1]],
+      types: ["INTEGER"],
+    });
+  });
+
+  test("parseImportText rejects text it can't read", () => {
+    expect(() => parseImportText("[not json")).toThrow();
+    // A .json file is read as JSON even when it doesn't start with "[".
+    expect(() => parseImportText('{"a":1}', true)).toThrow("Expected a JSON array of objects");
   });
 });
