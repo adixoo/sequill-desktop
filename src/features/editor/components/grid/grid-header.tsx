@@ -130,7 +130,7 @@ export function GridHeaderCell({
             aria-label={`References ${info.fk.table}`}
           />
         )}
-        <span className="min-w-[3ch] truncate text-[0.8125rem] font-semibold text-ink">
+        <span className="min-w-[3ch] truncate text-(length:--text-cell) font-semibold text-ink">
           {col.name}
         </span>
         {info.type && (

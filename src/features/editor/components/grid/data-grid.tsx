@@ -357,7 +357,7 @@ export function DataGrid({
             const at = cellFromEvent(e);
             if (at) setCursor(at);
           }}
-          className="relative min-h-0 flex-1 overflow-auto bg-surface text-[0.8125rem] outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--sky-ink)]"
+          className="relative min-h-0 flex-1 overflow-auto bg-surface text-(length:--text-cell) outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--sky-ink)]"
         >
           <div style={{ width: totalWidth, minWidth: "100%" }}>
             <div role="row" className="sticky top-0 z-30 flex" style={{ height: HEADER_HEIGHT }}>
@@ -441,7 +441,7 @@ export function DataGrid({
                             tabIndex={-1}
                             onClick={(e) => toggleRow(r, e.shiftKey)}
                             aria-label={`Select row ${rowOffset + r + 1}`}
-                            className="flex size-full items-center justify-end gap-2 font-mono text-[0.6875rem] text-ink-muted"
+                            className="flex size-full items-center justify-end gap-2 font-mono text-(length:--text-small) text-ink-muted"
                           >
                             <span
                               aria-hidden
@@ -457,7 +457,7 @@ export function DataGrid({
                             <span className="q-num">{rowOffset + r + 1}</span>
                           </button>
                         ) : (
-                          <span className="q-num font-mono text-[0.6875rem] text-ink-muted">
+                          <span className="q-num font-mono text-(length:--text-small) text-ink-muted">
                             {rowOffset + r + 1}
                           </span>
                         )}
@@ -506,7 +506,7 @@ export function DataGrid({
                                     scrollRef.current?.focus();
                                   }
                                 }}
-                                className="absolute inset-0 z-10 bg-surface px-3 font-sans text-[0.8125rem] text-ink [box-shadow:inset_0_0_0_2px_var(--sky-ink)] outline-none max-md:text-base md:text-[0.8125rem]"
+                                className="absolute inset-0 z-10 bg-surface px-3 font-sans text-(length:--text-cell) text-ink [box-shadow:inset_0_0_0_2px_var(--sky-ink)] outline-none max-md:text-base md:text-(length:--text-cell)"
                               />
                             ) : (
                               <div className="flex min-w-0 flex-1 items-center">

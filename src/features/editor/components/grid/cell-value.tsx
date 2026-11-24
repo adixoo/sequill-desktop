@@ -10,7 +10,7 @@ export const CellValueView = memo(function CellValueView({ value }: { value: Cel
   switch (kind) {
     case "null":
       return (
-        <span className="font-mono text-[0.6875rem] tracking-[0.04em] text-ink-muted italic">
+        <span className="font-mono text-(length:--text-small) tracking-[0.04em] text-ink-muted italic">
           NULL
         </span>
       );
@@ -21,7 +21,7 @@ export const CellValueView = memo(function CellValueView({ value }: { value: Cel
       const isImage = blobImageType(value as Uint8Array) !== null;
       const Icon = isImage ? ImageIcon : null;
       return (
-        <span className="inline-flex items-center gap-1 rounded-xs bg-raised px-1.5 font-mono text-[0.6875rem] text-ink-soft">
+        <span className="inline-flex items-center gap-1 rounded-xs bg-raised px-1.5 font-mono text-(length:--text-small) text-ink-soft">
           {Icon && <Icon className="size-3" aria-hidden />}
           {cellPreview(value)}
         </span>
