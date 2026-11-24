@@ -1,14 +1,6 @@
-import {
-  Braces,
-  CornerDownRight,
-  Download,
-  KeyRound,
-  Trash,
-  Upload,
-} from "@/components/atoms/icons";
+import { Braces, CornerDownRight, Download, KeyRound, Trash } from "@/components/atoms/icons";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/atoms/button";
-import { Checkbox } from "@/components/atoms/checkbox";
 import { Label } from "@/components/atoms/label";
 import {
   Sheet,
@@ -18,7 +10,13 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/atoms/sheet";
-import { Textarea } from "@/components/atoms/textarea";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+  InputGroupTextarea,
+} from "@/components/atoms/input-group";
 import { downloadBlob, safeFileName } from "@/utils/data/export";
 import {
   blobImageType,
@@ -80,6 +78,12 @@ function BlobPreview({ bytes }: { bytes: Uint8Array }) {
     />
   );
 }
+
+/** Past this many characters a value reads better in a textarea than a one-line input. */
+const LONG_TEXT = 60;
+
+const needsTextarea = (text: string) =>
+  text.length > LONG_TEXT || text.includes("\n") || looksLikeJson(text);
 
 /** A new row's fields filled from the columns' defaults, where the form can show the value. */
 function defaultFields(columns: ColumnInfo[]): Record<string, string> {
@@ -144,6 +148,18 @@ function InspectorForm({
   const [fields, setFields] = useState<Record<string, FieldState>>(() =>
     initialFields(relation, columns, target, defaults),
   );
+  // Long, multi-line or JSON values get a textarea; picked once so a field never swaps while typed in.
+  const [multiline] = useState(() => {
+    const start = target.kind === "edit" ? target.row : target.initial;
+    return new Set(
+      columns
+        .filter((_, i) => {
+          const v = start?.[i];
+          return typeof v === "string" && needsTextarea(v);
+        })
+        .map((c) => c.name),
+    );
+  });
   const [saving, setSaving] = useState(false);
 
   const current = (i: number): CellValue =>
@@ -248,117 +264,111 @@ function InspectorForm({
                     </Button>
                   )}
                 </div>
-                <div className="flex min-w-0 flex-col gap-1.5">
-                  {isBlob ? (
-                    <div className="flex flex-col gap-2 rounded-sm bg-raised p-3">
-                      <BlobPreview bytes={shown as Uint8Array} />
-                      <p className="font-mono text-xs text-ink-muted">
-                        {formatBytes((shown as Uint8Array).byteLength)}
-                      </p>
-                    </div>
-                  ) : (
-                    <Textarea
-                      id={id}
-                      value={text}
-                      readOnly={!writable}
-                      disabled={isNull && !isNew}
-                      placeholder={
-                        isNew && f.mode === "keep"
-                          ? c.defaultValue !== null
-                            ? `Default: ${c.defaultValue}`
-                            : c.pk > 0
-                              ? "Assigned automatically"
-                              : c.notNull
-                                ? "Required"
-                                : "NULL"
-                          : isNull
-                            ? "NULL"
-                            : ""
-                      }
-                      onChange={(e) =>
-                        setFields((s) => ({
-                          ...s,
-                          [c.name]: { mode: "text", text: e.target.value },
-                        }))
-                      }
-                      rows={Math.min(8, Math.max(1, text.split("\n").length))}
-                      className={cn(
-                        "min-h-(--control-sm) resize-y py-1.5 font-mono text-[0.8125rem] max-md:text-base",
-                        isNull && "italic",
-                      )}
-                    />
-                  )}
-                  {writable && (
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-ink-muted">
-                      <label className="flex items-center gap-1.5">
-                        <Checkbox
-                          checked={isNull}
-                          onCheckedChange={(v) =>
-                            setFields((s) => ({
-                              ...s,
-                              [c.name]: v ? { mode: "null" } : { mode: "text", text: "" },
-                            }))
-                          }
-                        />
-                        NULL
-                      </label>
-                      {isNew && f.mode !== "keep" && !isDefault(c.name) && (
-                        <button
-                          type="button"
-                          className="underline-offset-2 hover:underline"
-                          onClick={() => setFields((s) => ({ ...s, [c.name]: { mode: "keep" } }))}
-                        >
-                          Use default
-                        </button>
-                      )}
-                      {!isBlob && looksLikeJson(text) && (
-                        <button
-                          type="button"
-                          className="flex items-center gap-1 underline-offset-2 hover:underline"
-                          onClick={() =>
-                            setFields((s) => ({
-                              ...s,
-                              [c.name]: {
-                                mode: "text",
-                                text: JSON.stringify(JSON.parse(text), null, 2),
-                              },
-                            }))
-                          }
-                        >
-                          <Braces className="size-3" /> Format JSON
-                        </button>
-                      )}
-                      <label className="flex cursor-pointer items-center gap-1 underline-offset-2 hover:underline">
-                        <Upload className="size-3" /> Upload file
-                        <input
-                          type="file"
-                          className="sr-only"
-                          onChange={async (e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const bytes = new Uint8Array(await file.arrayBuffer());
-                              setFields((s) => ({ ...s, [c.name]: { mode: "blob", bytes } }));
+                <div className="flex min-w-0 flex-col">
+                  {(() => {
+                    const set = (next: FieldState) => setFields((s) => ({ ...s, [c.name]: next }));
+                    const placeholder =
+                      isNew && f.mode === "keep"
+                        ? c.defaultValue !== null
+                          ? `Default: ${c.defaultValue}`
+                          : c.pk > 0
+                            ? "Assigned automatically"
+                            : c.notNull
+                              ? "Required"
+                              : "NULL"
+                        : isNull
+                          ? "NULL"
+                          : "";
+                    // Small actions sit inside the field, so the form stays one control per row.
+                    const actions = writable && (
+                      <>
+                        {isNew && f.mode !== "keep" && !isDefault(c.name) && (
+                          <InputGroupButton onClick={() => set({ mode: "keep" })}>
+                            Use default
+                          </InputGroupButton>
+                        )}
+                        {!isBlob && looksLikeJson(text) && (
+                          <InputGroupButton
+                            onClick={() =>
+                              set({ mode: "text", text: JSON.stringify(JSON.parse(text), null, 2) })
                             }
-                          }}
+                          >
+                            <Braces /> Format JSON
+                          </InputGroupButton>
+                        )}
+                        {!c.notNull && !isNull && (
+                          <InputGroupButton
+                            aria-label={`Set ${c.name} to NULL`}
+                            className="font-mono"
+                            onClick={() => set({ mode: "null" })}
+                          >
+                            NULL
+                          </InputGroupButton>
+                        )}
+                      </>
+                    );
+                    const valueClass = cn(
+                      "font-mono text-[0.8125rem] max-md:text-base",
+                      isNull && "placeholder:italic",
+                    );
+                    if (isBlob)
+                      return (
+                        <div className="flex flex-col gap-2 rounded-lg border border-input bg-raised p-3">
+                          <BlobPreview bytes={shown as Uint8Array} />
+                          <div className="flex items-center gap-1">
+                            <p className="mr-auto font-mono text-xs text-ink-muted">
+                              {formatBytes((shown as Uint8Array).byteLength)}
+                            </p>
+                            <InputGroupButton
+                              onClick={() =>
+                                downloadBlob(
+                                  shown as BlobPart,
+                                  `${safeFileName(`${relation.name}-${c.name}`)}.bin`,
+                                  blobImageType(shown as Uint8Array) ?? "application/octet-stream",
+                                )
+                              }
+                            >
+                              <Download /> Download
+                            </InputGroupButton>
+                            {actions}
+                          </div>
+                        </div>
+                      );
+                    return multiline.has(c.name) ? (
+                      <InputGroup>
+                        <InputGroupTextarea
+                          id={id}
+                          value={text}
+                          readOnly={!writable}
+                          placeholder={placeholder}
+                          onChange={(e) => set({ mode: "text", text: e.target.value })}
+                          rows={Math.min(10, Math.max(3, text.split("\n").length))}
+                          className={valueClass}
                         />
-                      </label>
-                      {isBlob && (
-                        <button
-                          type="button"
-                          className="flex items-center gap-1 underline-offset-2 hover:underline"
-                          onClick={() =>
-                            downloadBlob(
-                              shown as BlobPart,
-                              `${safeFileName(`${relation.name}-${c.name}`)}.bin`,
-                              blobImageType(shown as Uint8Array) ?? "application/octet-stream",
-                            )
-                          }
-                        >
-                          <Download className="size-3" /> Download
-                        </button>
-                      )}
-                    </div>
-                  )}
+                        {writable && (
+                          <InputGroupAddon align="block-end" className="justify-end gap-1">
+                            {actions}
+                          </InputGroupAddon>
+                        )}
+                      </InputGroup>
+                    ) : (
+                      <InputGroup>
+                        <InputGroupInput
+                          id={id}
+                          value={text}
+                          readOnly={!writable}
+                          placeholder={placeholder}
+                          onChange={(e) => set({ mode: "text", text: e.target.value })}
+                          className={valueClass}
+                        />
+                        {writable && (
+                          <InputGroupAddon align="inline-end" className="gap-1">
+                            {actions}
+                          </InputGroupAddon>
+                        )}
+                      </InputGroup>
+                    );
+                  })()}
                 </div>
               </li>
             );

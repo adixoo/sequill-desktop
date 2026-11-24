@@ -125,6 +125,32 @@ test("creates a table, adds a column and shows it in the structure", async ({ pa
   await expect(page.getByRole("table")).toContainText("pinned");
 });
 
+test("the row form fills a NULL by typing and sets one with its NULL button", async ({ page }) => {
+  await createSample(page);
+  await openTable(page, "customers");
+  const email = cell(page, 15, 2);
+  await expect(email).toHaveText("NULL");
+
+  // A NULL shows as an empty field; typing replaces it.
+  await email.click();
+  await page.keyboard.press("Shift+Enter");
+  const emailField = page.getByLabel("email", { exact: true });
+  await expect(emailField).toHaveValue("");
+  await expect(emailField).toHaveAttribute("placeholder", "NULL");
+  await expect(page.getByRole("button", { name: "Set email to NULL" })).toHaveCount(0);
+  await emailField.fill("gus@example.com");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(email).toHaveText("gus@example.com");
+
+  // A nullable value gets a NULL button inside its field.
+  await email.click();
+  await page.keyboard.press("Shift+Enter");
+  await page.getByRole("button", { name: "Set email to NULL" }).click();
+  await expect(page.getByLabel("email", { exact: true })).toHaveAttribute("placeholder", "NULL");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(email).toHaveText("NULL");
+});
+
 test("imports a CSV file into a new table with detected types", async ({ page }) => {
   await createSample(page);
   await openImport(page);
