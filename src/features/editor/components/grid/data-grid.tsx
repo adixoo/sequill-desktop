@@ -436,16 +436,16 @@ export function DataGrid({
                     >
                       <div
                         role="rowheader"
-                        className="sticky left-0 z-10 flex shrink-0 items-center justify-end gap-2 border-r border-hairline bg-inherit pr-2.5"
+                        className="sticky left-0 z-10 flex shrink-0 items-center justify-center border-r border-hairline bg-inherit"
                         style={{ width: ROW_NUMBER_WIDTH }}
                       >
-                        {onSelectionChange ? (
+                        {onSelectionChange && (
                           <button
                             type="button"
                             tabIndex={-1}
                             onClick={(e) => toggleRow(r, e.shiftKey)}
                             aria-label={`Select row ${rowOffset + r + 1}`}
-                            className="flex size-full items-center justify-end gap-2 font-mono text-(length:--text-small) text-ink-muted"
+                            className="flex size-full items-center justify-center"
                           >
                             <span
                               aria-hidden
@@ -458,12 +458,7 @@ export function DataGrid({
                             >
                               {isSelected && <Check className="size-3" strokeWidth={3} />}
                             </span>
-                            <span className="q-num">{rowOffset + r + 1}</span>
                           </button>
-                        ) : (
-                          <span className="q-num font-mono text-(length:--text-small) text-ink-muted">
-                            {rowOffset + r + 1}
-                          </span>
                         )}
                       </div>
                       {laid.map((col, c) => {
