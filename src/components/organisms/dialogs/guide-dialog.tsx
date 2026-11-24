@@ -41,7 +41,7 @@ export function GuideDialog({ onClose }: { onClose(): void }) {
 
   return (
     <ResponsiveDialog open onOpenChange={(open) => !open && onClose()}>
-      <ResponsiveDialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-lg">
+      <ResponsiveDialogContent className="max-h-[92dvh] gap-6 overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Welcome to {APP_NAME}</DialogTitle>
           <DialogDescription>
@@ -49,7 +49,8 @@ export function GuideDialog({ onClose }: { onClose(): void }) {
             offline.
           </DialogDescription>
         </DialogHeader>
-        <ol className="flex flex-col gap-4">
+        {/* Two columns only for the desktop's four steps; three would leave one alone. */}
+        <ol className={desktop ? "grid gap-x-8 gap-y-5 sm:grid-cols-2" : "flex flex-col gap-5"}>
           <Step n={1} title="Open or create a database">
             {desktop
               ? "Open a .sqlite file and it's edited where it is, start an empty database, or try the sample shop."

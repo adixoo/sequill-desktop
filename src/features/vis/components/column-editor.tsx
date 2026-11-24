@@ -43,7 +43,7 @@ export function ColumnType({ column, editable }: { column: DiagramColumn; editab
     <span className="relative ml-auto flex shrink-0 items-center">
       <span
         className={cn(
-          "font-mono text-[0.625rem] tracking-[0.04em] text-ink-muted uppercase",
+          "font-mono text-[0.625rem] text-ink-muted lowercase",
           editable &&
             cn(
               swap,
@@ -161,7 +161,7 @@ function ColumnEditor({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="pn-eyebrow min-w-0 truncate text-ink-muted">
+        <p className="q-label min-w-0 truncate text-ink-muted">
           {existing ? "Edit column" : "New column"} · {table.name}
         </p>
         <Button

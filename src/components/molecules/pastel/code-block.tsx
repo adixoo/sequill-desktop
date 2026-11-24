@@ -45,7 +45,7 @@ export function CodeBlock({
   return (
     <figure
       className={cn(
-        "relative overflow-hidden rounded-md border-2 border-hairline bg-surface",
+        "relative overflow-hidden rounded-md border border-hairline bg-surface",
         className,
       )}
     >
@@ -55,13 +55,8 @@ export function CodeBlock({
         </div>
       )}
       {!bare && (
-        <figcaption className="flex h-11 items-center gap-2 border-b-2 border-hairline bg-raised pr-1.5 pl-4">
-          <span aria-hidden className="flex gap-1.5">
-            {[0, 1, 2].map((i) => (
-              <span key={i} className="size-2.5 rounded-full bg-strong" />
-            ))}
-          </span>
-          <span className="ml-2 min-w-0 flex-1 truncate font-mono text-xs font-medium tracking-[0.04em] text-ink-soft">
+        <figcaption className="flex h-11 items-center gap-2 border-b border-hairline bg-raised pr-1.5 pl-4">
+          <span className="min-w-0 flex-1 truncate font-mono text-xs font-medium text-ink-soft">
             {fileName}
           </span>
           {copyable && <CopyCodeButton code={code} fileName={fileName} />}

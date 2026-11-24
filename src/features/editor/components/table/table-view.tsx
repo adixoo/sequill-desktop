@@ -482,7 +482,7 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
             }
           />
           <footer className="flex flex-wrap items-center justify-between gap-2 border-t-2 border-hairline bg-surface px-3 py-1">
-            <p className="pn-tnum text-xs text-ink-muted" aria-live="polite">
+            <p className="q-num text-xs text-ink-muted" aria-live="polite">
               {formatCount(total)} {total === 1 ? "row" : "rows"}
               {selectedCount > 0 && ` · ${formatCount(selectedCount)} selected`}
               {result && ` · ${formatDuration(result.durationMs)}`}

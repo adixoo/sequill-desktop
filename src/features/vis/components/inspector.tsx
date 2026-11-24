@@ -37,7 +37,7 @@ function Section({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="pn-eyebrow text-ink-muted">{title}</h3>
+        <h3 className="q-label text-ink-muted">{title}</h3>
         {action}
       </div>
       {children}
@@ -116,7 +116,7 @@ function ExistingTableDetails({ table, dbId }: { table: DiagramTable; dbId: stri
                 <ColumnIcon column={c} />
               </span>
               <ColumnName column={c} />
-              <span className="ml-auto font-mono text-[0.6875rem] text-ink-muted uppercase">
+              <span className="ml-auto font-mono text-[0.6875rem] text-ink-muted lowercase">
                 {c.type || "any"}
               </span>
             </li>

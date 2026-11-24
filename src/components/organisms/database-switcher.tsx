@@ -110,7 +110,7 @@ export function DatabaseSwitcher({
         align="start"
         className="w-(--radix-dropdown-menu-trigger-width) min-w-64"
       >
-        <DropdownMenuLabel className="pn-eyebrow text-ink-muted">
+        <DropdownMenuLabel className="q-label text-ink-muted">
           {isDesktop() ? "On this computer" : "In this browser"}
         </DropdownMenuLabel>
         {dbs.data?.map((d) => (
@@ -124,7 +124,7 @@ export function DatabaseSwitcher({
             <span className="truncate">{d.name}</span>
             {hasDraft?.(d.id) && (
               <span
-                className="pn-table-head shrink-0 text-peach-ink"
+                className="q-table-head shrink-0 text-peach-ink"
                 title="Has an unsaved schema design"
               >
                 draft
@@ -145,7 +145,7 @@ export function DatabaseSwitcher({
           >
             <PencilRuler /> Blank design
             {blankDesign.hasDraft && (
-              <span className="pn-table-head ml-auto text-peach-ink">draft</span>
+              <span className="q-table-head ml-auto text-peach-ink">draft</span>
             )}
           </DropdownMenuItem>
         )}
@@ -167,9 +167,7 @@ export function DatabaseSwitcher({
         {current && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="pn-eyebrow text-ink-muted">
-              {current.name}
-            </DropdownMenuLabel>
+            <DropdownMenuLabel className="q-label text-ink-muted">{current.name}</DropdownMenuLabel>
             {current.path && (
               <p
                 className="truncate px-2 pb-1.5 font-mono text-[0.6875rem] text-ink-muted"

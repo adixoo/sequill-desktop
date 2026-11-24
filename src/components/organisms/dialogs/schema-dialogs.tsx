@@ -170,8 +170,8 @@ export function CreateTableDialog({ onClose }: { onClose(): void }) {
         />
       </div>
       <section className="flex flex-col gap-2" aria-labelledby="table-columns">
-        <h3 id="table-columns" className="pn-eyebrow text-ink-muted">
-          Columns <span className="pn-tnum">· {columns.length}</span>
+        <h3 id="table-columns" className="q-label text-ink-muted">
+          Columns <span className="q-num">· {columns.length}</span>
         </h3>
         {columns.map((col, i) => (
           <ColumnFields
@@ -227,7 +227,7 @@ export function CreateTableDialog({ onClose }: { onClose(): void }) {
         </Button>
       </section>
       <section className="flex flex-col gap-2" aria-labelledby="table-options">
-        <h3 id="table-options" className="pn-eyebrow text-ink-muted">
+        <h3 id="table-options" className="q-label text-ink-muted">
           Table options
         </h3>
         <div className="flex flex-wrap gap-x-5 gap-y-2">
@@ -316,13 +316,13 @@ export function CreateIndexDialog({ table, onClose }: { table: string; onClose()
         />
       </div>
       <fieldset className="flex flex-col gap-2">
-        <legend className="pn-eyebrow mb-2 text-ink-muted">Columns</legend>
+        <legend className="q-label mb-2 text-ink-muted">Columns</legend>
         <ul className="flex flex-col gap-1">
           {columns.map((c) => {
             const p = picked.find((x) => x.name === c);
             const position = picked.findIndex((x) => x.name === c);
             return (
-              <li key={c} className="flex items-center gap-3 rounded-xs px-2 py-1 hover:bg-zebra">
+              <li key={c} className="flex items-center gap-3 rounded-xs px-2 py-1 hover:bg-active">
                 <label className="flex flex-1 items-center gap-2 text-sm">
                   <Checkbox
                     checked={!!p}
@@ -334,7 +334,7 @@ export function CreateIndexDialog({ table, onClose }: { table: string; onClose()
                   />
                   <span className="font-mono">{c}</span>
                   {position >= 0 && (
-                    <span className="pn-tnum font-mono text-[0.6875rem] text-ink-muted">
+                    <span className="q-num font-mono text-[0.6875rem] text-ink-muted">
                       #{position + 1}
                     </span>
                   )}

@@ -94,12 +94,19 @@ function defaultView(dbId: string | null, table: string): TableViewState {
   };
 }
 
+/** Puts the density on <html> so every control, portalled menus included, reads its tokens. */
+function applyDensity(density: Density): Density {
+  if (typeof document !== "undefined") document.documentElement.dataset.density = density;
+  return density;
+}
+
 export const useWorkspace = create<WorkspaceState>()((set, get) => ({
   dbId: null,
   tabs: [],
   activeTabId: null,
-  density:
+  density: applyDensity(
     typeof window === "undefined" ? "compact" : readJson<Density>(STORAGE_KEYS.density, "compact"),
+  ),
   queryCounter: 0,
 
   setDb(dbId) {
@@ -248,6 +255,6 @@ export const useWorkspace = create<WorkspaceState>()((set, get) => ({
 
   setDensity(density) {
     writeJson(STORAGE_KEYS.density, density);
-    set({ density });
+    set({ density: applyDensity(density) });
   },
 }));

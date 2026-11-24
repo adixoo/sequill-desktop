@@ -83,7 +83,7 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
                 <div
                   className={cn(
                     "group/tab relative flex max-w-56 shrink-0 items-center border-r border-hairline",
-                    active ? "bg-surface" : "hover:bg-zebra",
+                    active ? "bg-surface" : "hover:bg-active",
                   )}
                 >
                   <button
@@ -92,7 +92,7 @@ export function TabBar({ schema, onOpenSidebar, onOpenPalette }: TabBarProps) {
                     aria-selected={active}
                     onClick={() => setActiveTab(tab.id)}
                     onAuxClick={(e) => e.button === 1 && closeTab(tab.id)}
-                    className="flex h-full min-w-0 items-center gap-2 pr-8 pl-3 text-sm outline-none focus-visible:bg-zebra"
+                    className="flex h-full min-w-0 items-center gap-2 pr-8 pl-3 text-sm outline-none focus-visible:bg-active"
                   >
                     <Icon
                       className={cn(

@@ -20,8 +20,8 @@ export function Chip({
   return (
     <span
       className={cn(
-        "pn-eyebrow inline-flex items-center gap-2 rounded-full whitespace-nowrap",
-        size === "md" ? "h-8 px-3.5" : "h-6 px-2.5 text-[0.6875rem] tracking-widest",
+        "q-label inline-flex items-center gap-2 rounded-full whitespace-nowrap",
+        size === "md" ? "h-(--control-sm) px-3" : "h-(--pill-h) px-2",
         variant === "wash" && [a.wash, a.ink],
         variant === "solid" && [a.solid, "text-on-accent"],
         variant === "outline" && "text-ink-soft ring-2 ring-hairline ring-inset",

@@ -18,7 +18,7 @@ function Section({
   return (
     <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="pn-eyebrow text-ink-muted">{title}</h3>
+        <h3 className="q-label text-ink-muted">{title}</h3>
         {action}
       </div>
       {children}
@@ -26,7 +26,7 @@ function Section({
   );
 }
 
-const th = "pn-table-head border-b-2 border-hairline bg-raised px-3 py-2 text-left";
+const th = "q-table-head border-b-2 border-hairline bg-raised px-3 py-2 text-left";
 const td = "border-b border-hairline px-3 py-2 align-top";
 
 export function StructureView({ relation, schema }: { relation: RelationInfo; schema: Schema }) {
@@ -131,21 +131,21 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
                           {c.name}
                         </span>
                       </td>
-                      <td className={`${td} font-mono text-xs text-ink-soft uppercase`}>
+                      <td className={`${td} font-mono text-xs text-ink-soft lowercase`}>
                         {c.type || "—"}
                       </td>
                       <td className={`${td} text-ink-soft`}>
                         <span className="flex flex-wrap gap-1.5">
                           {c.pk > 0 && (
-                            <span className="pn-table-head text-butter-ink">
+                            <span className="q-table-head text-butter-ink">
                               pk
                               {relation.columns.filter((x) => x.pk > 0).length > 1
                                 ? ` ${c.pk}`
                                 : ""}
                             </span>
                           )}
-                          {c.notNull && <span className="pn-table-head">not null</span>}
-                          {c.hidden >= 2 && <span className="pn-table-head">generated</span>}
+                          {c.notNull && <span className="q-table-head">not null</span>}
+                          {c.hidden >= 2 && <span className="q-table-head">generated</span>}
                           {fk && (
                             <span className="flex items-center gap-1 text-xs text-sky-ink">
                               <Link className="size-3" /> {fk.table}
@@ -242,10 +242,10 @@ export function StructureView({ relation, schema }: { relation: RelationInfo; sc
                     <span className="font-mono text-xs text-ink-soft">
                       ({ix.columns.join(", ")})
                     </span>
-                    {ix.unique && <span className="pn-table-head">unique</span>}
-                    {ix.partial && <span className="pn-table-head">partial</span>}
+                    {ix.unique && <span className="q-table-head">unique</span>}
+                    {ix.partial && <span className="q-table-head">partial</span>}
                     {ix.origin !== "c" && (
-                      <span className="pn-table-head">
+                      <span className="q-table-head">
                         {ix.origin === "pk" ? "primary key" : "constraint"}
                       </span>
                     )}

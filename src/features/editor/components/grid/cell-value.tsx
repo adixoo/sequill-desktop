@@ -16,7 +16,7 @@ export const CellValueView = memo(function CellValueView({ value }: { value: Cel
       );
     case "integer":
     case "real":
-      return <span className="pn-tnum block w-full text-right text-ink">{cellPreview(value)}</span>;
+      return <span className="q-num block w-full text-right text-ink">{cellPreview(value)}</span>;
     case "blob": {
       const isImage = blobImageType(value as Uint8Array) !== null;
       const Icon = isImage ? ImageIcon : null;

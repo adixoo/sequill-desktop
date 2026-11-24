@@ -194,11 +194,11 @@ function InspectorForm({
                   <Label htmlFor={id} className="font-semibold text-ink">
                     {c.name}
                   </Label>
-                  <span className="font-mono text-[0.6875rem] text-ink-muted uppercase">
+                  <span className="font-mono text-[0.6875rem] text-ink-muted lowercase">
                     {c.type || "any"}
                   </span>
-                  {c.notNull && <span className="pn-table-head">not null</span>}
-                  {c.hidden >= 2 && <span className="pn-table-head">generated</span>}
+                  {c.notNull && <span className="q-table-head">not null</span>}
+                  {c.hidden >= 2 && <span className="q-table-head">generated</span>}
                   {fk && shown !== null && onFollowForeignKey && (
                     <Button
                       type="button"

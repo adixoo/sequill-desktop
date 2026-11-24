@@ -92,7 +92,7 @@ function ActivityRow({
         <ActivityDot ok={activity.ok} />
         <span className="shrink-0 text-sm font-medium text-ink">{activityLabel(activity)}</span>
         {changes && (
-          <span className="shrink-0 rounded-xs bg-peach-wash px-1 text-[0.625rem] font-medium text-peach-ink uppercase">
+          <span className="shrink-0 rounded-xs bg-peach-wash px-1 text-[0.625rem] font-medium text-peach-ink">
             edit
           </span>
         )}
@@ -251,7 +251,7 @@ export function McpActivitySheet({ onClose }: { onClose(): void }) {
           ) : (
             byDay(entries, now).map(([day, calls]) => (
               <section key={day} aria-label={day}>
-                <h3 className="pn-eyebrow sticky top-0 z-10 bg-surface pt-4 pb-1 text-ink-muted">
+                <h3 className="q-label sticky top-0 z-10 bg-surface pt-4 pb-1 text-ink-muted">
                   {day}
                 </h3>
                 <ol className="flex flex-col divide-y-2 divide-hairline">

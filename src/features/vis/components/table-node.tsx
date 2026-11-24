@@ -71,8 +71,8 @@ export const TableNode = memo(function TableNode({ id, data, selected }: NodePro
   return (
     <div
       className={cn(
-        "group/node overflow-visible rounded-md border-2 border-hairline bg-surface text-[0.8125rem] shadow-lift transition-opacity duration-150",
-        selected && "border-sky-ink",
+        "group/node overflow-visible rounded-md border-2 border-hairline bg-surface text-[0.8125rem] transition-opacity duration-150",
+        selected && "border-sky-ink ring-3 ring-sky-wash",
         (dimmed || dropped) && "opacity-40",
         dropped && selected && "opacity-70",
       )}
@@ -104,12 +104,12 @@ export const TableNode = memo(function TableNode({ id, data, selected }: NodePro
         {tableChangeLabel(table) && <span className="sr-only">, {tableChangeLabel(table)}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
           {(table.kind === "view" || table.kind === "virtual") && (
-            <span className="pn-table-head rounded-xs bg-lilac-wash px-1.5 py-0.5 text-lilac-ink">
+            <span className="q-table-head rounded-xs bg-lilac-wash px-1.5 py-0.5 text-lilac-ink">
               {table.kind}
             </span>
           )}
           <span
-            className="pn-tnum font-mono text-[0.6875rem] text-ink-muted"
+            className="q-num font-mono text-[0.6875rem] text-ink-muted"
             title={`${table.columns.length} ${table.columns.length === 1 ? "column" : "columns"}`}
           >
             {table.columns.length}

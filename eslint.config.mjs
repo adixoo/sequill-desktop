@@ -28,7 +28,7 @@ export default defineConfig([
       // The design system's classes (globals.css, vis.css) and React Flow / Sonner hooks.
       "tailwindcss/no-custom-classname": [
         "warn",
-        { whitelist: ["pn-.+", "is-(active|draft|invalid)", "nodrag", "toaster"] },
+        { whitelist: ["pn-.+", "q-.+", "is-(active|draft|invalid)", "nodrag", "toaster"] },
       ],
     },
   },

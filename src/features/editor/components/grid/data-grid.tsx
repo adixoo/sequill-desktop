@@ -423,7 +423,7 @@ export function DataGrid({
                       aria-selected={onSelectionChange ? isSelected : undefined}
                       className={cn(
                         "group/row absolute left-0 flex w-full border-b border-hairline",
-                        isSelected ? "bg-row-selected" : "bg-surface hover:bg-zebra",
+                        isSelected ? "bg-row-selected" : "bg-surface hover:bg-raised",
                       )}
                       style={{
                         height: rowHeight,
@@ -454,10 +454,10 @@ export function DataGrid({
                             >
                               {isSelected && <Check className="size-3" strokeWidth={3} />}
                             </span>
-                            <span className="pn-tnum">{rowOffset + r + 1}</span>
+                            <span className="q-num">{rowOffset + r + 1}</span>
                           </button>
                         ) : (
-                          <span className="pn-tnum font-mono text-[0.6875rem] text-ink-muted">
+                          <span className="q-num font-mono text-[0.6875rem] text-ink-muted">
                             {rowOffset + r + 1}
                           </span>
                         )}

@@ -67,7 +67,7 @@ export function FilterBuilder({
           <FilterIcon />
           <span>Filter</span>
           {filters.length > 0 && (
-            <span className="pn-tnum rounded-full bg-sky px-1.5 font-mono text-[0.6875rem] text-on-accent">
+            <span className="q-num rounded-full bg-sky px-1.5 font-mono text-[0.6875rem] text-on-accent">
               {filters.length}
             </span>
           )}
@@ -82,7 +82,7 @@ export function FilterBuilder({
           className="flex flex-col gap-3"
         >
           <div className="flex items-center justify-between gap-2">
-            <p className="pn-eyebrow text-ink-muted">Filters</p>
+            <p className="q-label text-ink-muted">Filters</p>
             {draft.length > 1 && (
               <ToggleGroup
                 type="single"

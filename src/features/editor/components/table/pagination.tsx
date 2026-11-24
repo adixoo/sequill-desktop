@@ -30,7 +30,7 @@ export function Pagination({
   const to = Math.min(total, (page + 1) * pageSize);
   return (
     <nav aria-label="Pages" className="flex items-center gap-1">
-      <span className="pn-tnum mr-2 text-xs text-ink-muted max-sm:hidden">
+      <span className="q-num mr-2 text-xs text-ink-muted max-sm:hidden">
         {formatCount(from)}–{formatCount(to)} of {formatCount(total)}
       </span>
       <Button
@@ -51,7 +51,7 @@ export function Pagination({
       >
         <ChevronLeft />
       </Button>
-      <span className="pn-tnum px-1 font-mono text-xs text-ink-soft">
+      <span className="q-num px-1 font-mono text-xs text-ink-soft">
         {page + 1}/{pages}
       </span>
       <Button

@@ -160,7 +160,7 @@ export function SchemaOutline({
               <div
                 className={cn(
                   "group/row flex h-8 items-center rounded-xs",
-                  selected ? "bg-sky-wash" : "hover:bg-zebra",
+                  selected ? "bg-sky-wash" : "hover:bg-active",
                 )}
               >
                 <button
@@ -220,7 +220,7 @@ export function SchemaOutline({
                       <span className="sr-only">, {tableChangeLabel(table)}</span>
                     )}
                     {(table.kind === "view" || table.kind === "virtual") && (
-                      <span className="pn-table-head shrink-0 text-lilac-ink">{table.kind}</span>
+                      <span className="q-table-head shrink-0 text-lilac-ink">{table.kind}</span>
                     )}
                   </button>
                 )}
@@ -256,7 +256,7 @@ export function SchemaOutline({
                             <button
                               type="button"
                               aria-label={`Edit column ${c.name || "unnamed"} of ${table.name}`}
-                              className="group/col flex h-7 w-full items-center gap-2 rounded-r-xs pr-2 pl-2.5 text-left text-[0.8125rem] outline-none hover:bg-zebra focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-zebra"
+                              className="group/col flex h-7 w-full items-center gap-2 rounded-r-xs pr-2 pl-2.5 text-left text-[0.8125rem] outline-none hover:bg-active focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-active"
                             >
                               <ColumnRow column={c} editable />
                             </button>
@@ -274,7 +274,7 @@ export function SchemaOutline({
                       <button
                         type="button"
                         onClick={() => addColumnTo(table)}
-                        className="flex h-7 w-full items-center gap-2 rounded-r-xs pr-2 pl-2.5 text-left text-[0.8125rem] text-ink-muted outline-none hover:bg-zebra hover:text-ink focus-visible:ring-2 focus-visible:ring-ring"
+                        className="flex h-7 w-full items-center gap-2 rounded-r-xs pr-2 pl-2.5 text-left text-[0.8125rem] text-ink-muted outline-none hover:bg-active hover:text-ink focus-visible:ring-2 focus-visible:ring-ring"
                       >
                         <Plus className="size-3" aria-hidden /> Add column
                       </button>

@@ -226,7 +226,7 @@ export function ImportDialog({
           />
         ) : (
           <div className="flex flex-col gap-5">
-            <label className="flex cursor-pointer items-center gap-3 rounded-sm border-2 border-dashed border-strong bg-raised px-4 py-3 text-sm hover:bg-zebra">
+            <label className="flex cursor-pointer items-center gap-3 rounded-sm border-2 border-dashed border-strong bg-raised px-4 py-3 text-sm hover:bg-active">
               <FileUp className="size-5 text-ink-muted" />
               <span className="flex-1 truncate text-ink-soft">
                 {file ? file.name : "Choose a .csv, .tsv or .json file"}

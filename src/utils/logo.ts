@@ -10,13 +10,13 @@
 export const LOGO_SIZE = 512;
 
 export const LOGO_COLORS = {
-  ground: "#0a0a0b", // --gray-950
+  ground: "#0a0a0b", // the mark keeps its own near-black ground
   peach: "#ffb3a1", // --peach
   butter: "#f5e1a4", // --butter
   mint: "#a6e3c4", // --mint
   sky: "#a9c9ff", // --sky
   rose: "#f6a8c6", // --rose
-  ink: "#ededf0", // --gray-100
+  ink: "#ededf0", // light stroke on the dark ground
 } as const;
 
 /**

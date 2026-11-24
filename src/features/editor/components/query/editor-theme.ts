@@ -17,7 +17,7 @@ const view = EditorView.theme({
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {
     backgroundColor: "var(--sky-wash) !important",
   },
-  ".cm-activeLine": { backgroundColor: "var(--lilac-wash)" },
+  ".cm-activeLine": { backgroundColor: "var(--raised)" },
   ".cm-gutters": { backgroundColor: "var(--surface)", color: "var(--decor)", border: "none" },
   ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--ink-muted)" },
   ".cm-lineNumbers .cm-gutterElement": {

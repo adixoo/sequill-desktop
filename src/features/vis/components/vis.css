@@ -19,7 +19,7 @@
   --xy-minimap-node-background-color: var(--strong);
   --xy-minimap-node-stroke-color: transparent;
   --xy-controls-button-background-color: var(--raised);
-  --xy-controls-button-background-color-hover: var(--zebra);
+  --xy-controls-button-background-color-hover: var(--active);
   --xy-controls-button-color: var(--ink-soft);
   --xy-controls-button-color-hover: var(--ink);
   --xy-controls-button-border-color: var(--hairline);

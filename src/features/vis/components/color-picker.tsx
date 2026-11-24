@@ -127,7 +127,7 @@ export function ColorDot({
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-auto p-3">
-        <p className="pn-eyebrow mb-2.5 text-ink-muted">{tableName}</p>
+        <p className="q-label mb-2.5 text-ink-muted">{tableName}</p>
         <ColorSwatches value={value} onChange={onChange} label={`Color for ${tableName}`} />
       </PopoverContent>
     </Popover>

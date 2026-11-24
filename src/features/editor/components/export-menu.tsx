@@ -65,9 +65,7 @@ export function ExportMenu({ name, sources, disabled }: ExportMenuProps) {
         {sources.map((source, i) => (
           <div key={source.label}>
             {i > 0 && <DropdownMenuSeparator />}
-            <DropdownMenuLabel className="pn-eyebrow text-ink-muted">
-              {source.label}
-            </DropdownMenuLabel>
+            <DropdownMenuLabel className="q-label text-ink-muted">{source.label}</DropdownMenuLabel>
             {(Object.keys(EXPORT_FORMATS) as ExportFormat[]).map((format) => (
               <DropdownMenuItem key={format} onSelect={() => void exportRows(source, format, name)}>
                 {EXPORT_FORMATS[format].label}

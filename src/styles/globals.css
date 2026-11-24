@@ -3,25 +3,10 @@
 @import "shadcn/tailwind.css";
 
 /*
- * Pastel Noir tokens for the web.
- * Dark values are the design system as specified. Light values are derived:
- * an inverted gray ladder, the same pastels for fills and washes, and a deep
- * "-ink" shade of each pastel for text (pastel text fails contrast on white).
- * Components use roles (canvas, surface, ink, mint-ink…), never raw hexes.
+ * Pastel Quill tokens (DESIGN.md, section 7). Light is :root, dark is .dark.
+ * Components use roles (canvas, surface, ink, mint-ink…) and density tokens, never raw values.
  */
 :root {
-  /* Raw gray ladder (dark system) */
-  --gray-950: #0a0a0b;
-  --gray-900: #111113;
-  --gray-850: #18181b;
-  --gray-800: #212125;
-  --gray-700: #2e2e33;
-  --gray-600: #45454c;
-  --gray-500: #6b6b73;
-  --gray-400: #93939b;
-  --gray-300: #bdbdc4;
-  --gray-100: #ededf0;
-
   /* Pastels: fills, washes, strokes. Same in both themes. */
   --peach: #ffb3a1;
   --butter: #f5e1a4;
@@ -30,24 +15,18 @@
   --lilac: #cbb6ff;
   --rose: #f6a8c6;
 
-  /*
-   * Change marks for unsaved schema edits: added is green, edited is blue.
-   * Brighter than mint and sky so they read apart from the pastels (sky also
-   * marks selection).
-   */
+  /* Change marks for unsaved edits: brighter than mint and sky so they read apart. */
   --added: #6ee7a1;
   --edited: #7cacff;
 
-  /*
-   * Radii, scaled for UI like the type scale (the video system's 6/12/20/32px
-   * are sized for a 1920x1080 frame). Tailwind's rounded-* and shadcn read these.
-   */
-  --radius-xs: 4px; /* code-line highlights, keys, checkboxes, menu items */
-  --radius-sm: 6px; /* table frames, small cards, tags */
-  --radius-md: 8px; /* cards, code windows, stat panels, inputs */
-  --radius-lg: 10px; /* buttons, menus, popovers, hero panels */
-  --radius-xl: 14px; /* dialogs and sheets */
-  --radius-pill: 999px; /* chips, step badges */
+  /* Radius scale; Tailwind's rounded-* and shadcn read these. Nothing above 16px. */
+  --radius-xs: 4px; /* keys, checkboxes, skeleton bars */
+  --radius-sm: 6px; /* menu items, tooltips */
+  --radius-md: 8px; /* buttons, inputs, selects, notices */
+  --radius-lg: 8px; /* the shadcn control radius (--radius) */
+  --radius-xl: 12px; /* cards, dialogs, menus, popovers */
+  --radius-frame: 16px; /* the app's working sheet */
+  --radius-pill: 9999px; /* chips, badges, switches, segmented track */
 
   --dur-instant: 100ms;
   --dur-quick: 200ms;
@@ -66,7 +45,17 @@
   --ease-pop: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-draw: cubic-bezier(0.45, 0, 0.2, 1);
 
-  --on-accent: var(--gray-950);
+  /* Stacking order: popovers sit above dialogs because they open from them. */
+  --z-sticky: 10;
+  --z-header: 20;
+  --z-overlay: 40;
+  --z-popover: 50;
+  --z-toast: 60;
+  --z-tooltip: 70;
+
+  --on-accent: #18181b;
+  --on-inverse: #ececef;
+  --on-inverse-soft: #a1a1a9;
 }
 
 /* Light (default) */
@@ -74,10 +63,12 @@
   --canvas: #f7f7f8;
   --surface: #ffffff;
   --raised: #f1f1f3;
-  --zebra: #eaeaed;
+  --active: #eaeaed;
+  --rule: #ebebee;
   --hairline: #dedee3;
-  --strong: #c4c4cb;
+  --strong: #aeaeb6; /* control borders: soft (2.2:1 on surface); focus adds the Cobalt border */
   --decor: #a1a1a9;
+  --inverse: #26262b;
   --ink: #18181b;
   --ink-soft: #45454c;
   --ink-muted: #63636b;
@@ -106,22 +97,27 @@
   --scrollbar-thumb-hover: var(--ink-muted);
   --annotate: var(--butter-ink);
   --annotate-stroke: #96750a;
-  --shadow-lift: 0 24px 60px #18181b1f;
-  --shadow-ring: 0 0 0 2px #18181b1f;
+  --backdrop: rgb(10 10 10 / 32%);
+  --shadow-sm: 0 1px 2px rgb(24 24 27 / 5%);
+  --shadow-md: 0 4px 12px rgb(24 24 27 / 8%);
+  --shadow-float: 0 12px 32px rgb(24 24 27 / 12%);
   color-scheme: light;
 }
 
+/* Dark: neutral charcoal, never black; the working sheet sits one step darker than its frame. */
 .dark {
-  --canvas: var(--gray-950);
-  --surface: var(--gray-900);
-  --raised: var(--gray-850);
-  --zebra: var(--gray-800);
-  --hairline: var(--gray-700);
-  --strong: var(--gray-600);
-  --decor: var(--gray-500);
-  --ink: var(--gray-100);
-  --ink-soft: var(--gray-300);
-  --ink-muted: var(--gray-400);
+  --canvas: #202020;
+  --surface: #191919;
+  --raised: #262626;
+  --active: #2e2e2e;
+  --rule: #242424;
+  --hairline: #303030;
+  --strong: #505050;
+  --decor: #6b6b6b;
+  --inverse: #232323;
+  --ink: #ededed;
+  --ink-soft: #c4c4c4;
+  --ink-muted: #a0a0a0;
 
   --peach-ink: var(--peach);
   --butter-ink: var(--butter);
@@ -141,14 +137,75 @@
   --added-wash: #6ee7a124;
   --edited-wash: #7cacff24;
 
-  --row-selected: #1b2230;
-  --scrollbar-thumb: var(--gray-500);
-  --scrollbar-thumb-hover: var(--gray-400);
+  --row-selected: #212b38;
+  --scrollbar-thumb: #6b6b6b;
+  --scrollbar-thumb-hover: #a0a0a0;
   --annotate: var(--butter);
   --annotate-stroke: var(--butter);
-  --shadow-lift: 0 32px 80px #000000a6;
-  --shadow-ring: 0 0 0 2px #ededf01f;
+  --backdrop: rgb(0 0 0 / 55%);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 30%);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 35%);
+  --shadow-float: 0 12px 32px rgb(0 0 0 / 45%);
   color-scheme: dark;
+}
+
+/* Density: comfortable by default; compact inside [data-density="compact"]. Only sizes change. */
+:root,
+[data-density="comfortable"] {
+  --control-sm: 32px;
+  --control: 36px;
+  --control-lg: 40px;
+  --control-px: 14px;
+  --control-gap: 8px;
+  --control-fs: 0.875rem;
+  --control-weight: 600;
+  --icon: 16px;
+  --check: 16px;
+  --switch-h: 20px;
+  --row: 40px;
+  --row-head: 36px;
+  --cell-px: 12px;
+  --nav-row: 32px;
+  --pill-h: 22px;
+  --pad-panel: 24px;
+  --pad-card: 24px;
+  --gap: 16px;
+  --text-ui: 0.875rem;
+  --text-small: 0.75rem;
+  --text-cell: 0.875rem;
+  --title-app: 1.375rem;
+}
+[data-density="compact"] {
+  --control-sm: 26px;
+  --control: 30px;
+  --control-lg: 34px;
+  --control-px: 12px;
+  --control-gap: 6px;
+  --control-fs: 0.8125rem;
+  --control-weight: 500;
+  --icon: 14px;
+  --check: 14px;
+  --switch-h: 16px;
+  --row: 30px;
+  --row-head: 28px;
+  --cell-px: 8px;
+  --nav-row: 28px;
+  --pill-h: 18px;
+  --pad-panel: 16px;
+  --pad-card: 16px;
+  --gap: 12px;
+  --text-ui: 0.8125rem;
+  --text-small: 0.6875rem;
+  --text-cell: 0.8125rem;
+  --title-app: 1.125rem;
+}
+/* Compact is a desktop density: touch targets stay at least 40px. */
+@media (pointer: coarse) {
+  [data-density="compact"] {
+    --control-sm: 32px;
+    --control: 40px;
+    --control-lg: 40px;
+  }
 }
 
 /* Meaning aliases */
@@ -167,7 +224,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* shadcn/ui variables mapped onto Pastel Noir roles */
+/* shadcn/ui variables mapped onto Quill roles */
 :root,
 .dark {
   --background: var(--canvas);
@@ -180,13 +237,13 @@
   --primary-foreground: var(--canvas);
   --secondary: var(--raised);
   --secondary-foreground: var(--ink);
-  --muted: var(--raised);
+  --muted: var(--active);
   --muted-foreground: var(--ink-muted);
-  --accent: var(--zebra);
+  --accent: var(--active);
   --accent-foreground: var(--ink);
   --destructive: var(--rose-ink);
   --border: var(--hairline);
-  --input: var(--hairline);
+  --input: var(--strong);
   --ring: var(--sky-ink);
   --chart-1: var(--peach);
   --chart-2: var(--sky);
@@ -194,11 +251,11 @@
   --chart-4: var(--lilac);
   --chart-5: var(--rose);
   --radius: var(--radius-lg);
-  --sidebar: var(--surface);
+  --sidebar: var(--canvas);
   --sidebar-foreground: var(--ink);
   --sidebar-primary: var(--ink);
   --sidebar-primary-foreground: var(--canvas);
-  --sidebar-accent: var(--zebra);
+  --sidebar-accent: var(--active);
   --sidebar-accent-foreground: var(--ink);
   --sidebar-border: var(--hairline);
   --sidebar-ring: var(--sky-ink);
@@ -242,12 +299,16 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
-  /* Pastel Noir roles as Tailwind colours: bg-surface, text-ink-soft, bg-mint-wash… */
+  /* Quill roles as Tailwind colours: bg-surface, text-ink-soft, bg-mint-wash… */
   --color-canvas: var(--canvas);
   --color-surface: var(--surface);
   --color-raised: var(--raised);
-  --color-zebra: var(--zebra);
+  --color-active: var(--active);
+  --color-rule: var(--rule);
   --color-hairline: var(--hairline);
+  --color-inverse: var(--inverse);
+  --color-on-inverse: var(--on-inverse);
+  --color-on-inverse-soft: var(--on-inverse-soft);
   --color-strong: var(--strong);
   --color-decor: var(--decor);
   --color-ink: var(--ink);
@@ -285,12 +346,13 @@
   --color-edited-wash: var(--edited-wash);
 
   /* rounded-xs…xl come from the radius tokens above (unlayered, so they win). */
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-frame: var(--radius-frame);
 
-  --shadow-lift: var(--shadow-lift);
-  --shadow-ring: var(--shadow-ring);
+  /* Elevation: shadow-sm (active segment), shadow-md (hero card), shadow-float (menus, dialogs). */
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-float);
+  --shadow-float: var(--shadow-float);
 
   --ease-enter: var(--ease-enter);
   --ease-move: var(--ease-move);
@@ -378,23 +440,20 @@
 }
 
 @layer components {
-  /* Uppercase kicker labels (eyebrow / table-head roles) */
-  .pn-eyebrow {
-    font-size: 0.75rem;
-    line-height: 1.2;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
+  /* Sentence-case group label (menus, panels); never an eyebrow above a heading. */
+  .q-label {
+    font-size: var(--text-small);
+    line-height: 1.3;
+    font-weight: 500;
   }
-  .pn-table-head {
-    font-size: 0.6875rem;
-    line-height: 1.2;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+  /* Table and grid header labels: small, sentence case, Ink Muted. */
+  .q-table-head {
+    font-size: var(--text-small);
+    line-height: 1.3;
+    font-weight: 500;
     color: var(--ink-muted);
   }
-  .pn-tnum {
+  .q-num {
     font-variant-numeric: tabular-nums;
   }
   .pn-hand {

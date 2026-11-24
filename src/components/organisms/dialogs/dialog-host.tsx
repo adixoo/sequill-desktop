@@ -12,7 +12,7 @@ import { McpDialog } from "./mcp-dialog";
 import { ConfirmSqlDialog, DdlDialog, DeleteDatabaseDialog, NameDialog } from "./simple-dialogs";
 
 const fallback = (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-canvas/70">
+  <div className="fixed inset-0 z-(--z-overlay) flex items-center justify-center bg-canvas/70">
     <Loader size="sm" label="Loading" />
   </div>
 );

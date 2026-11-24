@@ -188,9 +188,7 @@ export default function QueryConsole({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="max-h-96 w-[min(28rem,90vw)]">
-            <DropdownMenuLabel className="pn-eyebrow text-ink-muted">
-              Recent queries
-            </DropdownMenuLabel>
+            <DropdownMenuLabel className="q-label text-ink-muted">Recent queries</DropdownMenuLabel>
             {history.map((h) => (
               <DropdownMenuItem
                 key={h}
@@ -292,7 +290,7 @@ export default function QueryConsole({
                     onClick={() => setActiveResult(i)}
                     className={cn(
                       "flex shrink-0 items-center gap-1.5 rounded-xs px-2 py-1 font-mono text-xs",
-                      i === activeResult ? "bg-raised text-ink" : "text-ink-muted hover:bg-zebra",
+                      i === activeResult ? "bg-raised text-ink" : "text-ink-muted hover:bg-active",
                     )}
                   >
                     {r.error ? (
@@ -308,7 +306,7 @@ export default function QueryConsole({
             {result && <ResultView key={`${activeResult}-${result.sql}`} result={result} />}
             {result && (
               <p
-                className="pn-tnum border-t-2 border-hairline bg-surface px-3 py-1.5 text-xs text-ink-muted"
+                className="q-num border-t-2 border-hairline bg-surface px-3 py-1.5 text-xs text-ink-muted"
                 aria-live="polite"
               >
                 {result.error

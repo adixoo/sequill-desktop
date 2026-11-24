@@ -75,7 +75,7 @@ export function ObjectsOutline({ editor }: { editor: SchemaEditor }) {
   return (
     <li className="mt-3 border-t-2 border-hairline pt-2" aria-label="Other objects">
       <div className="flex h-8 items-center gap-2 px-2">
-        <span className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
+        <span className="text-xs font-semibold text-ink-muted">
           {dialect?.label ?? editor.schema.dialect} objects
         </span>
         {kinds.length > 0 && (
@@ -112,7 +112,7 @@ export function ObjectsOutline({ editor }: { editor: SchemaEditor }) {
                     onClick={() => setEditing(entry)}
                     aria-label={`Edit ${label(kind).toLowerCase()} ${entry.object.name}`}
                     className={cn(
-                      "flex h-8 w-full items-center gap-2 rounded-xs px-3 text-left font-mono text-sm outline-none hover:bg-zebra focus-visible:ring-2 focus-visible:ring-ring",
+                      "flex h-8 w-full items-center gap-2 rounded-xs px-3 text-left font-mono text-sm outline-none hover:bg-active focus-visible:ring-2 focus-visible:ring-ring",
                       entry.state === "deleted" && "text-ink-muted line-through",
                       entry.state === "new" && "text-mint-ink",
                       entry.state === "changed" && "text-butter-ink",

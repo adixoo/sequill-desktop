@@ -27,10 +27,10 @@ export function StatCallout({
     <div
       className={cn("rounded-md bg-surface p-6 ring-2 ring-hairline ring-inset md:p-8", className)}
     >
-      <p className="pn-eyebrow text-ink-muted">{kicker}</p>
+      <p className="q-label text-ink-muted">{kicker}</p>
       <p
         className={cn(
-          "pn-tnum mt-4 text-6xl leading-[0.9] font-bold tracking-[-0.04em] md:text-7xl",
+          "q-num mt-4 text-6xl leading-[0.9] font-bold tracking-[-0.04em] md:text-7xl",
           ACCENT_CLASSES[accent].ink,
         )}
       >

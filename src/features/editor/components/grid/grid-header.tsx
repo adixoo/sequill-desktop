@@ -119,7 +119,7 @@ export function GridHeaderCell({
         onClick={(e) => cycleSort(e.shiftKey)}
         disabled={!onSort}
         title={onSort ? "Sort (Shift+click to add)" : undefined}
-        className="flex h-full min-w-0 flex-1 items-center gap-1.5 pl-3 text-left outline-none focus-visible:bg-zebra disabled:cursor-default"
+        className="flex h-full min-w-0 flex-1 items-center gap-1.5 pl-3 text-left outline-none focus-visible:bg-active disabled:cursor-default"
       >
         {info.pk && (
           <KeyRound className="size-3 shrink-0 text-butter-ink" aria-label="Primary key" />
@@ -135,7 +135,7 @@ export function GridHeaderCell({
         </span>
         {info.type && (
           // Shrinks away before the column name does.
-          <span className="min-w-0 shrink-100 truncate font-mono text-[0.625rem] tracking-[0.04em] text-ink-muted uppercase">
+          <span className="min-w-0 shrink-100 truncate font-mono text-[0.625rem] text-ink-muted">
             {info.type.toLowerCase()}
           </span>
         )}
@@ -151,7 +151,7 @@ export function GridHeaderCell({
       </button>
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="mr-1 flex size-6 shrink-0 items-center justify-center rounded-xs text-ink-muted opacity-0 outline-none group-hover/head:opacity-100 hover:bg-zebra focus-visible:opacity-100 data-[state=open]:opacity-100"
+          className="mr-1 flex size-6 shrink-0 items-center justify-center rounded-xs text-ink-muted opacity-0 outline-none group-hover/head:opacity-100 hover:bg-active focus-visible:opacity-100 data-[state=open]:opacity-100"
           aria-label={`Column options for ${col.name}`}
         >
           <ChevronDown className="size-3.5" />

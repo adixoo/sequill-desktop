@@ -6,15 +6,14 @@ const tokens = readFileSync(new URL("../../../src/styles/globals.css", import.me
 const token = (name: string) => tokens.match(new RegExp(`--${name}:\\s*(#[0-9a-f]{6})`, "i"))?.[1];
 
 describe("logo", () => {
-  test("uses the Pastel Noir token colours", () => {
-    expect({ ...LOGO_COLORS } as Record<string, string>).toEqual({
-      ground: token("gray-950")!,
+  // The mark keeps its own ground and ink in every theme (DESIGN.md exceptions register); its pastels are the tokens.
+  test("uses the pastel token colours", () => {
+    expect({ ...LOGO_COLORS } as Record<string, string>).toMatchObject({
       peach: token("peach")!,
       butter: token("butter")!,
       mint: token("mint")!,
       sky: token("sky")!,
       rose: token("rose")!,
-      ink: token("gray-100")!,
     });
   });
 

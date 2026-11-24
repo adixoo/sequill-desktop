@@ -30,14 +30,14 @@ export function ColumnsMenu({ columns, layout, onChange }: ColumnsMenuProps) {
           <Columns3 />
           <span>Columns</span>
           {layout.hidden.length > 0 && (
-            <span className="pn-tnum font-mono text-[0.6875rem] text-ink-muted">
+            <span className="q-num font-mono text-[0.6875rem] text-ink-muted">
               {columns.length - layout.hidden.length}/{columns.length}
             </span>
           )}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="max-h-80 w-56">
-        <DropdownMenuLabel className="pn-eyebrow text-ink-muted">Visible columns</DropdownMenuLabel>
+        <DropdownMenuLabel className="q-label text-ink-muted">Visible columns</DropdownMenuLabel>
         {columns.map((c) => (
           <DropdownMenuCheckboxItem
             key={c}

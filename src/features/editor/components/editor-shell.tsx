@@ -182,7 +182,7 @@ function Workspace() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={quick}
-            className="pointer-events-none fixed inset-3 z-50 flex flex-col items-center justify-center gap-3 rounded-md border-2 border-dashed border-sky-ink bg-canvas/85 backdrop-blur-sm"
+            className="pointer-events-none fixed inset-3 z-(--z-overlay) flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-sky-ink bg-canvas/92"
           >
             <FileDown className="size-10 text-sky-ink" aria-hidden />
             <p className="text-lg font-semibold text-ink">Drop to open</p>
