@@ -1,5 +1,12 @@
 # sqlite-browser-editor
 
+## 1.2.1
+
+### Patch Changes
+
+- 1d555d8: The MCP button shows its state as a colored badge: on, read only or off.
+- 9c56dce: The header is the same on the editor and schema pages: "Sequill / page" switches pages, and a new Settings popover holds the theme and the row density (moved out of the table toolbar). Tabs show the selected option with a sliding pill.
+
 ## 1.2.0
 
 ### Minor Changes
