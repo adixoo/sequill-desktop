@@ -2,7 +2,7 @@ import { Hint } from "@/components/atoms/tooltip";
 import { Moon, Rows2, Rows3, Settings, Sun } from "@/components/atoms/icons";
 import { Button } from "@/components/atoms/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/popover";
-import { ToggleGroup, ToggleGroupItem } from "@/components/atoms/toggle-group";
+import { PillGroup, PillGroupItem } from "@/components/atoms/pill-group";
 import { useTheme } from "@/lib/theme";
 import { useWorkspace } from "@/store/workspace";
 import type { ThemeName } from "@/types/lib/theme";
@@ -24,41 +24,33 @@ export function SettingsMenu() {
       </Hint>
       <PopoverContent align="end" className="flex w-64 flex-col gap-3 p-3">
         <p className="q-label text-ink-muted">Theme</p>
-        {/* Segmented controls, not tabs: they set a value and show no panel. Radix clears the
-            value when the pressed item is clicked again, so empty values are ignored. */}
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          size="sm"
+        <PillGroup
           value={theme}
-          onValueChange={(v) => v && setTheme(v as ThemeName)}
+          onValueChange={(v) => setTheme(v as ThemeName)}
           aria-label="Theme"
-          className="grid w-full grid-cols-2"
+          className="w-full"
         >
-          <ToggleGroupItem value="dark">
+          <PillGroupItem value="dark">
             <Moon /> Dark
-          </ToggleGroupItem>
-          <ToggleGroupItem value="light">
+          </PillGroupItem>
+          <PillGroupItem value="light">
             <Sun /> Light
-          </ToggleGroupItem>
-        </ToggleGroup>
+          </PillGroupItem>
+        </PillGroup>
         <p className="q-label text-ink-muted">Rows</p>
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          size="sm"
+        <PillGroup
           value={density}
-          onValueChange={(v) => v && setDensity(v as Density)}
+          onValueChange={(v) => setDensity(v as Density)}
           aria-label="Row density"
-          className="grid w-full grid-cols-2"
+          className="w-full"
         >
-          <ToggleGroupItem value="comfortable">
+          <PillGroupItem value="comfortable">
             <Rows2 /> Comfortable
-          </ToggleGroupItem>
-          <ToggleGroupItem value="compact">
+          </PillGroupItem>
+          <PillGroupItem value="compact">
             <Rows3 /> Compact
-          </ToggleGroupItem>
-        </ToggleGroup>
+          </PillGroupItem>
+        </PillGroup>
       </PopoverContent>
     </Popover>
   );
