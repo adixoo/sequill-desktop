@@ -1,5 +1,11 @@
 # sqlite-browser-editor
 
+## 1.2.3
+
+### Patch Changes
+
+- b481d24: The theme and row options in Settings show the selected choice with a sliding pill.
+
 ## 1.2.2
 
 ### Patch Changes
