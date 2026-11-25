@@ -15,7 +15,8 @@ import {
 import { Label } from "@/components/atoms/label";
 import { Textarea } from "@/components/atoms/textarea";
 import { Plus, Search, Trash, X } from "@/components/atoms/icons";
-import { ThemeToggle } from "@/components/molecules/theme-toggle";
+import { SettingsMenu } from "@/components/organisms/settings-menu";
+import { Tabs, TabsList, TabsTrigger } from "@/components/atoms/tabs";
 
 const VARIANTS = ["default", "outline", "secondary", "ghost", "destructive", "link"] as const;
 const SIZES = ["xs", "sm", "default", "lg"] as const;
@@ -50,7 +51,7 @@ export function ComponentsPage() {
       <div className="mx-auto max-w-4xl space-y-6 px-4 py-10">
         <header className="flex items-center justify-between">
           <h1 className="text-2xl font-semibold">Components</h1>
-          <ThemeToggle />
+          <SettingsMenu />
         </header>
 
         <Section title="Toast">
@@ -91,6 +92,16 @@ export function ComponentsPage() {
               With action
             </Button>
           </div>
+        </Section>
+
+        <Section title="Tabs">
+          <Tabs defaultValue="rows">
+            <TabsList>
+              <TabsTrigger value="rows">Rows</TabsTrigger>
+              <TabsTrigger value="structure">Structure</TabsTrigger>
+              <TabsTrigger value="sql">SQL</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </Section>
 
         <Section title="Spinner">

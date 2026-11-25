@@ -34,3 +34,6 @@ export const enter = (delay = 0, distance = 16) =>
 
 /** Small UI state changes stay around 150ms. */
 export const quick: Transition = { duration: 0.15, ease: ease.enter };
+
+/** A selection pill sliding between options (tabs): quick, with a little settle. */
+export const pill: Transition = { type: "spring", visualDuration: 0.25, bounce: 0.15 };

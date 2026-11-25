@@ -62,6 +62,23 @@ export function carryColors(
   return next;
 }
 
+/**
+ * Applies colors given by table name (an assistant's, over MCP) to the colors by node id.
+ * Unknown names and invalid colors are skipped; null clears a color.
+ */
+export function applyNamedColors(
+  colors: Record<string, TableColor>,
+  named: Record<string, unknown>,
+  idByName: Record<string, string>,
+): Record<string, TableColor> {
+  let next = colors;
+  for (const [name, color] of Object.entries(named)) {
+    const id = idByName[name];
+    if (id && (color === null || isTableColor(color))) next = setColor(next, id, color);
+  }
+  return next;
+}
+
 export function setColor(
   colors: Record<string, TableColor>,
   id: string,

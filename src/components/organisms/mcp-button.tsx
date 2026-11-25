@@ -2,10 +2,18 @@ import { useMcpStatus } from "@/hooks/use-mcp";
 import { isDesktop } from "@/lib/platform";
 import { useDialogs } from "@/store/dialogs";
 import { cn } from "@/utils";
+import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { History } from "@/components/atoms/icons";
 
 /** Shows what AI assistants may do with the databases and opens the MCP guide. Desktop only. */
+/** Badge colors per state: green on, butter read only, rose off. */
+const STATE_COLORS = {
+  on: "bg-added-wash text-added-ink",
+  "read only": "bg-butter-wash text-butter-ink",
+  off: "bg-rose-wash text-rose-ink",
+} as const;
+
 export function McpButton({ className }: { className?: string }) {
   const status = useMcpStatus();
   const openDialog = useDialogs((s) => s.open);
@@ -25,9 +33,10 @@ export function McpButton({ className }: { className?: string }) {
       title={`MCP: ${meaning}`}
       onClick={() => openDialog({ kind: "mcp" })}
     >
-      <span aria-hidden className={cn("size-2 rounded-full", on ? "bg-added" : "bg-ink-muted")} />
       MCP
-      <span className={on ? "text-added-ink" : "text-ink-muted"}>{state}</span>
+      <Badge variant="outline" className={cn("border-transparent", STATE_COLORS[state])}>
+        {state}
+      </Badge>
     </Button>
   );
 }
