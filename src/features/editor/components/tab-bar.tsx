@@ -1,13 +1,4 @@
-import {
-  CopyPlus,
-  Eye,
-  Menu,
-  Network,
-  Search,
-  SquareTerminal,
-  Table,
-  X,
-} from "@/components/atoms/icons";
+import { CopyPlus, Eye, Menu, Search, SquareTerminal, Table, X } from "@/components/atoms/icons";
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/atoms/button";
 import {
@@ -27,10 +18,8 @@ import { McpButton, McpHistoryButton } from "@/components/organisms/mcp-button";
 import { AppHeader } from "@/components/organisms/app-header";
 import { DatabaseSwitcher } from "@/components/organisms/database-switcher";
 import { hasUnsavedDesign } from "@/features/vis/lib/drafts";
-import { Link } from "@/components/atoms/link";
-import { ROUTES } from "@/lib/router";
 
-/** The editor's top bar: sidebar button on phones, page switch, database switcher, MCP, palette. */
+/** The editor's top bar: sidebar button on phones, page switcher, database switcher, MCP, palette, settings. */
 export function EditorHeader({
   dbId,
   onOpenSidebar,
@@ -42,7 +31,7 @@ export function EditorHeader({
 }) {
   return (
     <AppHeader
-      title="Editor"
+      page="editor"
       leading={
         <Button
           variant="ghost"
@@ -52,13 +41,6 @@ export function EditorHeader({
           onClick={onOpenSidebar}
         >
           <Menu />
-        </Button>
-      }
-      nav={
-        <Button variant="ghost" asChild>
-          <Link href={ROUTES.vis}>
-            <Network /> <span className="max-sm:sr-only">Schema</span>
-          </Link>
         </Button>
       }
       actions={

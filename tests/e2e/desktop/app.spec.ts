@@ -5,7 +5,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { Page } from "@playwright/test";
-import { cell, expectChanged, expectRowCount, openTable, runSql } from "../helpers";
+import { cell, expectChanged, expectRowCount, goToPage, openTable, runSql } from "../helpers";
 import { expect, test, type McpClient } from "./app";
 
 test.describe.configure({ timeout: 180_000 });
@@ -103,7 +103,7 @@ test("an assistant's changes show in the open app, and it keeps working after th
       ],
     },
   });
-  await app.page.getByRole("link", { name: "Schema" }).click();
+  await goToPage(app.page, "Schema");
   await expect(app.page.locator('.react-flow__node[data-id="d:ai1"]')).toContainText("ai_plan", {
     timeout: 15_000,
   });
@@ -129,7 +129,7 @@ test("a PostgreSQL schema keeps its types, enums, functions and triggers to desi
 }) => {
   const { page } = await launch();
   await getStarted(page);
-  await page.getByRole("link", { name: "Schema" }).click();
+  await goToPage(page, "Schema");
   await page.getByRole("button", { name: /^Database: / }).click();
   await page.getByRole("menuitem", { name: "Import a schema…" }).click();
 
