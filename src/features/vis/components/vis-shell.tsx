@@ -1,4 +1,4 @@
-import { FileUp, Plus, Table } from "@/components/atoms/icons";
+import { FileUp, Plus } from "@/components/atoms/icons";
 import { navigate, ROUTES } from "@/lib/router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
@@ -66,12 +66,8 @@ function Visualizer() {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-canvas">
       <AppHeader
-        title="Schema"
-        nav={
-          <Button variant="ghost" onClick={() => leave({ kind: "editor" })}>
-            <Table /> <span className="max-sm:sr-only">Editor</span>
-          </Button>
-        }
+        page="schema"
+        onPageChange={() => leave({ kind: "editor" })}
         actions={
           <>
             <McpButton />

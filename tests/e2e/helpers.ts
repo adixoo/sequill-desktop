@@ -38,3 +38,9 @@ export async function expectChanged(page: Page, rows: number): Promise<void> {
     page.getByText(new RegExp(`^Done[.] ${rows.toLocaleString("en")} rows? changed`)).last(),
   ).toBeVisible({ timeout: 60_000 });
 }
+
+/** Switches page with the header's "Sequill / page" switcher. */
+export async function goToPage(page: Page, name: "Editor" | "Schema"): Promise<void> {
+  await page.getByRole("button", { name: /^Page: / }).click();
+  await page.getByRole("menuitemradio", { name }).click();
+}

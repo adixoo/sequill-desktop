@@ -1,4 +1,4 @@
-import { Plus, RefreshCw, Rows2, Rows3, Search, Trash, Upload } from "@/components/atoms/icons";
+import { Plus, RefreshCw, Search, Trash, Upload } from "@/components/atoms/icons";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/atoms/button";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/atoms/input-group";
@@ -58,7 +58,6 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
   const updateView = useWorkspace((s) => s.updateView);
   const openTable = useWorkspace((s) => s.openTable);
   const density = useWorkspace((s) => s.density);
-  const setDensity = useWorkspace((s) => s.setDensity);
   const openDialog = useDialogs((s) => s.open);
   const run = useRunStatements();
 
@@ -283,13 +282,6 @@ export function TableView({ dbId, tabId, relation, schema, view }: TableViewProp
                 onChange={(filters, match) => patch({ filters, match, page: 0 })}
               />
               <ColumnsMenu columns={columnNames} layout={view} onChange={patch} />
-              <Button
-                variant="ghost"
-                onClick={() => setDensity(density === "compact" ? "comfortable" : "compact")}
-              >
-                {density === "compact" ? <Rows3 /> : <Rows2 />}
-                {density === "compact" ? "Comfortable" : "Compact"}
-              </Button>
               <Button
                 variant="ghost"
                 onClick={() => {

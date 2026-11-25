@@ -73,6 +73,7 @@ import {
   PlusSignIcon,
   RefreshIcon,
   Search01Icon,
+  Settings02Icon,
   SparklesIcon,
   SquareSlashIcon,
   SquareTerminalIcon,
@@ -185,6 +186,7 @@ export const Rows2 = icon(Layout2RowIcon, "Rows2");
 export const Rows3 = icon(Layout3RowIcon, "Rows3");
 export const Save = icon(FloppyDiskIcon, "Save");
 export const Search = icon(Search01Icon, "Search");
+export const Settings = icon(Settings02Icon, "Settings");
 export const Sparkles = icon(SparklesIcon, "Sparkles");
 export const SquareSlash = icon(SquareSlashIcon, "SquareSlash");
 export const SquareTerminal = icon(SquareTerminalIcon, "SquareTerminal");
