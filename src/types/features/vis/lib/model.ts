@@ -30,6 +30,11 @@ export interface Draft {
    * types: `objectKey` as stored → its new definition, or null to delete it.
    */
   objects: Record<string, ExtraObject | null>;
+  /**
+   * Table colors an assistant set over MCP: table name as shown → color, or null to clear.
+   * The designer moves them into its own colors and takes them out of the draft.
+   */
+  colors?: Record<string, string | null>;
 }
 
 export type DiagramTableKind = "table" | "view" | "virtual" | "draft";

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  applyNamedColors,
   carryColors,
   colorFill,
   colorInk,
@@ -52,5 +53,16 @@ describe("table colors", () => {
       "t:orders": "#00ff00",
       "t:reviews": "rose",
     });
+  });
+
+  test("applies an assistant's colors by table name, skipping unknown names and bad colors", () => {
+    const ids = { customer: "t:customer", tag: "d:x1" };
+    expect(
+      applyNamedColors(
+        { "t:customer": "sky", "t:other": "mint" },
+        { customer: null, tag: "#A0B1C2", ghost: "rose", other: "red;}" },
+        ids,
+      ),
+    ).toEqual({ "t:other": "mint", "d:x1": "#A0B1C2" });
   });
 });

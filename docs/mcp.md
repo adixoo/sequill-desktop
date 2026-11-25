@@ -265,10 +265,10 @@ _Allow changes_.
 | `get_schema`      | List   | `app::get_schema`      | schema designer only: tables, views, indexes, triggers with SQL; `design` (version, draft); `dialect`, `objects`¹ |
 | `show_in_app`     | Window | `app::show_in_app`     | switches page or shows a table/query; see [section 10](#10-show_in_app-assistant--window)                         |
 | `execute`         | Edit   | `tools::execute`       | any script, one transaction, each statement checked by kind (below)                                               |
-| `create_database` | Edit   | `app::create_database` |                                                                                                                   |
+| `create_database` | Edit   | `app::create_database` | optional `dialect`: `sqlite` (default) or `postgresql`/`mysql`/`mssql`/`duckdb` for a design                      |
 | `rename_database` | Edit   | `app::rename_database` |                                                                                                                   |
 | `delete_database` | Edit   | `app::delete_database` | a file opened in place is only removed from the list                                                              |
-| `set_design`      | Edit   | `app::set_design`      | replaces the draft if its version is unchanged; names must exist; never touches the database                      |
+| `set_design`      | Edit   | `app::set_design`      | replaces the draft if its version is unchanged; names must exist; `colors` (table → color) colors the diagram     |
 
 ¹ Designs of other databases (PostgreSQL, MySQL, MSSQL, DuckDB; `DbInfo::dialect` set) are listed
 apart under `designs`. Only `get_schema`, `set_design` and `show_in_app`'s `schema` view find them

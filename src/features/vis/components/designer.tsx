@@ -41,7 +41,13 @@ import { errorMessage } from "@/lib/sqlite/errors";
 import type { Schema } from "@/types/lib/sqlite/types";
 import { readJson, writeJson } from "@/lib/storage";
 import { cn } from "@/utils";
-import { carryColors, colorFill, sanitizeColors, setColor } from "@/features/vis/lib/colors";
+import {
+  applyNamedColors,
+  carryColors,
+  colorFill,
+  sanitizeColors,
+  setColor,
+} from "@/features/vis/lib/colors";
 import type { TableColor } from "@/types/features/vis/lib/colors";
 import {
   autoLayout,
@@ -158,6 +164,14 @@ function DesignerCanvas({
   }, [positions, dbId]);
 
   const diagram = buildDiagram(schema, draft, showViews);
+
+  // Colors an assistant put in the design (by table name) become this diagram's colors.
+  const namedColors = schema ? draft.colors : undefined;
+  if (namedColors) {
+    const idByName = Object.fromEntries(diagram.tables.map((t) => [t.name, t.id]));
+    setColors((c) => applyNamedColors(c, namedColors, idByName));
+    setDraft((d) => ({ ...d, colors: undefined }));
+  }
   // The schema as saved (before the design), shown read-only; the design itself is kept.
   const [showOriginal, setShowOriginal] = useState(false);
   const viewingOriginal = showOriginal && !isDraftEmpty(draft);
