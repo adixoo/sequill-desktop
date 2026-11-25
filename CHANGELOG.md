@@ -1,5 +1,11 @@
 # sqlite-browser-editor
 
+## 1.2.5
+
+### Patch Changes
+
+- bf762de: The components gallery page (/components) is removed; that path now opens the editor.
+
 ## 1.2.4
 
 ### Patch Changes
