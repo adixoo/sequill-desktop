@@ -9,6 +9,7 @@ import {
 } from "@/components/atoms/dropdown-menu";
 import { ChevronsUpDown, Network, Table } from "@/components/atoms/icons";
 import { SettingsMenu } from "@/components/organisms/settings-menu";
+import { APP_NAME } from "@/constants";
 import { navigate, ROUTES } from "@/lib/router";
 import { cn } from "@/utils";
 import type { AppPage } from "@/types/components/organisms/app-header";
@@ -51,9 +52,7 @@ export function AppHeader({
     >
       <div className="flex shrink-0 items-center gap-1">
         {leading}
-        <span className="px-1 font-semibold tracking-[-0.015em] text-ink max-md:sr-only">
-          Sequill
-        </span>
+        <img src="/logo.svg" alt={APP_NAME} className="mx-1 size-6 max-md:sr-only" />
         <span aria-hidden className="text-ink-muted max-md:hidden">
           /
         </span>

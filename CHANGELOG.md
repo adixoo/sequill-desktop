@@ -1,5 +1,29 @@
 # sqlite-browser-editor
 
+## 1.2.5
+
+### Patch Changes
+
+- bf762de: The components gallery page (/components) is removed; that path now opens the editor.
+
+## 1.2.4
+
+### Patch Changes
+
+- b9ffc9f: Loading screens show a hand-drawn circle that keeps re-drawing itself instead of a spinner.
+
+## 1.2.3
+
+### Patch Changes
+
+- b481d24: The theme and row options in Settings show the selected choice with a sliding pill.
+
+## 1.2.2
+
+### Patch Changes
+
+- 142ef6f: The header shows the Sequill logo instead of the name before the page switcher.
+
 ## 1.2.1
 
 ### Patch Changes
