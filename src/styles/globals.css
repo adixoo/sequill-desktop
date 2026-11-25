@@ -510,7 +510,29 @@
   animation: pn-rise var(--dur-base) var(--ease-enter) both;
   animation-delay: calc(var(--i, 0) * var(--stagger-row) + 80ms);
 }
+@keyframes pn-loader-draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 1;
+  }
+  55%,
+  80% {
+    stroke-dashoffset: 0;
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0;
+  }
+}
+.pn-loader-path {
+  animation: pn-loader-draw 1.6s var(--ease-draw) infinite;
+}
 @media (prefers-reduced-motion: reduce) {
+  .pn-loader-path {
+    animation: none !important;
+    stroke-dasharray: none;
+  }
   *,
   *::before,
   *::after {

@@ -1,5 +1,5 @@
 import { Check } from "@/components/atoms/icons";
-import { Spinner } from "@/components/atoms/spinner";
+import { MARKS } from "@/components/molecules/pastel/marks";
 import type { LoaderStage } from "@/types/components/molecules/pastel/loader";
 import { cn } from "@/utils";
 
@@ -11,7 +11,7 @@ interface LoaderProps {
   size?: "sm" | "lg";
 }
 
-/** A spinner with a status line, and optional stages, for loading states. */
+/** The hand-drawn circle re-drawing itself, with a status line and optional stages. Pure CSS animation. */
 export function Loader({ label = "Loading", stages, className, size = "lg" }: LoaderProps) {
   return (
     <div
@@ -19,7 +19,19 @@ export function Loader({ label = "Loading", stages, className, size = "lg" }: Lo
       aria-live="polite"
       className={cn("flex flex-col items-center gap-5 text-center", className)}
     >
-      <Spinner aria-hidden="true" className={size === "lg" ? "size-8" : "size-6"} />
+      <svg
+        viewBox={MARKS.circle.viewBox}
+        aria-hidden
+        className={cn("pn-stroke overflow-visible", size === "lg" ? "w-28" : "w-14")}
+        style={{ strokeWidth: size === "lg" ? 7 : 10 }}
+      >
+        <path
+          d={MARKS.circle.paths[0]}
+          pathLength={1}
+          strokeDasharray={1}
+          className="pn-loader-path"
+        />
+      </svg>
       <p className="font-mono text-xs font-medium tracking-[0.04em] text-ink-soft">{label}…</p>
       {stages && stages.length > 0 && (
         <ol className="flex flex-col gap-2 text-left text-sm">
