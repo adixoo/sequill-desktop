@@ -1,4 +1,5 @@
 import { FileDown } from "@/components/atoms/icons";
+import { relations } from "@/lib/sqlite/introspect";
 import { AnimatePresence, m } from "motion/react";
 import { useEffect, useState } from "react";
 import { toast } from "@/components/atoms/toast";
@@ -6,7 +7,7 @@ import { AppProviders } from "@/app/app-providers";
 import { lazyComponent } from "@/lib/lazy-component";
 import { Loader } from "@/components/molecules/pastel/loader";
 import { Sheet, SheetContent, SheetTitle } from "@/components/atoms/sheet";
-import { isDataFile, isDatabaseFile, useDbActions } from "@/hooks/use-db-actions";
+import { isDataFile, useDbActions } from "@/hooks/use-db-actions";
 import { useDatabases, useRestoreLastDatabase, useSchema } from "@/hooks/use-db";
 import { quick } from "@/lib/motion";
 import { useDialogs } from "@/store/dialogs";
@@ -42,7 +43,7 @@ function Workspace() {
   useEffect(() => {
     const table = new URLSearchParams(window.location.search).get("table");
     if (!table || !schema.data) return;
-    if ([...schema.data.tables, ...schema.data.views].some((t) => t.name === table)) {
+    if (relations(schema.data).some((t) => t.name === table)) {
       openTable(table, { mode: "data" });
     }
     window.history.replaceState(null, "", window.location.pathname);
@@ -86,11 +87,10 @@ function Workspace() {
       setDragging(false);
       const file = e.dataTransfer?.files[0];
       if (!file || dialogOpen()) return;
-      if (isDatabaseFile(file)) void actions.openFile(file);
-      else if (isDataFile(file)) {
-        if (useWorkspace.getState().dbId) openDialog({ kind: "import", file });
-        else toast.error("Open or create a database first, then drop the file to import it.");
-      } else void actions.openFile(file); // unknown extension: let SQLite decide
+      // CSV and JSON are imported; anything else is opened as a database (SQLite decides).
+      if (!isDataFile(file)) void actions.openFile(file);
+      else if (useWorkspace.getState().dbId) openDialog({ kind: "import", file });
+      else toast.error("Open or create a database first, then drop the file to import it.");
     };
     window.addEventListener("dragenter", onEnter);
     window.addEventListener("dragleave", onLeave);
@@ -107,9 +107,7 @@ function Workspace() {
   const active = tabs.find((t) => t.id === activeTabId);
   const relation =
     active?.kind === "table"
-      ? [...(schema.data?.tables ?? []), ...(schema.data?.views ?? [])].find(
-          (r) => r.name === active.table,
-        )
+      ? relations(schema.data).find((r) => r.name === active.table)
       : undefined;
 
   let content;

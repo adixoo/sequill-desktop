@@ -28,11 +28,11 @@ export function normalizeSavedQueries(raw: unknown, makeId: () => string): Saved
 }
 
 /** A name for a new saved query: its leading `--` comment, else its first line. */
-export function suggestQueryName(sql: string, fallback = "Untitled query"): string {
+export function suggestQueryName(sql: string): string {
   const first = sql.trim().split("\n")[0] ?? "";
   const name = first
     .replace(/^--\s*/, "")
     .trim()
     .slice(0, SUGGESTED_NAME_LENGTH);
-  return name || fallback;
+  return name || "Untitled query";
 }

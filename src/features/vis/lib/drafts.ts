@@ -1,8 +1,7 @@
 /**
  * Unsaved schema designs, one per database id, until the user saves them into
- * a database or discards them. In browsers they live in this browser's storage. In the
- * desktop app they live in the catalog, so assistants over MCP can read and edit them too;
- * this module keeps a copy in memory (loaded at start, reloaded when an assistant changes
+ * a database or discards them. They live in the catalog, so assistants over MCP can read
+ * and edit them too; this module keeps a copy in memory (loaded at start, reloaded when an assistant changes
  * the catalog) so reading stays synchronous.
  */
 import { useSyncExternalStore } from "react";
@@ -11,11 +10,9 @@ import { STORAGE_KEYS } from "@/constants";
 import { isDesktop } from "@/lib/platform";
 import { desktopDesigns, watchDesktopChanges } from "@/lib/sqlite/desktop";
 import { errorMessage } from "@/lib/sqlite/errors";
-import { readJson, removeKey, writeJson } from "@/lib/storage";
+import { readJson, removeKey } from "@/lib/storage";
 import { EMPTY_DRAFT, isDraftEmpty, normalizeDraft } from "./model";
 import type { Draft } from "@/types/features/vis/lib/model";
-
-const desktop = typeof window !== "undefined" && isDesktop();
 
 /** A draft from storage, or EMPTY_DRAFT for old, hand-edited or assistant-broken values. */
 function parseDraft(raw: unknown): Draft {
@@ -29,8 +26,6 @@ function parseDraft(raw: unknown): Draft {
     ? draft
     : EMPTY_DRAFT;
 }
-
-// ---- Desktop: the catalog, with a copy in memory ----------------------------------------
 
 /** Each design as last loaded or written here, with the catalog version it is based on. */
 const designs = new Map<string, { draft: Draft; version: number }>();
@@ -50,7 +45,6 @@ function notify(): void {
  * replaces the copy here; drafts not saved yet stay.
  */
 export async function reloadDrafts(): Promise<void> {
-  if (!desktop) return;
   await saving;
   await load();
 }
@@ -111,7 +105,8 @@ function moveLocalDrafts(): void {
   notify();
 }
 
-if (desktop) {
+// Not in tests or the browser dev server, which have no catalog to load.
+if (isDesktop()) {
   void reloadDrafts().then(moveLocalDrafts);
   // The catalog changed in another process (an assistant over MCP): its designs may have too.
   watchDesktopChanges(({ catalog }) => {
@@ -119,19 +114,11 @@ if (desktop) {
   });
 }
 
-// ---- Both builds -------------------------------------------------------------------------
-
 export function readDraft(key: string): Draft {
-  if (desktop) return designs.get(key)?.draft ?? EMPTY_DRAFT;
-  return parseDraft(readJson<unknown>(STORAGE_KEYS.visDraft + key, null));
+  return designs.get(key)?.draft ?? EMPTY_DRAFT;
 }
 
 export function writeDraft(key: string, draft: Draft): void {
-  if (!desktop) {
-    if (isDraftEmpty(draft)) removeKey(STORAGE_KEYS.visDraft + key);
-    else writeJson(STORAGE_KEYS.visDraft + key, draft);
-    return;
-  }
   if (readDraft(key) === draft) return;
   designs.set(key, { draft, version: designs.get(key)?.version ?? 0 });
   notify();
@@ -147,15 +134,12 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Whether the designs can be read yet (desktop loads them from the catalog first). */
+/** Whether the designs can be read yet: they are loaded from the catalog first. */
 export function useDraftsLoaded(): boolean {
-  return useSyncExternalStore(subscribe, () => !desktop || loaded);
+  return useSyncExternalStore(subscribe, () => loaded);
 }
 
-/**
- * The stored draft for `key`, updated when an assistant changes it. Browsers have no other
- * writer, so there it stays the same.
- */
+/** The stored draft for `key`, updated when an assistant changes it. */
 export function useStoredDraft(key: string): Draft {
-  return useSyncExternalStore(subscribe, () => (desktop ? readDraft(key) : EMPTY_DRAFT));
+  return useSyncExternalStore(subscribe, () => readDraft(key));
 }

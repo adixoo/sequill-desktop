@@ -3,6 +3,7 @@
  * into diagram tables and relationship edges, and the draft into SQL.
  * Pure functions, independent of the diagram library.
  */
+import { relations } from "@/lib/sqlite/introspect";
 import {
   buildAddColumn,
   buildCreateTable,
@@ -155,14 +156,14 @@ export function buildDiagram(
   showViews = true,
 ): Diagram {
   const tables: DiagramTable[] = [];
-  const relations = schema
+  const shown = schema
     ? [
         ...schema.tables.filter((t) => t.name !== "sqlite_sequence"),
         ...(showViews ? schema.views : []),
       ]
     : [];
 
-  for (const rel of relations) {
+  for (const rel of shown) {
     const fkByColumn = new Map(rel.foreignKeys.map((k) => [k.from, k]));
     const changes = draft.columnChanges[rel.name] ?? {};
     const columns: DiagramColumn[] = rel.columns
@@ -587,7 +588,7 @@ const errorText = (error: unknown) => (error instanceof Error ? error.message : 
 export function validateDraft(schema: Schema | null | undefined, draft: Draft): string[] {
   const problems: string[] = [];
   const finalNames = new Map<string, string>(); // lower-case final name → description
-  for (const rel of [...(schema?.tables ?? []), ...(schema?.views ?? [])]) {
+  for (const rel of relations(schema)) {
     if (draft.droppedTables.includes(rel.name)) continue;
     const name = (draft.renamedTables[rel.name] ?? rel.name).trim();
     if (!name) problems.push(`Table ${rel.name} needs a name`);

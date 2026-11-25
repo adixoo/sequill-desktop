@@ -3,7 +3,6 @@ import { DialogDescription, DialogHeader, DialogTitle } from "@/components/atoms
 import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/atoms/responsive-dialog";
 import { NameDialog } from "@/components/organisms/dialogs/simple-dialogs";
 import { useDbActions } from "@/hooks/use-db-actions";
-import { storagePlace } from "@/lib/platform";
 import type { Dialect } from "@/types/features/vis/lib/dialects";
 import { DialectTiles } from "./import-schema-dialog";
 
@@ -22,7 +21,7 @@ export function NewDatabaseDialog({ onClose }: { onClose(): void }) {
         title={`New ${dialect.label} database`}
         description={
           sqlite
-            ? `An empty database, stored ${storagePlace()}. The editor opens it too.`
+            ? "An empty database, stored on this computer. The editor opens it too."
             : `An empty design for ${dialect.label}, kept in the schema designer. Export its SQL to make the database.`
         }
         label="Name"

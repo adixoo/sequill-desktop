@@ -1,5 +1,4 @@
 import { useMcpStatus } from "@/hooks/use-mcp";
-import { isDesktop } from "@/lib/platform";
 import { useDialogs } from "@/store/dialogs";
 import { cn } from "@/utils";
 import { Badge } from "@/components/atoms/badge";
@@ -17,7 +16,6 @@ const STATE_COLORS = {
 export function McpButton({ className }: { className?: string }) {
   const status = useMcpStatus();
   const openDialog = useDialogs((s) => s.open);
-  if (!isDesktop()) return null;
   const on = status.data?.enabled ?? false;
   const state = !on ? "off" : status.data?.allowChanges ? "on" : "read only";
   const meaning = !on
@@ -44,7 +42,6 @@ export function McpButton({ className }: { className?: string }) {
 /** Opens the history of what assistants did over MCP. Desktop only. */
 export function McpHistoryButton({ className }: { className?: string }) {
   const openDialog = useDialogs((s) => s.open);
-  if (!isDesktop()) return null;
   return (
     <Button
       variant="ghost"

@@ -1,4 +1,5 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
+import { copyText } from "@/hooks/use-copy";
 import {
   Check,
   ClipboardCopy,
@@ -216,12 +217,7 @@ export function DataGrid({
     } else if (cursor) {
       text = valueToText(rows[cursor.row]?.[laid[cursor.col].index] ?? null);
     } else return;
-    try {
-      await navigator.clipboard.writeText(text);
-      toast.success(selected.size > 0 ? `Copied ${selected.size} rows` : "Copied value");
-    } catch {
-      toast.error("The browser blocked clipboard access");
-    }
+    await copyText(text, selected.size > 0 ? `Copied ${selected.size} rows` : "Copied value");
   };
 
   const onKeyDown = async (e: KeyboardEvent<HTMLDivElement>) => {
@@ -535,12 +531,7 @@ export function DataGrid({
               const obj = Object.fromEntries(
                 columns.map((c, i) => [c.name, valueToText(rows[cursor.row]?.[i] ?? null)]),
               );
-              try {
-                await navigator.clipboard.writeText(JSON.stringify(obj, null, 2));
-                toast.success("Copied row as JSON");
-              } catch {
-                toast.error("The browser blocked clipboard access");
-              }
+              await copyText(JSON.stringify(obj, null, 2), "Copied row as JSON");
             }}
           >
             <Copy /> Copy row as JSON

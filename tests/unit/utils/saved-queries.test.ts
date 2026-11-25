@@ -50,6 +50,6 @@ describe("suggestQueryName", () => {
   test("shortens long lines and falls back when empty", () => {
     expect(suggestQueryName(`SELECT ${"x".repeat(100)}`)).toHaveLength(48);
     expect(suggestQueryName("   ")).toBe("Untitled query");
-    expect(suggestQueryName("--", "Query 3")).toBe("Query 3");
+    expect(suggestQueryName("--")).toBe("Untitled query");
   });
 });

@@ -1,4 +1,5 @@
 import { SQLite, sql as sqlLanguage } from "@codemirror/lang-sql";
+import { relations } from "@/lib/sqlite/introspect";
 import type { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import {
@@ -152,7 +153,7 @@ export default function QueryConsole({
 
   const extensions = useMemo(() => {
     const completion: Record<string, string[]> = {};
-    for (const rel of [...(schema?.tables ?? []), ...(schema?.views ?? [])]) {
+    for (const rel of relations(schema)) {
       completion[rel.name] = rel.columns.map((c) => c.name);
     }
     return [

@@ -1,3 +1,4 @@
+import { relations } from "@/lib/sqlite/introspect";
 import {
   Database,
   Download,
@@ -68,7 +69,7 @@ export default function CommandPalette({ open, onOpenChange, schema }: CommandPa
             <CommandEmpty>Nothing matches.</CommandEmpty>
             {schema && schema.tables.length + schema.views.length > 0 && (
               <CommandGroup heading="Tables and views">
-                {[...schema.tables, ...schema.views].map((r) => (
+                {relations(schema).map((r) => (
                   <CommandItem
                     key={r.name}
                     value={`open ${r.name}`}

@@ -1,4 +1,5 @@
 import { Eye, FolderOpen, Plus, Sparkles, SquareTerminal, Table } from "@/components/atoms/icons";
+import { relations } from "@/lib/sqlite/introspect";
 import { m } from "motion/react";
 import { Mark, Note } from "@/components/molecules/pastel/annotation";
 import { Button } from "@/components/atoms/button";
@@ -6,7 +7,6 @@ import { Kbd } from "@/components/atoms/kbd";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { useTableCount } from "@/hooks/use-db";
 import { enter } from "@/lib/motion";
-import { isDesktop } from "@/lib/platform";
 import type { Schema, RelationInfo } from "@/types/lib/sqlite/types";
 import { useDialogs } from "@/store/dialogs";
 import { useWorkspace } from "@/store/workspace";
@@ -26,8 +26,7 @@ export function NoDatabase() {
           Open a database to begin
         </h1>
         <p className="text-base leading-relaxed text-ink-soft">
-          Files stay {isDesktop() ? "on this computer" : "in this browser's private storage"}.
-          Nothing is uploaded, and it all keeps working offline.
+          Files stay on this computer. Nothing is uploaded, and it all keeps working offline.
         </p>
         <div className="flex flex-wrap gap-2">
           <Button onClick={() => void actions.pickFile()}>
@@ -47,7 +46,7 @@ export function NoDatabase() {
         <div className="relative -mt-4 flex items-end gap-1 pl-6 pointer-coarse:hidden">
           <Mark name="rise" className="w-8 shrink-0" delay={0.5} />
           {/* Lowered so the arrow's tail meets the middle of the text. */}
-          <Note delay={1.1} size="sm" className="translate-y-2.5">
+          <Note delay={1.1} className="translate-y-2.5">
             or drop a file anywhere
           </Note>
         </div>
@@ -130,9 +129,9 @@ export function NoTab({ schema }: { schema: Schema | undefined }) {
   const openTable = useWorkspace((s) => s.openTable);
   const openQuery = useWorkspace((s) => s.openQuery);
   const openDialog = useDialogs((s) => s.open);
-  const relations = [...(schema?.tables ?? []), ...(schema?.views ?? [])];
-  const listed = relations.slice(0, LISTED_RELATIONS);
-  const hidden = relations.length - listed.length;
+  const all = relations(schema);
+  const listed = all.slice(0, LISTED_RELATIONS);
+  const hidden = all.length - listed.length;
   return (
     <div data-density="comfortable" className="flex flex-1 overflow-y-auto bg-canvas p-6">
       <m.div {...enter()} className="@container m-auto flex w-full max-w-2xl flex-col gap-10 py-8">

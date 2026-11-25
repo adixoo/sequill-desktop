@@ -96,20 +96,24 @@ export function ColumnFields({
     />
   );
 
+  const typePicker = (
+    <TypePicker
+      id={`${id}-type`}
+      value={col.type}
+      onChange={(type) => set({ type })}
+      choices={types}
+      aria-label={compact ? "Type" : undefined}
+      className={compact ? "min-w-0 flex-1 @sm:w-36 @sm:flex-none" : "w-full"}
+    />
+  );
+
   if (!compact) {
     return (
       <div className="grid grid-cols-[4.5rem_minmax(0,1fr)] items-center gap-3">
         <FieldLabel htmlFor={`${id}-name`}>Name</FieldLabel>
         {name}
         <FieldLabel htmlFor={`${id}-type`}>Type</FieldLabel>
-        <TypePicker
-          id={`${id}-type`}
-          value={col.type}
-          onChange={(type) => set({ type })}
-          choices={types}
-          aria-label={compact ? "Type" : undefined}
-          className={compact ? "min-w-0 flex-1 @sm:w-36 @sm:flex-none" : "w-full"}
-        />
+        {typePicker}
         <RulesLabel id={id} className="self-start pt-px" />
         <ConstraintChecks {...field} mode={mode} />
         <FieldLabel htmlFor={`${id}-default`}>Default</FieldLabel>
@@ -139,14 +143,7 @@ export function ColumnFields({
     <div className="@container flex flex-col gap-3 rounded-sm bg-raised p-3 ring-2 ring-hairline ring-inset">
       <div className="flex flex-wrap items-center gap-2">
         {name}
-        <TypePicker
-          id={`${id}-type`}
-          value={col.type}
-          onChange={(type) => set({ type })}
-          choices={types}
-          aria-label={compact ? "Type" : undefined}
-          className={compact ? "min-w-0 flex-1 @sm:w-36 @sm:flex-none" : "w-full"}
-        />
+        {typePicker}
         {actions}
       </div>
       <CompactRow label={<RulesLabel id={id} />}>

@@ -137,8 +137,8 @@ export function useDbActions() {
     if (useWorkspace.getState().dbId === info.id) setDb(null);
     client.removeQueries({ queryKey: queryKeys.data(info.id) });
     client.removeQueries({ queryKey: queryKeys.schema(info.id) });
-    // Its schema page state (unsaved design, layout, colors) goes with it.
-    for (const key of [STORAGE_KEYS.visDraft, STORAGE_KEYS.visLayout, STORAGE_KEYS.visColors]) {
+    // Its schema page layout and colors go with it (the catalog drops its unsaved design).
+    for (const key of [STORAGE_KEYS.visLayout, STORAGE_KEYS.visColors]) {
       removeKey(key + info.id);
     }
   };

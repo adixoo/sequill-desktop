@@ -20,8 +20,6 @@ interface CodeBlockProps {
   code: string;
   /** How to colour the code; SQL unless said otherwise. */
   language?: CodeLanguage;
-  /** 1-based line that gets the lilac wash. */
-  highlightLine?: number;
   /** Shows a Copy button in the title bar. */
   copyable?: boolean;
   /** Wraps long lines instead of scrolling sideways, so a one-line command reads whole. */
@@ -36,7 +34,6 @@ export function CodeBlock({
   fileName,
   code,
   language = "sql",
-  highlightLine,
   copyable,
   wrap,
   bare,
@@ -72,10 +69,7 @@ export function CodeBlock({
       >
         <code className={cn("block min-w-full", bare ? "px-3" : "px-2", !wrap && "w-max")}>
           {lines.map((line, i) => (
-            <span
-              key={i}
-              className={cn("flex rounded-xs pr-4", highlightLine === i + 1 && "bg-lilac-wash")}
-            >
+            <span key={i} className="flex rounded-xs pr-4">
               {!bare && (
                 <span aria-hidden className="w-10 shrink-0 pr-4 text-right text-decor select-none">
                   {i + 1}

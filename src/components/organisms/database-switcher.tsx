@@ -23,7 +23,6 @@ import { useDatabases } from "@/hooks/use-db";
 import type { DatabaseScope } from "@/types/hooks/use-db";
 import { DialectIcon } from "@/components/molecules/dialect-icon";
 import { formatBytes } from "@/utils/data/format";
-import { isDesktop } from "@/lib/platform";
 import { useDialogs } from "@/store/dialogs";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
@@ -41,13 +40,11 @@ interface DatabaseSwitcherProps {
   onImportSchema?(): void;
   /** Replaces the plain "new database" dialog (the schema page asks which database first). */
   onNewDatabase?(): void;
-  /** "panel" fills a sidebar; "inline" is a single-line header control. */
-  variant?: "panel" | "inline";
   className?: string;
 }
 
 /**
- * The databases saved here (browser or computer) and what you can do with them. The same
+ * The databases on this computer and what you can do with them, as a header control. The same
  * list and actions appear in the editor and on the schema page.
  */
 export function DatabaseSwitcher({
@@ -57,7 +54,6 @@ export function DatabaseSwitcher({
   hasDraft,
   onImportSchema,
   onNewDatabase,
-  variant = "panel",
   className,
 }: DatabaseSwitcherProps) {
   const dbs = useDatabases(scope);
@@ -76,33 +72,20 @@ export function DatabaseSwitcher({
         <Button
           variant="outline"
           aria-label={`Database: ${label}`}
-          className={cn(
-            "justify-between gap-2 text-left",
-            variant === "panel" ? "h-auto w-full py-1.5" : "h-8 w-56 max-sm:w-40",
-            className,
-          )}
+          className={cn("h-8 w-56 justify-between gap-2 text-left max-sm:w-40", className)}
         >
-          {variant === "panel" ? (
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-semibold text-ink">{label}</span>
-              <span className="font-mono text-[0.6875rem] text-ink-muted">
-                {current ? formatBytes(current.sizeBytes) : `${dbs.data?.length ?? 0} saved`}
+          <span className="flex min-w-0 items-center gap-2">
+            <DialectIcon
+              dialect={current ? (current.dialect ?? "sqlite") : ""}
+              className="size-(--icon) text-ink-muted"
+            />
+            <span className="truncate text-sm font-semibold text-ink">{label}</span>
+            {current && (
+              <span className="font-mono text-[0.6875rem] text-ink-muted max-sm:hidden">
+                {formatBytes(current.sizeBytes)}
               </span>
-            </span>
-          ) : (
-            <span className="flex min-w-0 items-center gap-2">
-              <DialectIcon
-                dialect={current ? (current.dialect ?? "sqlite") : ""}
-                className="size-(--icon) text-ink-muted"
-              />
-              <span className="truncate text-sm font-semibold text-ink">{label}</span>
-              {current && (
-                <span className="font-mono text-[0.6875rem] text-ink-muted max-sm:hidden">
-                  {formatBytes(current.sizeBytes)}
-                </span>
-              )}
-            </span>
-          )}
+            )}
+          </span>
           <ChevronsUpDown className="text-ink-muted" />
         </Button>
       </DropdownMenuTrigger>
@@ -110,9 +93,7 @@ export function DatabaseSwitcher({
         align="start"
         className="w-(--radix-dropdown-menu-trigger-width) min-w-64"
       >
-        <DropdownMenuLabel className="q-label text-ink-muted">
-          {isDesktop() ? "On this computer" : "In this browser"}
-        </DropdownMenuLabel>
+        <DropdownMenuLabel className="q-label text-ink-muted">On this computer</DropdownMenuLabel>
         {databases?.map((d) => (
           <DropdownMenuItem
             key={d.id}
@@ -214,8 +195,7 @@ export function DatabaseSwitcher({
               variant="destructive"
               onSelect={() => openDialog({ kind: "deleteDatabase", db: current })}
             >
-              <Trash />{" "}
-              {current.path ? "Remove from list" : isDesktop() ? "Delete" : "Delete from browser"}
+              <Trash /> {current.path ? "Remove from list" : "Delete"}
             </DropdownMenuItem>
           </>
         )}

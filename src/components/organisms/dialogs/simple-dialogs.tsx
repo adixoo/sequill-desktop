@@ -1,6 +1,4 @@
-import { Copy } from "@/components/atoms/icons";
 import { useState } from "react";
-import { toast } from "@/components/atoms/toast";
 import { CodeBlock } from "@/components/molecules/pastel/code-block";
 import {
   AlertDialog,
@@ -24,7 +22,6 @@ import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { useRunStatements } from "@/hooks/use-db";
-import { isDesktop } from "@/lib/platform";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { sqlLiteral } from "@/lib/sqlite/sql";
 import type { DbInfo, SqlStatement } from "@/types/lib/sqlite/types";
@@ -221,25 +218,6 @@ export function NameDialog({
   );
 }
 
-/** Copies `text` to the clipboard and confirms with a toast. */
-export function CopyButton({ text, copied }: { text: string; copied: string }) {
-  return (
-    <Button
-      variant="outline"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          toast.success(copied);
-        } catch {
-          toast.error("The browser blocked clipboard access");
-        }
-      }}
-    >
-      <Copy /> Copy
-    </Button>
-  );
-}
-
 export function DdlDialog({ title, sql, onClose }: Closable & { title: string; sql: string }) {
   return (
     <ResponsiveDialog open onOpenChange={(open) => !open && onClose()}>
@@ -248,9 +226,13 @@ export function DdlDialog({ title, sql, onClose }: Closable & { title: string; s
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>The SQL that defines this object.</DialogDescription>
         </DialogHeader>
-        <CodeBlock fileName={`${title}.sql`} code={sql} className="max-h-[60vh] overflow-y-auto" />
+        <CodeBlock
+          fileName={`${title}.sql`}
+          code={sql}
+          copyable
+          className="max-h-[60vh] overflow-y-auto"
+        />
         <DialogFooter>
-          <CopyButton text={sql} copied="SQL copied" />
           <Button onClick={onClose}>Done</Button>
         </DialogFooter>
       </ResponsiveDialogContent>
@@ -292,8 +274,8 @@ export function DeleteDatabaseDialog({ db, onClose }: Closable & { db: DbInfo })
         <AlertDialogHeader>
           <AlertDialogTitle>Delete {db.name}?</AlertDialogTitle>
           <AlertDialogDescription>
-            It is removed {isDesktop() ? "from this computer" : "from this browser's storage"} and
-            can&apos;t be recovered. Download it first if you need a copy.
+            It is removed from this computer and can&apos;t be recovered. Download it first if you
+            need a copy.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

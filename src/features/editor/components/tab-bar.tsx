@@ -61,7 +61,7 @@ export function EditorHeader({
       }
     >
       <div className="flex min-w-0 items-center">
-        <DatabaseSwitcher variant="inline" dbId={dbId} hasDraft={hasUnsavedDesign} />
+        <DatabaseSwitcher dbId={dbId} hasDraft={hasUnsavedDesign} />
       </div>
     </AppHeader>
   );

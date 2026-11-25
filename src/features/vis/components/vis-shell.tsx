@@ -21,7 +21,6 @@ import {
 } from "@/components/atoms/alert-dialog";
 import { Button } from "@/components/atoms/button";
 import { queryKeys, useDatabases, useRestoreLastDatabase, useSchema } from "@/hooks/use-db";
-import { isDesktop } from "@/lib/platform";
 import { useWorkspace } from "@/store/workspace";
 import { hasUnsavedDesign, useDraftsLoaded, writeDraft } from "@/features/vis/lib/drafts";
 import { EMPTY_DRAFT } from "@/features/vis/lib/model";
@@ -77,12 +76,11 @@ function Visualizer() {
       >
         <div className="flex min-w-0 items-center gap-2">
           <DatabaseSwitcher
-            variant="inline"
             dbId={activeDb}
             onSwitch={(id) => leave({ kind: "db", id })}
             scope="designer"
             hasDraft={hasUnsavedDesign}
-            onImportSchema={isDesktop() ? () => setImporting(true) : undefined}
+            onImportSchema={() => setImporting(true)}
             onNewDatabase={() => setCreating(true)}
           />
           {/* The designer shows its save state here: "Unsaved" (click to save), "Saved". */}
@@ -100,11 +98,9 @@ function Visualizer() {
             <Button onClick={() => setCreating(true)}>
               <Plus /> New database
             </Button>
-            {isDesktop() && (
-              <Button variant="outline" onClick={() => setImporting(true)}>
-                <FileUp /> Import a schema
-              </Button>
-            )}
+            <Button variant="outline" onClick={() => setImporting(true)}>
+              <FileUp /> Import a schema
+            </Button>
           </div>
         </div>
       ) : ready ? (
