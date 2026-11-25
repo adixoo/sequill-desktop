@@ -19,16 +19,49 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/atoms/dialog";
-import { CheckCircle, ChevronRight, History, TriangleAlert } from "@/components/atoms/icons";
+import { Check, ChevronRight, ChevronUp, History, TriangleAlert } from "@/components/atoms/icons";
+import { Kbd, KbdGroup } from "@/components/atoms/kbd";
 import { Label } from "@/components/atoms/label";
 import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/atoms/responsive-dialog";
 import { Spinner } from "@/components/atoms/spinner";
 import { Switch } from "@/components/atoms/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/atoms/toggle-group";
 
-/** A step's text with `code` and **bold** spans. */
+/**
+ * A step's text with `code`, **bold**, [[Ctrl+K]] (key caps) and {{icon}} spans: {{tray}} is the
+ * taskbar's show-hidden-icons arrow, any other name an `AssistantIcon`.
+ */
 function StepText({ text }: { text: string }) {
-  return text.split(/(`[^`]+`|\*\*[^*]+\*\*)/).map((part, i) => {
+  return text.split(/(`[^`]+`|\*\*[^*]+\*\*|\[\[[^\]]+\]\]|\{\{[^}]+\}\})/).map((part, i) => {
+    if (part.startsWith("{{") && part.endsWith("}}")) {
+      const name = part.slice(2, -2);
+      return (
+        <span
+          key={i}
+          className="inline-flex size-5 items-center justify-center rounded-sm bg-raised align-text-bottom text-ink ring-1 ring-hairline"
+        >
+          {name === "tray" ? (
+            <ChevronUp className="size-3.5" />
+          ) : (
+            <AssistantIcon client={name} className="size-3.5" />
+          )}
+        </span>
+      );
+    }
+    if (part.startsWith("[[") && part.endsWith("]]")) {
+      return (
+        <KbdGroup key={i} className="align-baseline">
+          {part
+            .slice(2, -2)
+            .split("+")
+            .map((key) => (
+              <Kbd key={key} className="bg-raised text-ink ring-1 ring-hairline">
+                {key}
+              </Kbd>
+            ))}
+        </KbdGroup>
+      );
+    }
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
         <code
@@ -48,6 +81,22 @@ function StepText({ text }: { text: string }) {
     }
     return part;
   });
+}
+
+/** Numbered steps in the StepText format. */
+function StepList({ steps }: { steps: string[] }) {
+  return (
+    <ol className="flex flex-col gap-2.5">
+      {steps.map((step, i) => (
+        <li key={step} className="flex gap-3 text-sm leading-relaxed text-ink-soft">
+          <StepNumber n={i + 1} />
+          <span className="min-w-0">
+            <StepText text={step} />
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 /** One of the guide's three steps. */
@@ -153,16 +202,7 @@ function Permissions({ status }: { status: McpStatus }) {
 function ManualSteps({ client, code, os }: { client: McpClient; code: string; os: McpOs }) {
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <ol className="flex flex-col gap-2.5">
-        {client.steps(os).map((step, i) => (
-          <li key={step} className="flex gap-3 text-sm leading-relaxed text-ink-soft">
-            <StepNumber n={i + 1} />
-            <span className="min-w-0">
-              <StepText text={step} />
-            </span>
-          </li>
-        ))}
-      </ol>
+      <StepList steps={client.steps(os)} />
       <CodeBlock
         fileName={client.fileName}
         code={code}
@@ -176,7 +216,7 @@ function ManualSteps({ client, code, os }: { client: McpClient; code: string; os
 }
 
 /** The "Add to …" button, then what happened and what to do next. */
-function OneClick({ client, next }: { client: McpClient; next: string }) {
+function OneClick({ client, next }: { client: McpClient; next: string[] }) {
   const install = useInstallMcp();
   return (
     <div className="flex flex-col gap-3 rounded-md bg-raised p-4">
@@ -195,16 +235,26 @@ function OneClick({ client, next }: { client: McpClient; next: string }) {
         </p>
       </div>
       {install.isSuccess && (
-        <p
+        <div
           role="status"
-          className="flex items-start gap-2 rounded-md bg-mint-wash px-3 py-2.5 text-sm leading-relaxed text-mint-ink"
+          className="flex flex-col gap-3 rounded-md bg-surface p-4 ring-2 ring-hairline ring-inset"
         >
-          <CheckCircle className="mt-0.5 size-4 shrink-0" />
-          <span className="min-w-0">
-            <strong className="font-semibold">Added.</strong> <StepText text={next} />
-            <span className="mt-1 block text-xs break-all opacity-80">{install.data}</span>
-          </span>
-        </p>
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
+            <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-mint-wash text-mint-ink">
+              <Check className="size-3.5" />
+            </span>
+            Sequill was added to
+            <span className="inline-flex items-center gap-1.5">
+              <AssistantIcon client={client.id} className="size-4" />
+              {client.name}
+            </span>
+          </p>
+          <div className="flex flex-col gap-2 sm:pl-8">
+            <p className="text-xs font-semibold text-ink-muted">What to do now</p>
+            <StepList steps={next} />
+            <p className="text-xs leading-relaxed break-all text-ink-muted">{install.data}</p>
+          </div>
+        </div>
       )}
       {install.isError && (
         <p
@@ -225,7 +275,7 @@ function ClientSetup({ client, status }: { client: McpClient; status: McpStatus 
   if (!client.oneClick) return steps;
   return (
     <>
-      <OneClick client={client} next={client.oneClick} />
+      <OneClick client={client} next={client.oneClick(status.os)} />
       <details className="group rounded-md ring-2 ring-hairline ring-inset">
         <summary className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
           <ChevronRight className="size-4 transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none" />

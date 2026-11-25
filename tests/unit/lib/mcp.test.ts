@@ -97,6 +97,13 @@ describe("steps fit the system", () => {
     expect(steps("claude-code", "windows")).toContain("**PowerShell**");
   });
 
+  test("Claude Desktop says how to force it to quit, after adding and by hand", () => {
+    const claude = MCP_CLIENTS.find((c) => c.id === "claude-desktop")!;
+    expect(claude.oneClick!("windows").join(" ")).toContain("Task Manager");
+    expect(claude.steps("windows").join(" ")).toContain("**End task**");
+    expect(claude.oneClick!("macos").join(" ")).toContain("**Force Quit**");
+  });
+
   test("one-click clients say what to do after adding", () => {
     const oneClick = MCP_CLIENTS.filter((c) => c.oneClick).map((c) => c.id);
     // Must match the clients `install` in src-tauri/src/mcp_install.rs knows.

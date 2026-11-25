@@ -144,16 +144,16 @@ export function zedConfig(command: McpCommand): string {
   return JSON.stringify({ context_servers: { [MCP_SERVER_NAME]: entry } }, null, 2);
 }
 
-/** "Ctrl+K" or, on a Mac, "Cmd+K". */
-const keys = (os: McpOs, key: string): string => `${os === "macos" ? "Cmd" : "Ctrl"}+${key}`;
+/** Keys to press as `[[Ctrl+K]]` (shown as key caps), or on a Mac `[[Cmd+K]]`. */
+const keys = (os: McpOs, key: string): string => `[[${os === "macos" ? "Cmd" : "Ctrl"}+${key}]]`;
 
 /** How to open a terminal on this system. */
 function openTerminal(os: McpOs): string {
   if (os === "windows") {
-    return "Open **PowerShell**: press the **Windows** key, type `PowerShell` and press **Enter**.";
+    return "Open **PowerShell**: press the [[Windows]] key, type `PowerShell` and press [[Enter]].";
   }
   if (os === "macos") {
-    return "Open **Terminal**: press **Cmd+Space**, type `Terminal` and press **Enter**.";
+    return "Open **Terminal**: press [[Cmd+Space]], type `Terminal` and press [[Enter]].";
   }
   return "Open a terminal.";
 }
@@ -162,12 +162,39 @@ function openTerminal(os: McpOs): string {
 const textEditor = (os: McpOs): string =>
   os === "windows" ? "**Notepad**" : os === "macos" ? "**TextEdit**" : "a text editor";
 
+/**
+ * Claude Desktop reads its settings only at start, and closing its window leaves it running in
+ * the background, so this says how to quit it for real, and how to force it.
+ */
+function quitClaudeDesktop(os: McpOs): string[] {
+  const reopen = "Open **Claude Desktop** again. It now knows Sequill.";
+  if (os === "windows") {
+    return [
+      "Close Claude Desktop's window. It keeps running in the **system tray**, at the right end of the taskbar next to the clock.",
+      "Click the {{tray}} arrow in the system tray to show hidden icons, right-click the {{claude-desktop}} **Claude** icon and choose **Quit**.",
+      "Still running? Press [[Ctrl+Shift+Esc]] to open **Task Manager**, select **Claude** and click **End task**.",
+      reopen,
+    ];
+  }
+  if (os === "macos") {
+    return [
+      "Press [[Cmd+Q]] in Claude Desktop. Closing the window alone leaves it running.",
+      "Won't quit? Press [[Cmd+Option+Esc]], select **Claude** and click **Force Quit**.",
+      reopen,
+    ];
+  }
+  return [
+    "Quit Claude Desktop from its menu or the system tray. Closing the window alone leaves it running.",
+    reopen,
+  ];
+}
+
 /** Steps for clients set up with one terminal command. */
 const commandSteps =
   (app: string, check: string) =>
   (os: McpOs): string[] => [
     openTerminal(os),
-    "Paste this command and press **Enter**.",
+    "Paste this command and press [[Enter]].",
     `Start a new ${app} session. ${check}`,
   ];
 
@@ -181,14 +208,10 @@ export const MCP_CLIENTS: McpClient[] = [
     steps: (os) => [
       `In Claude Desktop, open **Settings** (${keys(os, ",")}), go to **Developer** and click **Edit Config**. A folder opens with \`claude_desktop_config.json\` in it.`,
       `Open that file in ${textEditor(os)}. If it's empty, paste this in. If it already has \`mcpServers\`, add only the \`sequill\` part inside it.`,
-      os === "macos"
-        ? "Save the file, press **Cmd+Q** in Claude Desktop to quit it, then open it again."
-        : os === "windows"
-          ? "Save the file. Quit Claude Desktop completely: right-click its icon next to the clock and choose **Quit**. Then open it again."
-          : "Save the file, then quit Claude Desktop completely and open it again.",
+      "Save the file.",
+      ...quitClaudeDesktop(os),
     ],
-    oneClick:
-      "Now quit Claude Desktop completely (closing the window isn't enough) and open it again.",
+    oneClick: quitClaudeDesktop,
     fileName: "claude_desktop_config.json",
     language: "json",
     config: mcpConfig,
@@ -199,8 +222,9 @@ export const MCP_CLIENTS: McpClient[] = [
     kind: "Terminal",
     install: "command",
     steps: commandSteps("Claude Code", "Type `/mcp` to see that **sequill** is connected."),
-    oneClick:
+    oneClick: () => [
       "Start a new Claude Code session and type `/mcp` to see that **sequill** is connected.",
+    ],
     fileName: "terminal",
     language: "bash",
     config: claudeCodeCommand,
@@ -215,8 +239,9 @@ export const MCP_CLIENTS: McpClient[] = [
       "Paste this in. If the file already has `mcpServers`, add only the `sequill` part inside it.",
       "Save the file. Sequill's tools work in the Agent chat.",
     ],
-    oneClick:
+    oneClick: () => [
       "Open **Cursor Settings → Tools & MCP** and check that **sequill** is on, then ask in the Agent chat.",
+    ],
     fileName: "mcp.json",
     language: "json",
     config: mcpConfig,
@@ -227,12 +252,13 @@ export const MCP_CLIENTS: McpClient[] = [
     kind: "Code editor",
     install: "file",
     steps: (os) => [
-      `Press **${keys(os, "Shift+P")}** and run **MCP: Open User Configuration**.`,
+      `Press ${keys(os, "Shift+P")} and run **MCP: Open User Configuration**.`,
       "Paste this into `mcp.json`. If it already has `servers`, add only the `sequill` part inside it.",
       "Save the file, then use Copilot Chat in **Agent** mode.",
     ],
-    oneClick:
+    oneClick: () => [
       "Open Copilot Chat in **Agent** mode. If VS Code asks whether to start **sequill**, click **Start**.",
+    ],
     fileName: "mcp.json",
     language: "json",
     config: vsCodeConfig,
@@ -243,7 +269,9 @@ export const MCP_CLIENTS: McpClient[] = [
     kind: "Terminal",
     install: "command",
     steps: commandSteps("Codex", "Type `/mcp` to see that **sequill** is listed."),
-    oneClick: "Start a new Codex session and type `/mcp` to see that **sequill** is listed.",
+    oneClick: () => [
+      "Start a new Codex session and type `/mcp` to see that **sequill** is listed.",
+    ],
     fileName: "terminal",
     language: "bash",
     config: codexCommand,
@@ -254,8 +282,9 @@ export const MCP_CLIENTS: McpClient[] = [
     kind: "Terminal",
     install: "command",
     steps: commandSteps("Gemini CLI", "Type `/mcp` to see that **sequill** is connected."),
-    oneClick:
+    oneClick: () => [
       "Start a new Gemini CLI session and type `/mcp` to see that **sequill** is connected.",
+    ],
     fileName: "terminal",
     language: "bash",
     config: geminiCommand,
@@ -270,7 +299,7 @@ export const MCP_CLIENTS: McpClient[] = [
       "Paste this in. If the file already has `mcpServers`, add only the `sequill` part inside it.",
       "Save the file and refresh the MCP servers in Cascade.",
     ],
-    oneClick: "Refresh the MCP servers in Cascade, or restart Windsurf.",
+    oneClick: () => ["Refresh the MCP servers in Cascade, or restart Windsurf."],
     fileName: "mcp_config.json",
     language: "json",
     config: mcpConfig,
@@ -281,7 +310,7 @@ export const MCP_CLIENTS: McpClient[] = [
     kind: "Code editor",
     install: "file",
     steps: (os) => [
-      `Press **${keys(os, "Shift+P")}** and run **zed: open settings file**.`,
+      `Press ${keys(os, "Shift+P")} and run **zed: open settings file**.`,
       "Add this to `settings.json`. If it already has `context_servers`, add only the `sequill` part inside it.",
       "Save the file. Sequill shows up in the Agent Panel's settings.",
     ],

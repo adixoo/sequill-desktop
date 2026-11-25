@@ -52,13 +52,16 @@ export interface McpClient {
    * "command": one line to paste into a terminal. "file": text to add to a settings file.
    */
   install: "command" | "file";
-  /** What to do by hand on this system, in order. `code` and **bold** are rendered as such. */
+  /**
+   * What to do by hand on this system, in order. `code`, **bold**, [[Ctrl+K]] (key caps) and {{icon}}
+   * are rendered as such.
+   */
   steps(os: McpOs): string[];
   /**
    * Set when the app can add itself to this client (`install_mcp` in `src-tauri`): what to do
-   * after that, in the same format as `steps`.
+   * after that on this system, in the same format as `steps`.
    */
-  oneClick?: string;
+  oneClick?(os: McpOs): string[];
   /** Title of the code window: the file to edit, or "terminal". */
   fileName: string;
   language: CodeLanguage;
