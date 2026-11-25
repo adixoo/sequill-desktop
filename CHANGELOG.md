@@ -1,5 +1,11 @@
 # sqlite-browser-editor
 
+## 1.2.2
+
+### Patch Changes
+
+- 142ef6f: The header shows the Sequill logo instead of the name before the page switcher.
+
 ## 1.2.1
 
 ### Patch Changes
