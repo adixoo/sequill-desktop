@@ -15,7 +15,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 
 /// Largest integer a JavaScript number holds exactly (`Number.MAX_SAFE_INTEGER`).
-pub const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
+const MAX_SAFE_INTEGER: i64 = 9_007_199_254_740_991;
 
 const BIGINT_TAG: &str = "$bigint";
 const BLOB_TAG: &str = "$blob";

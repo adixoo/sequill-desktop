@@ -4,7 +4,7 @@
 use std::ffi::CString;
 
 /// True when `sql` ends a complete statement (SQLite's `sqlite3_complete`).
-pub fn is_complete(sql: &str) -> bool {
+fn is_complete(sql: &str) -> bool {
     let Ok(sql) = CString::new(sql) else {
         return false;
     };

@@ -9,11 +9,15 @@ use std::process::Command;
 /// The server's name in every client's settings; matches `MCP_SERVER_NAME` in `src/lib/mcp.ts`.
 const SERVER_NAME: &str = "sequill";
 
+/// The arguments after the app's own path that start its MCP server (`sequill mcp`).
+pub(crate) const MCP_ARGS: &[&str] = &["mcp"];
+
 type Res<T> = Result<T, String>;
 
-/// Adds the server that `command args` starts to `client`; returns what was done, in a sentence.
-pub fn install(client: &str, command: &str, args: &[String]) -> Res<String> {
-    let entry = json!({ "command": command, "args": args });
+/// Adds the server that `command MCP_ARGS` starts to `client`; returns what was done, in a
+/// sentence.
+pub fn install(client: &str, command: &str) -> Res<String> {
+    let entry = json!({ "command": command, "args": MCP_ARGS });
     let config = || dirs::config_dir().ok_or("Sequill can't find your settings folder.");
     let home = || dirs::home_dir().ok_or("Sequill can't find your home folder.");
     match client {
@@ -36,7 +40,7 @@ pub fn install(client: &str, command: &str, args: &[String]) -> Res<String> {
             &entry,
         ),
         "vscode" => {
-            let entry = json!({ "type": "stdio", "command": command, "args": args });
+            let entry = json!({ "type": "stdio", "command": command, "args": MCP_ARGS });
             add_to_files(
                 "VS Code",
                 &[config()?.join("Code").join("User")],
@@ -64,7 +68,7 @@ pub fn install(client: &str, command: &str, args: &[String]) -> Res<String> {
         ),
         "claude-code" => {
             let mut add = vec!["mcp", "add", "--scope", "user", SERVER_NAME, "--", command];
-            add.extend(args.iter().map(String::as_str));
+            add.extend(MCP_ARGS);
             run_cli(
                 "Claude Code",
                 "claude",
@@ -74,7 +78,7 @@ pub fn install(client: &str, command: &str, args: &[String]) -> Res<String> {
         }
         "codex" => {
             let mut add = vec!["mcp", "add", SERVER_NAME, "--", command];
-            add.extend(args.iter().map(String::as_str));
+            add.extend(MCP_ARGS);
             run_cli("Codex", "codex", &["mcp", "remove", SERVER_NAME], &add)
         }
         _ => Err(format!(
@@ -243,6 +247,6 @@ mod tests {
 
     #[test]
     fn unknown_clients_are_refused() {
-        assert!(install("jetbrains", "x", &[]).is_err());
+        assert!(install("jetbrains", "x").is_err());
     }
 }

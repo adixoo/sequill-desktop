@@ -1,7 +1,7 @@
 //! The app around the databases: what the window shows, creating, renaming and deleting
 //! databases, the schema designer's designs, and asking the open app to show something.
 
-use super::{open_db, open_design, open_store, open_store_for_changes, to_json};
+use super::{open_db, open_design, open_session, open_store, open_store_for_changes, to_json};
 use schemars::JsonSchema;
 use sequill_core::design::Draft;
 use sequill_core::filter::{Filter, FilterMatch};
@@ -62,14 +62,11 @@ pub fn app_info(dir: &Path, in_app: bool) -> Result<Value> {
 /// A new, empty SQLite database, or with `dialect` (postgresql, mysql…) a design for one.
 pub fn create_database(dir: &Path, name: &str, dialect: Option<&str>) -> Result<Value> {
     let mut store = open_store_for_changes(dir)?;
-    let name = name.trim();
-    if name.is_empty() {
-        return Err(Error::msg("The name is empty"));
-    }
     let info = match dialect.map(str::trim) {
-        None | Some("") => store.create(name, None)?,
-        Some(d) if d.eq_ignore_ascii_case("sqlite") => store.create(name, None)?,
-        Some(d) => store.create_design(name, d)?,
+        Some(d) if !d.is_empty() && !d.eq_ignore_ascii_case("sqlite") => {
+            store.create_design(name, d)?
+        }
+        _ => store.create(name, None)?,
     };
     Ok(json!({ "database": to_json(info) }))
 }
@@ -133,8 +130,10 @@ pub fn get_schema(dir: &Path, database: &str) -> Result<Value> {
 /// Replaces a database's unsaved design if it is still at `version`. Existing tables and
 /// columns must be named as they are in the database; the user saves the design into it.
 pub fn set_design(dir: &Path, database: &str, version: i64, draft: &Draft) -> Result<Value> {
-    open_store_for_changes(dir)?;
-    let db = open_design(dir, database)?;
+    // Changes are checked before the database is looked up, as for every other change.
+    let store = open_store_for_changes(dir)?;
+    let info = store.resolve_any(database)?;
+    let db = open_session(store, info, false)?;
     let tables: BTreeMap<String, Vec<String>> = db
         .session
         .schema()?
@@ -178,6 +177,28 @@ pub enum ShowView {
     Schema,
 }
 
+/// What `show_in_app` is asked to show.
+#[derive(Debug, Deserialize, JsonSchema)]
+pub struct ShowArgs {
+    /// The database's id, or its exact name, from app_info.
+    pub database: String,
+    pub view: ShowView,
+    /// The table or view, for view "table".
+    pub table: Option<String>,
+    /// For view "table": the editor's filters.
+    #[serde(default)]
+    pub filters: Vec<Filter>,
+    #[serde(default, rename = "match")]
+    pub matching: FilterMatch,
+    /// For view "table": text to look for in every column.
+    pub search: Option<String>,
+    /// For view "table".
+    #[serde(default)]
+    pub sort: Vec<Sort>,
+    /// For view "query": the SQL to put in a new query tab (it isn't run).
+    pub sql: Option<String>,
+}
+
 /// The request the app receives (`src/app/mcp-requests.tsx` reads it).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -197,32 +218,24 @@ struct ShowRequest<'a> {
 
 /// Asks the open app to show something, after checking it exists. Waits up to `wait` for
 /// the app to take the request, so the assistant learns whether anything was shown.
-#[allow(clippy::too_many_arguments)]
-pub fn show_in_app(
-    dir: &Path,
-    database: &str,
-    view: ShowView,
-    table: Option<&str>,
-    filters: &[Filter],
-    matching: FilterMatch,
-    search: Option<&str>,
-    sort: &[Sort],
-    sql: Option<&str>,
-    wait: Duration,
-) -> Result<Value> {
+pub fn show_in_app(dir: &Path, args: &ShowArgs, wait: Duration) -> Result<Value> {
+    let view = args.view;
+    let table = args.table.as_deref();
+    let sql = args.sql.as_deref();
     let db = if view == ShowView::Schema {
-        open_design(dir, database)?
+        open_design(dir, &args.database)?
     } else {
-        open_db(dir, database)?
+        open_db(dir, &args.database)?
     };
     match view {
         ShowView::Table => {
             let table = table.ok_or_else(|| Error::msg("view table needs a table"))?;
             let columns = table_columns(&db.session, table)?;
-            let used = filters
+            let used = args
+                .filters
                 .iter()
                 .map(|f| &f.column)
-                .chain(sort.iter().map(|s| &s.column));
+                .chain(args.sort.iter().map(|s| &s.column));
             if let Some(bad) = used.into_iter().find(|c| !columns.contains(c)) {
                 return Err(Error::msg(format!("Unknown column: {bad}")));
             }
@@ -237,13 +250,17 @@ pub fn show_in_app(
         view,
         table: (view == ShowView::Table).then_some(table).flatten(),
         filters: if view == ShowView::Table {
-            filters
+            &args.filters
         } else {
             &[]
         },
-        matching,
-        search: search.unwrap_or(""),
-        sort: if view == ShowView::Table { sort } else { &[] },
+        matching: args.matching,
+        search: args.search.as_deref().unwrap_or(""),
+        sort: if view == ShowView::Table {
+            &args.sort
+        } else {
+            &[]
+        },
         sql: (view == ShowView::Query).then_some(sql).flatten(),
     };
     let payload = serde_json::to_string(&request).map_err(|e| Error::msg(e.to_string()))?;
@@ -341,7 +358,10 @@ mod tests {
     #[test]
     fn creates_renames_and_deletes_databases() {
         let (dir, _) = store_with_shop();
-        let created = create_database(dir.path(), "Notes", None).unwrap();
+        let empty = create_database(dir.path(), "  ", None).unwrap_err();
+        assert_eq!(empty.to_string(), "The name is empty");
+        let created = create_database(dir.path(), " Notes ", None).unwrap();
+        assert_eq!(created["database"]["name"], "Notes");
         let id = created["database"]["id"].as_str().unwrap().to_owned();
         let renamed = rename_database(dir.path(), "notes", "Journal").unwrap();
         assert_eq!(renamed["database"]["name"], "Journal");
@@ -444,6 +464,20 @@ mod tests {
         assert_eq!(closed["database"], Value::Null);
     }
 
+    /// Showing `view` of `database`, with nothing else set.
+    fn show_args(database: &str, view: ShowView) -> ShowArgs {
+        ShowArgs {
+            database: database.into(),
+            view,
+            table: None,
+            filters: Vec::new(),
+            matching: FilterMatch::All,
+            search: None,
+            sort: Vec::new(),
+            sql: None,
+        }
+    }
+
     fn delhi() -> Vec<Filter> {
         vec![Filter {
             column: "city".into(),
@@ -458,14 +492,7 @@ mod tests {
         let (dir, id) = store_with_shop();
         let error = show_in_app(
             dir.path(),
-            &id,
-            ShowView::Schema,
-            None,
-            &[],
-            FilterMatch::All,
-            None,
-            &[],
-            None,
+            &show_args(&id, ShowView::Schema),
             Duration::from_millis(300),
         );
         assert_eq!(error.unwrap_err().to_string(), NOT_OPEN);
@@ -490,22 +517,16 @@ mod tests {
                 .take_ui_requests()
                 .unwrap()
         });
-        let shown = show_in_app(
-            dir.path(),
-            &id,
-            ShowView::Table,
-            Some("customer"),
-            &delhi(),
-            FilterMatch::All,
-            None,
-            &[Sort {
+        let args = ShowArgs {
+            table: Some("customer".into()),
+            filters: delhi(),
+            sort: vec![Sort {
                 column: "name".into(),
                 desc: true,
             }],
-            None,
-            SHOW_WAIT,
-        )
-        .unwrap();
+            ..show_args(&id, ShowView::Table)
+        };
+        let shown = show_in_app(dir.path(), &args, SHOW_WAIT).unwrap();
         assert_eq!(shown["shown"], true);
         let request: Value = serde_json::from_str(&app.join().unwrap()[0]).unwrap();
         assert_eq!(request["databaseId"], id.as_str());
@@ -518,21 +539,16 @@ mod tests {
     #[test]
     fn show_checks_tables_columns_and_sql_first() {
         let (dir, id) = store_with_shop();
-        let show = |view, table, filters: &[Filter], sql| {
-            show_in_app(
-                dir.path(),
-                &id,
-                view,
-                table,
-                filters,
-                FilterMatch::All,
-                None,
-                &[],
-                sql,
-                Duration::ZERO,
-            )
-            .unwrap_err()
-            .to_string()
+        let show = |view, table: Option<&str>, filters: &[Filter], sql: Option<&str>| {
+            let args = ShowArgs {
+                table: table.map(str::to_owned),
+                filters: filters.to_vec(),
+                sql: sql.map(str::to_owned),
+                ..show_args(&id, view)
+            };
+            show_in_app(dir.path(), &args, Duration::ZERO)
+                .unwrap_err()
+                .to_string()
         };
         assert!(show(ShowView::Table, Some("nope"), &[], None).contains("No table or view"));
         let bad = [Filter {
@@ -559,20 +575,9 @@ mod tests {
             .import_schema("Pg", "postgresql", b"CREATE TABLE p (id int);")
             .unwrap();
         let in_page = |view| {
-            show_in_app(
-                dir.path(),
-                "Pg",
-                view,
-                None,
-                &[],
-                FilterMatch::All,
-                None,
-                &[],
-                None,
-                Duration::ZERO,
-            )
-            .unwrap_err()
-            .to_string()
+            show_in_app(dir.path(), &show_args("Pg", view), Duration::ZERO)
+                .unwrap_err()
+                .to_string()
         };
         assert_eq!(
             in_page(ShowView::Schema),

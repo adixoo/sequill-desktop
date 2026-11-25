@@ -8,7 +8,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 /// Names that address the rowid, in the order they are tried.
-pub const ROWID_CANDIDATES: [&str; 3] = ["rowid", "_rowid_", "oid"];
+const ROWID_CANDIDATES: [&str; 3] = ["rowid", "_rowid_", "oid"];
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -113,7 +113,7 @@ pub struct ExtraObject {
     pub body: String,
 }
 
-pub fn is_internal_name(name: &str) -> bool {
+fn is_internal_name(name: &str) -> bool {
     name.to_lowercase().starts_with("sqlite_") || name.eq_ignore_ascii_case(OBJECTS_TABLE)
 }
 
@@ -160,7 +160,7 @@ fn read_objects(conn: &Connection) -> Result<(Option<String>, Vec<ExtraObject>)>
     ))
 }
 
-pub fn pick_rowid_name(columns: &[ColumnInfo]) -> Option<String> {
+fn pick_rowid_name(columns: &[ColumnInfo]) -> Option<String> {
     let taken: Vec<String> = columns.iter().map(|c| c.name.to_lowercase()).collect();
     ROWID_CANDIDATES
         .iter()

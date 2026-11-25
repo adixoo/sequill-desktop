@@ -326,7 +326,7 @@ pub struct McpStatus {
     enabled: bool,
     allow_changes: bool,
     command: String,
-    args: Vec<String>,
+    args: &'static [&'static str],
     /// A development build: assistants would start a copy that opens a console window and
     /// goes away with the next rebuild, so the app suggests the installed one instead.
     dev_build: bool,
@@ -342,7 +342,7 @@ fn mcp_status_of(store: &Store) -> sequill_core::Result<McpStatus> {
         enabled: store.mcp_enabled()?,
         allow_changes: store.mcp_changes_allowed()?,
         command: exe.to_string_lossy().into_owned(),
-        args: vec!["mcp".into()],
+        args: crate::mcp_install::MCP_ARGS,
         dev_build: cfg!(debug_assertions),
         history_days: store.mcp_history_days()?,
         os: std::env::consts::OS,
@@ -360,7 +360,7 @@ pub async fn mcp_status(state: State<'_, AppState>) -> CmdResult<McpStatus> {
 pub async fn install_mcp(client: String) -> CmdResult<String> {
     let exe = std::env::current_exe().map_err(|e| e.to_string())?;
     tauri::async_runtime::spawn_blocking(move || {
-        crate::mcp_install::install(&client, &exe.to_string_lossy(), &["mcp".to_owned()])
+        crate::mcp_install::install(&client, &exe.to_string_lossy())
     })
     .await
     .map_err(|e| e.to_string())?
