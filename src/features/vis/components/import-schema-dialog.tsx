@@ -339,13 +339,14 @@ function SchemaStep({
             {!file && (
               <p className="text-sm text-ink-soft">
                 Or drop a file here, or{" "}
-                <button
-                  type="button"
-                  className="font-medium text-ink underline underline-offset-2 outline-none hover:text-ink-soft focus-visible:ring-2 focus-visible:ring-ring"
+                <Button
+                  variant="link"
+                  size="xs"
+                  className="h-auto p-0 text-sm"
                   onClick={() => fileInput.current?.click()}
                 >
                   choose one
-                </button>
+                </Button>
                 .
               </p>
             )}

@@ -2,6 +2,7 @@ import { ClipboardPaste, FileUp } from "@/components/atoms/icons";
 import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import { toast } from "@/components/atoms/toast";
 import { Loader } from "@/components/molecules/pastel/loader";
+import { useFileDrop } from "@/hooks/use-file-drop";
 import { Button } from "@/components/atoms/button";
 import { Checkbox } from "@/components/atoms/checkbox";
 import {
@@ -68,7 +69,6 @@ export function ImportDialog({
   const [pasted, setPasted] = useState("");
   // Re-parse pasted text once typing settles, not on every key.
   const pastedText = useDeferredValue(pasted);
-  const [dragOver, setDragOver] = useState(false);
   const [fileParsed, setFileParsed] = useState<ParsedImport | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [header, setHeader] = useState(true);
@@ -123,6 +123,7 @@ export function ImportDialog({
     setFileError(null);
     resetColumns();
   };
+  const drop = useFileDrop(chooseFile);
 
   const source = useMemo(() => {
     if (!parsed) return null;
@@ -261,33 +262,19 @@ export function ImportDialog({
             {mode === "file" ? (
               <label
                 data-testid="import-drop-zone"
-                onDragOver={(e) => {
-                  if (!e.dataTransfer.types.includes("Files")) return;
-                  e.preventDefault();
-                  setDragOver(true);
-                }}
-                onDragLeave={() => setDragOver(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  // Keep the editor's window-wide drop from opening another import.
-                  e.stopPropagation();
-                  setDragOver(false);
-                  const dropped = e.dataTransfer.files[0];
-                  if (dropped) chooseFile(dropped);
-                }}
+                {...drop.props}
                 className={cn(
-                  "flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center text-sm transition-colors duration-150",
-                  dragOver
+                  "flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center text-sm transition-colors duration-150 focus-within:ring-2 focus-within:ring-ring",
+                  drop.over
                     ? "border-sky-ink bg-sky-wash"
                     : "border-strong bg-raised hover:bg-active",
                 )}
               >
-                {/* Children ignore the pointer so moving over them doesn't end the drag-over. */}
-                <FileUp className="pointer-events-none size-6 text-ink-muted" />
-                <span className="pointer-events-none max-w-full truncate font-medium text-ink">
+                <FileUp className="size-6 text-ink-muted" />
+                <span className="max-w-full truncate font-medium text-ink">
                   {file ? file.name : "Drop a .csv, .tsv or .json file here"}
                 </span>
-                <span className="pointer-events-none text-ink-muted">
+                <span className="text-ink-muted">
                   or <span className="text-sky-ink">{file ? "choose another" : "browse"}</span>
                 </span>
                 <input

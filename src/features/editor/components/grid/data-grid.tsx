@@ -1,7 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { copyText } from "@/hooks/use-copy";
 import {
-  Check,
   ClipboardCopy,
   Copy,
   CopyPlus,
@@ -437,25 +436,14 @@ export function DataGrid({
                         style={{ width: ROW_NUMBER_WIDTH }}
                       >
                         {onSelectionChange && (
-                          <button
-                            type="button"
+                          // `static` + `after:inset-0`: the whole row-number cell stays the hit area.
+                          <Checkbox
                             tabIndex={-1}
+                            checked={isSelected}
                             onClick={(e) => toggleRow(r, e.shiftKey)}
                             aria-label={`Select row ${rowOffset + r + 1}`}
-                            className="flex size-full items-center justify-center"
-                          >
-                            <span
-                              aria-hidden
-                              className={cn(
-                                "flex size-4 shrink-0 items-center justify-center rounded-xs border border-strong",
-                                isSelected
-                                  ? "border-sky-ink bg-sky-ink text-surface"
-                                  : "opacity-0 group-hover/row:opacity-100",
-                              )}
-                            >
-                              {isSelected && <Check className="size-3" strokeWidth={3} />}
-                            </span>
-                          </button>
+                            className="static not-data-checked:opacity-0 group-hover/row:opacity-100 after:inset-0"
+                          />
                         )}
                       </div>
                       {laid.map((col, c) => {

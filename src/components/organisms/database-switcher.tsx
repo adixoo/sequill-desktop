@@ -15,6 +15,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
@@ -94,28 +96,26 @@ export function DatabaseSwitcher({
         className="w-(--radix-dropdown-menu-trigger-width) min-w-64"
       >
         <DropdownMenuLabel className="q-label text-ink-muted">On this computer</DropdownMenuLabel>
-        {databases?.map((d) => (
-          <DropdownMenuItem
-            key={d.id}
-            onSelect={() => switchTo(d.id)}
-            title={d.path ?? undefined}
-            className={cn(d.id === current?.id && "bg-sky-wash")}
-          >
-            <DialectIcon dialect="sqlite" className="size-(--icon)" />
-            <span className="truncate">{d.name}</span>
-            {hasDraft?.(d.id) && (
-              <span
-                className="q-table-head shrink-0 text-peach-ink"
-                title="Has an unsaved schema design"
-              >
-                draft
+        {/* Radio items mark the open database with a check, not only a colour. */}
+        <DropdownMenuRadioGroup value={current?.id ?? ""} onValueChange={switchTo}>
+          {databases?.map((d) => (
+            <DropdownMenuRadioItem key={d.id} value={d.id} title={d.path ?? undefined}>
+              <DialectIcon dialect="sqlite" className="size-(--icon)" />
+              <span className="truncate">{d.name}</span>
+              {hasDraft?.(d.id) && (
+                <span
+                  className="q-table-head shrink-0 text-peach-ink"
+                  title="Has an unsaved schema design"
+                >
+                  draft
+                </span>
+              )}
+              <span className="ml-auto font-mono text-[0.6875rem] text-ink-muted">
+                {formatBytes(d.sizeBytes)}
               </span>
-            )}
-            <span className="ml-auto font-mono text-[0.6875rem] text-ink-muted">
-              {formatBytes(d.sizeBytes)}
-            </span>
-          </DropdownMenuItem>
-        ))}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
         {databases?.length === 0 && (
           <p className="px-2 py-1.5 text-sm text-ink-muted">Nothing saved yet</p>
         )}
@@ -125,25 +125,23 @@ export function DatabaseSwitcher({
             <DropdownMenuLabel className="q-label text-ink-muted">
               Designs of other databases
             </DropdownMenuLabel>
-            {designs.map((d) => (
-              <DropdownMenuItem
-                key={d.id}
-                onSelect={() => switchTo(d.id)}
-                className={cn(d.id === current?.id && "bg-sky-wash")}
-              >
-                <DialectIcon dialect={d.dialect ?? ""} className="size-(--icon)" />
-                <span className="truncate">{d.name}</span>
-                {hasDraft?.(d.id) && (
-                  <span
-                    className="q-table-head shrink-0 text-peach-ink"
-                    title="Has an unsaved schema design"
-                  >
-                    draft
-                  </span>
-                )}
-                <span className="q-table-head ml-auto text-ink-muted">{d.dialect}</span>
-              </DropdownMenuItem>
-            ))}
+            <DropdownMenuRadioGroup value={current?.id ?? ""} onValueChange={switchTo}>
+              {designs.map((d) => (
+                <DropdownMenuRadioItem key={d.id} value={d.id}>
+                  <DialectIcon dialect={d.dialect ?? ""} className="size-(--icon)" />
+                  <span className="truncate">{d.name}</span>
+                  {hasDraft?.(d.id) && (
+                    <span
+                      className="q-table-head shrink-0 text-peach-ink"
+                      title="Has an unsaved schema design"
+                    >
+                      draft
+                    </span>
+                  )}
+                  <span className="q-table-head ml-auto text-ink-muted">{d.dialect}</span>
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
           </>
         )}
         {onImportSchema && (

@@ -133,7 +133,12 @@ export function TypePicker({
       </PopoverTrigger>
       <PopoverContent align="start" className="w-(--radix-popover-trigger-width) min-w-80 p-0">
         <Command>
-          <CommandInput placeholder="Search types…" value={search} onValueChange={setSearch} />
+          <CommandInput
+            aria-label="Search column types"
+            placeholder="Search types…"
+            value={search}
+            onValueChange={setSearch}
+          />
           <CommandList>
             <CommandEmpty>No type matches.</CommandEmpty>
             {typed && !known && (

@@ -47,4 +47,18 @@ function TooltipContent({
   );
 }
 
-export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };
+/**
+ * A tooltip on one control, shown on hover and on keyboard focus. Supplementary only: the
+ * control keeps its own accessible name. `children` must be a single focusable element (or a
+ * trigger with `asChild`).
+ */
+function Hint({ label, children }: { label: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent>{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+export { Hint, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };

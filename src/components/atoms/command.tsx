@@ -54,8 +54,10 @@ function CommandDialog({
   );
 }
 
+/** Named by `aria-label`, else by its placeholder, which vanishes once typing starts. */
 function CommandInput({
   className,
+  "aria-label": label,
   ...props
 }: React.ComponentProps<typeof CommandPrimitive.Input>) {
   return (
@@ -63,6 +65,7 @@ function CommandInput({
       <InputGroup className="*:data-[slot=input-group-addon]:pl-2!">
         <CommandPrimitive.Input
           data-slot="command-input"
+          aria-label={label ?? props.placeholder}
           className={cn(
             "w-full text-base outline-hidden disabled:cursor-not-allowed disabled:opacity-50 md:text-(length:--control-fs)",
             className,

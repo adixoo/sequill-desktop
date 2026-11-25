@@ -1,3 +1,4 @@
+import { Hint } from "@/components/atoms/tooltip";
 import { ChevronDown, DatabaseZap, Download, FilePlus, Undo } from "@/components/atoms/icons";
 import { Button } from "@/components/atoms/button";
 import {
@@ -41,11 +42,13 @@ export function SaveMenu({
   const blocked = problems.length > 0;
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label="Save options" title="Save options">
-          <ChevronDown />
-        </Button>
-      </DropdownMenuTrigger>
+      <Hint label="Save options">
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon-sm" aria-label="Save options">
+            <ChevronDown />
+          </Button>
+        </DropdownMenuTrigger>
+      </Hint>
       <DropdownMenuContent align="start" className="w-72">
         <DropdownMenuLabel className="flex flex-col gap-0.5 py-1.5">
           <span className="text-sm font-medium text-ink">Unsaved changes</span>

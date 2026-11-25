@@ -1,4 +1,6 @@
+import type { KeyboardEvent } from "react";
 import { Ban, Check, Pipette } from "@/components/atoms/icons";
+import { Hint } from "@/components/atoms/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/popover";
 import { cn } from "@/utils";
 import { LOGO_COLORS } from "@/utils/logo";
@@ -15,82 +17,112 @@ interface ColorSwatchesProps {
 const swatch =
   "relative flex size-7 shrink-0 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-surface";
 
+/**
+ * Arrow keys move between the swatches and pick the one they land on, so the group is one
+ * Tab stop, as radio groups are. The custom input is only focused: it has no color to pick yet.
+ */
+function moveBetweenSwatches(e: KeyboardEvent<HTMLDivElement>): void {
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+  if (!step) return;
+  const radios = [...e.currentTarget.querySelectorAll<HTMLElement>('[role="radio"]')];
+  const from = radios.indexOf(document.activeElement as HTMLElement);
+  const next = radios[(from + step + radios.length) % radios.length];
+  e.preventDefault();
+  next.focus();
+  if (next instanceof HTMLButtonElement) next.click();
+}
+
 /** Preset pastels, "none" and a custom color input, as one radio group. */
 export function ColorSwatches({ value, onChange, label }: ColorSwatchesProps) {
   const custom = value !== null && value.startsWith("#") ? value : null;
   return (
-    <div role="radiogroup" aria-label={label} className="flex flex-wrap items-center gap-1.5">
-      <button
-        type="button"
-        role="radio"
-        aria-checked={value === null}
-        aria-label="No color"
-        title="No color"
-        onClick={() => onChange(null)}
-        className={cn(
-          swatch,
-          "text-ink-muted ring-2 ring-hairline ring-inset",
-          value === null && "ring-ink-soft",
-        )}
-      >
-        <Ban className="size-3.5" aria-hidden />
-      </button>
+    <div
+      role="radiogroup"
+      aria-label={label}
+      onKeyDown={moveBetweenSwatches}
+      className="flex flex-wrap items-center gap-1.5"
+    >
+      <Hint label="No color">
+        <button
+          type="button"
+          role="radio"
+          aria-checked={value === null}
+          aria-label="No color"
+          tabIndex={value === null ? 0 : -1}
+          onClick={() => onChange(null)}
+          className={cn(
+            swatch,
+            "text-ink-muted ring-2 ring-hairline ring-inset",
+            value === null && "ring-ink-soft",
+          )}
+        >
+          <Ban className="size-3.5" aria-hidden />
+        </button>
+      </Hint>
       {PRESET_COLORS.map((c) => {
         const selected = value === c.value;
         return (
-          <button
-            key={c.value}
-            type="button"
-            role="radio"
-            aria-checked={selected}
-            aria-label={c.label}
-            title={c.label}
-            onClick={() => onChange(c.value)}
-            className={cn(swatch, selected && "ring-2 ring-ink ring-offset-2 ring-offset-surface")}
-            style={{ background: colorFill(c.value) }}
-          >
-            {selected && <Check className="size-3.5 text-on-accent" strokeWidth={3} aria-hidden />}
-          </button>
+          <Hint key={c.value} label={c.label}>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              aria-label={c.label}
+              tabIndex={selected ? 0 : -1}
+              onClick={() => onChange(c.value)}
+              className={cn(
+                swatch,
+                selected && "ring-2 ring-ink ring-offset-2 ring-offset-surface",
+              )}
+              style={{ background: colorFill(c.value) }}
+            >
+              {selected && (
+                <Check className="size-3.5 text-on-accent" strokeWidth={3} aria-hidden />
+              )}
+            </button>
+          </Hint>
         );
       })}
-      <label
-        title="Custom color"
-        className={cn(
-          swatch,
-          "cursor-pointer focus-within:ring-2 focus-within:ring-ring",
-          custom
-            ? "ring-2 ring-ink ring-offset-2 ring-offset-surface"
-            : "ring-2 ring-hairline ring-inset",
-        )}
-        style={
-          custom
-            ? { background: custom }
-            : {
-                background:
-                  "conic-gradient(var(--peach), var(--butter), var(--mint), var(--sky), var(--lilac), var(--rose), var(--peach))",
-              }
-        }
-      >
-        <input
-          type="color"
-          role="radio"
-          aria-checked={!!custom}
-          aria-label="Custom color"
-          value={custom ?? LOGO_COLORS.mint}
-          onChange={(e) => onChange(e.target.value.toLowerCase() as TableColor)}
-          className="absolute inset-0 cursor-pointer opacity-0"
-        />
-        {custom ? (
-          <span
-            aria-hidden
-            className="flex size-4 items-center justify-center rounded-full bg-surface"
-          >
-            <Check className="size-3 text-ink" strokeWidth={3} />
-          </span>
-        ) : (
-          <Pipette className="size-3.5 text-on-accent" aria-hidden />
-        )}
-      </label>
+      <Hint label="Custom color">
+        <label
+          className={cn(
+            swatch,
+            "cursor-pointer focus-within:ring-2 focus-within:ring-ring",
+            custom
+              ? "ring-2 ring-ink ring-offset-2 ring-offset-surface"
+              : "ring-2 ring-hairline ring-inset",
+          )}
+          style={
+            custom
+              ? { background: custom }
+              : {
+                  background:
+                    "conic-gradient(var(--peach), var(--butter), var(--mint), var(--sky), var(--lilac), var(--rose), var(--peach))",
+                }
+          }
+        >
+          <input
+            type="color"
+            role="radio"
+            aria-checked={!!custom}
+            aria-label="Custom color"
+            tabIndex={custom ? 0 : -1}
+            value={custom ?? LOGO_COLORS.mint}
+            onChange={(e) => onChange(e.target.value.toLowerCase() as TableColor)}
+            className="absolute inset-0 cursor-pointer opacity-0"
+          />
+          {custom ? (
+            <span
+              aria-hidden
+              className="flex size-4 items-center justify-center rounded-full bg-surface"
+            >
+              <Check className="size-3 text-ink" strokeWidth={3} />
+            </span>
+          ) : (
+            <Pipette className="size-3.5 text-on-accent" aria-hidden />
+          )}
+        </label>
+      </Hint>
     </div>
   );
 }
@@ -107,20 +139,21 @@ export function ColorDot({
 }) {
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Color for ${tableName}: ${value ? colorLabel(value) : "none"}`}
-          title="Change color"
-          className="flex size-6 shrink-0 items-center justify-center rounded-xs outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <span
-            aria-hidden
-            className={cn("size-2.5 rounded-full", !value && "ring-2 ring-strong ring-inset")}
-            style={value ? { background: colorInk(value) } : undefined}
-          />
-        </button>
-      </PopoverTrigger>
+      <Hint label="Change color">
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={`Color for ${tableName}: ${value ? colorLabel(value) : "none"}`}
+            className="flex size-6 shrink-0 items-center justify-center rounded-xs outline-none hover:bg-raised focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <span
+              aria-hidden
+              className={cn("size-2.5 rounded-full", !value && "ring-2 ring-strong ring-inset")}
+              style={value ? { background: colorInk(value) } : undefined}
+            />
+          </button>
+        </PopoverTrigger>
+      </Hint>
       <PopoverContent align="start" className="w-auto p-3">
         <p className="q-label mb-2.5 text-ink-muted">{tableName}</p>
         <ColorSwatches value={value} onChange={onChange} label={`Color for ${tableName}`} />

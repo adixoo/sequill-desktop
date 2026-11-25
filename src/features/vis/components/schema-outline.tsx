@@ -29,6 +29,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/atoms
 import type { TableColor } from "@/types/features/vis/lib/colors";
 import { addColumn, dropTable, renameTable } from "@/features/vis/lib/model";
 import type { DiagramTable, DiagramColumn } from "@/types/features/vis/lib/model";
+import { ROW_ACTION_REVEAL } from "@/constants/classes";
 import { cn } from "@/utils";
 import { ColumnIcon, ColumnName, tableChangeClass, tableChangeLabel } from "./change-marks";
 import { ColorDot } from "./color-picker";
@@ -51,10 +52,6 @@ const KIND_ORDER: Record<DiagramTable["kind"], number> = {
   draft: 1,
   view: 2,
 };
-
-// Row actions stay visible on touch screens and appear on hover with a mouse.
-const rowAction =
-  "[@media(hover:hover)]:opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100";
 
 /** Left panel: every table and view with its columns and types, and where they are edited. */
 export function SchemaOutline({
@@ -344,7 +341,7 @@ function TableMenu({
           variant="ghost"
           size="icon-sm"
           aria-label={`Actions for ${table.name}`}
-          className={cn("size-7 shrink-0", rowAction)}
+          className={cn("size-7 shrink-0", ROW_ACTION_REVEAL)}
         >
           <MoreHorizontal />
         </Button>

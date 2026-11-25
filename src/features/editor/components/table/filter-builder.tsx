@@ -1,5 +1,6 @@
 import { Filter as FilterIcon, Plus, X } from "@/components/atoms/icons";
 import { useState } from "react";
+import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/popover";
@@ -65,13 +66,15 @@ export function FilterBuilder({
   return (
     <Popover open={open} onOpenChange={handleOpen}>
       <PopoverTrigger asChild>
-        <Button variant={filters.length > 0 ? "secondary" : "ghost"} aria-label="Filters">
+        <Button variant={filters.length > 0 ? "secondary" : "ghost"}>
           <FilterIcon />
           <span>Filter</span>
           {filters.length > 0 && (
-            <span className="q-num rounded-full bg-sky px-1.5 font-mono text-[0.6875rem] text-on-accent">
+            <Badge variant="sky" className="q-num font-mono">
+              <span className="sr-only">, </span>
               {filters.length}
-            </span>
+              <span className="sr-only"> active</span>
+            </Badge>
           )}
         </Button>
       </PopoverTrigger>

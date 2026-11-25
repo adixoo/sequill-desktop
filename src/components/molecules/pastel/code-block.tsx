@@ -1,3 +1,4 @@
+import { Button } from "@/components/atoms/button";
 import { useCopy } from "@/hooks/use-copy";
 import { highlightLines } from "@/utils/highlight-code";
 import type { CodeTokenType, CodeLanguage } from "@/types/utils/highlight-code";
@@ -103,18 +104,13 @@ function CopyCodeButton({
 }) {
   const { copied, copy } = useCopy();
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size={compact ? "icon-sm" : "sm"}
       onClick={() => void copy(code)}
       title={`Copy ${fileName}`}
       aria-label={compact ? `Copy ${fileName}` : undefined}
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-sm text-xs font-medium",
-        compact ? "size-7 justify-center" : "h-8 px-2.5",
-        "transition-[background-color,color] duration-150 outline-none",
-        "focus-visible:ring-2 focus-visible:ring-ring",
-        copied ? "bg-mint-wash text-mint-ink" : "text-ink-soft hover:bg-surface hover:text-ink",
-      )}
+      className={cn("text-xs", copied && "bg-mint-wash text-mint-ink hover:bg-mint-wash")}
     >
       <span className="relative size-3.5">
         <Copy
@@ -134,6 +130,6 @@ function CopyCodeButton({
       <span aria-live="polite" className={cn(compact && "sr-only")}>
         {copied ? "Copied" : "Copy"}
       </span>
-    </button>
+    </Button>
   );
 }
