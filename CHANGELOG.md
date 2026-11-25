@@ -1,5 +1,11 @@
 # sqlite-browser-editor
 
+## 1.2.4
+
+### Patch Changes
+
+- b9ffc9f: Loading screens show a hand-drawn circle that keeps re-drawing itself instead of a spinner.
+
 ## 1.2.3
 
 ### Patch Changes
