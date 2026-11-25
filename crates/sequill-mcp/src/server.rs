@@ -65,6 +65,9 @@ pub struct SqlArgs {
 #[derive(Debug, Deserialize, JsonSchema)]
 pub struct CreateDatabaseArgs {
     pub name: String,
+    /// "sqlite" (the default) for a real database, or "postgresql", "mysql", "mssql" or
+    /// "duckdb" for a schema design of that database (get_schema and set_design only).
+    pub dialect: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
@@ -225,7 +228,8 @@ impl SequillServer {
             .await
     }
 
-    /// Creates a new, empty database in Sequill.
+    /// Creates a new, empty SQLite database in Sequill, or with "dialect" (postgresql, mysql,
+    /// mssql, duckdb) an empty schema design for that kind of database.
     #[tool(annotations(
         title = "Create database",
         read_only_hint = false,
@@ -235,7 +239,7 @@ impl SequillServer {
         &self,
         Parameters(a): Parameters<CreateDatabaseArgs>,
     ) -> Result<String, String> {
-        self.run(move |dir| app::create_database(dir, &a.name))
+        self.run(move |dir| app::create_database(dir, &a.name, a.dialect.as_deref()))
             .await
     }
 
@@ -379,6 +383,83 @@ mod tests {
                 READ_TOOLS.contains(&tool.name.as_ref()) && tool.name != "show_in_app";
             assert_eq!(hints.read_only_hint, Some(changes_nothing), "{}", tool.name);
         }
+    }
+
+    /// Every tool, called the way an assistant calls it (over the MCP protocol), works.
+    #[tokio::test(flavor = "multi_thread")]
+    async fn every_tool_works_over_the_protocol() {
+        use rmcp::ServiceExt;
+        use serde_json::json;
+
+        let (dir, _) = crate::tools::test_support::store_with_shop();
+        let (client_end, server_end) = tokio::io::duplex(64 * 1024);
+        let server = SequillServer::new(dir.path().to_owned(), true);
+        tokio::spawn(async move { server.serve(server_end).await.unwrap().waiting().await });
+        let client = ().serve(client_end).await.unwrap();
+
+        // Stands in for the open window, which takes show_in_app's requests.
+        let app_dir = dir.path().to_owned();
+        let app = std::thread::spawn(move || {
+            let store = sequill_core::Store::open_shared(&app_dir).unwrap();
+            for _ in 0..100 {
+                // The catalog can be busy with the calls; try again.
+                if store.take_ui_requests().is_ok_and(|r| !r.is_empty()) {
+                    return;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+        });
+
+        let calls = [
+            ("app_info", json!({})),
+            (
+                "query",
+                json!({ "database": "Shop", "sql": "SELECT count(*) FROM customer" }),
+            ),
+            (
+                "execute",
+                json!({ "database": "Shop", "sql": "INSERT INTO customer (name) VALUES ('Zoya')" }),
+            ),
+            ("get_schema", json!({ "database": "Shop" })),
+            (
+                "set_design",
+                json!({ "database": "Shop", "version": 0,
+                "draft": { "colors": { "customer": "rose" } } }),
+            ),
+            (
+                "show_in_app",
+                json!({ "database": "Shop", "view": "schema" }),
+            ),
+            (
+                "create_database",
+                json!({ "name": "Pg", "dialect": "postgresql" }),
+            ),
+            ("create_database", json!({ "name": "Notes" })),
+            (
+                "rename_database",
+                json!({ "database": "Notes", "name": "Journal" }),
+            ),
+            ("delete_database", json!({ "database": "Journal" })),
+        ];
+        let mut called: Vec<&str> = Vec::new();
+        for (tool, args) in calls {
+            let request = CallToolRequestParams::new(tool.to_owned())
+                .with_arguments(args.as_object().unwrap().clone());
+            let result = client.call_tool(request).await.unwrap();
+            let text = result.content[0].as_text().unwrap().text.clone();
+            assert_ne!(result.is_error, Some(true), "{tool}: {text}");
+            if !called.contains(&tool) {
+                called.push(tool);
+            }
+        }
+        app.join().unwrap();
+
+        let info = app::app_info(dir.path(), false).unwrap();
+        assert_eq!(info["designs"][0]["dialect"], "postgresql");
+        called.sort();
+        let mut all: Vec<&str> = READ_TOOLS.iter().chain(&WRITE_TOOLS).copied().collect();
+        all.sort();
+        assert_eq!(called, all, "a new tool needs a call here");
     }
 
     #[test]

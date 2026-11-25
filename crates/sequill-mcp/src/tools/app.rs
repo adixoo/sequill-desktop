@@ -59,13 +59,19 @@ pub fn app_info(dir: &Path, in_app: bool) -> Result<Value> {
     }))
 }
 
-pub fn create_database(dir: &Path, name: &str) -> Result<Value> {
+/// A new, empty SQLite database, or with `dialect` (postgresql, mysql…) a design for one.
+pub fn create_database(dir: &Path, name: &str, dialect: Option<&str>) -> Result<Value> {
     let mut store = open_store_for_changes(dir)?;
     let name = name.trim();
     if name.is_empty() {
         return Err(Error::msg("The name is empty"));
     }
-    Ok(json!({ "database": to_json(store.create(name, None)?) }))
+    let info = match dialect.map(str::trim) {
+        None | Some("") => store.create(name, None)?,
+        Some(d) if d.eq_ignore_ascii_case("sqlite") => store.create(name, None)?,
+        Some(d) => store.create_design(name, d)?,
+    };
+    Ok(json!({ "database": to_json(info) }))
 }
 
 pub fn rename_database(dir: &Path, database: &str, name: &str) -> Result<Value> {
@@ -141,6 +147,14 @@ pub fn set_design(dir: &Path, database: &str, version: i64, draft: &Draft) -> Re
         return Err(Error::msg(format!(
             "The database has no {}. Name existing tables and columns as they are now (see get_schema); new tables go in \"tables\".",
             unknown.join(", ")
+        )));
+    }
+    let bad = draft.bad_colors();
+    if !bad.is_empty() {
+        return Err(Error::msg(format!(
+            "Not a table color: {}. Use {} or \"#rrggbb\".",
+            bad.join(", "),
+            sequill_core::design::TABLE_COLORS.join(", ")
         )));
     }
     let draft = serde_json::to_value(draft).expect("drafts serialize");
@@ -327,12 +341,54 @@ mod tests {
     #[test]
     fn creates_renames_and_deletes_databases() {
         let (dir, _) = store_with_shop();
-        let created = create_database(dir.path(), "Notes").unwrap();
+        let created = create_database(dir.path(), "Notes", None).unwrap();
         let id = created["database"]["id"].as_str().unwrap().to_owned();
         let renamed = rename_database(dir.path(), "notes", "Journal").unwrap();
         assert_eq!(renamed["database"]["name"], "Journal");
         delete_database(dir.path(), &id).unwrap();
         assert!(delete_database(dir.path(), "Journal").is_err());
+    }
+
+    #[test]
+    fn creates_a_design_of_the_dialect_asked_for() {
+        let (dir, _) = store_with_shop();
+        create_database(dir.path(), "Lite", Some("SQLite")).unwrap();
+        create_database(dir.path(), "Pg", Some("PostgreSQL")).unwrap();
+        let info = app_info(dir.path(), false).unwrap();
+        assert_eq!(info["designs"][0]["name"], "Pg");
+        assert_eq!(info["designs"][0]["dialect"], "postgresql");
+        assert_eq!(
+            get_schema(dir.path(), "Pg").unwrap()["dialect"],
+            "postgresql"
+        );
+        let lite = info["databases"].as_array().unwrap();
+        assert!(
+            lite.iter().any(|d| d["name"] == "Lite"),
+            "sqlite is a real database"
+        );
+
+        let error = create_database(dir.path(), "X", Some("oracle")).unwrap_err();
+        assert!(error.to_string().contains("oracle"), "{error}");
+    }
+
+    #[test]
+    fn sets_table_colors_by_name_and_refuses_bad_ones() {
+        let (dir, _) = store_with_shop();
+        let colored: Draft =
+            serde_json::from_value(json!({ "colors": { "customer": "mint" } })).unwrap();
+        set_design(dir.path(), "Shop", 0, &colored).unwrap();
+        let read = get_schema(dir.path(), "Shop").unwrap();
+        assert_eq!(read["design"]["draft"]["colors"]["customer"], "mint");
+
+        let bad: Draft =
+            serde_json::from_value(json!({ "colors": { "customer": "red" } })).unwrap();
+        let error = set_design(dir.path(), "Shop", 1, &bad).unwrap_err();
+        assert!(
+            error.to_string().contains("Not a table color: red"),
+            "{error}"
+        );
+        let ghost: Draft = serde_json::from_value(json!({ "colors": { "ghost": "sky" } })).unwrap();
+        assert!(set_design(dir.path(), "Shop", 1, &ghost).is_err());
     }
 
     #[test]

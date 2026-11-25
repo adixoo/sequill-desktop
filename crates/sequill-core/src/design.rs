@@ -30,6 +30,22 @@ pub struct Draft {
     /// types: "kind:name" as stored → its new definition, or null to delete it.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub objects: BTreeMap<String, Option<ExtraObject>>,
+    /// Table colors on the diagram: table name (as shown, new tables too) → "peach",
+    /// "butter", "mint", "sky", "lilac", "rose" or "#rrggbb", or null to clear it. The
+    /// schema page applies them to the diagram and then takes them out of the design.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub colors: BTreeMap<String, Option<String>>,
+}
+
+/// The diagram's preset table colors (`PRESET_COLORS` in `src/features/vis/lib/colors.ts`).
+pub const TABLE_COLORS: &[&str] = &["peach", "butter", "mint", "sky", "lilac", "rose"];
+
+/// A preset color name or "#rrggbb".
+pub fn is_table_color(value: &str) -> bool {
+    TABLE_COLORS.contains(&value)
+        || (value.len() == 7
+            && value.starts_with('#')
+            && value[1..].chars().all(|c| c.is_ascii_hexdigit()))
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -133,7 +149,26 @@ impl Draft {
                 unknown.push(format!("{table}.{column}"));
             }
         }
+        // Colored tables go by the name the diagram shows: existing, renamed or new.
+        for table in self.colors.keys() {
+            let shown = tables.contains_key(table)
+                || self.renamed_tables.values().any(|n| n == table)
+                || self.tables.iter().any(|t| &t.name == table);
+            if !shown && !unknown.contains(table) {
+                unknown.push(table.clone());
+            }
+        }
         unknown
+    }
+
+    /// Colors that are neither a preset name nor "#rrggbb".
+    pub fn bad_colors(&self) -> Vec<&str> {
+        self.colors
+            .values()
+            .flatten()
+            .filter(|c| !is_table_color(c))
+            .map(String::as_str)
+            .collect()
     }
 }
 
@@ -181,5 +216,18 @@ mod tests {
             vec!["id".to_owned(), "city".to_owned()],
         )]);
         assert_eq!(draft.unknown_names(&tables), ["ghost", "customer.age"]);
+    }
+
+    #[test]
+    fn colors_name_shown_tables_and_valid_colors() {
+        let draft: Draft = serde_json::from_value(json!({
+            "tables": [{ "id": "t", "name": "tag", "columns": [] }],
+            "renamedTables": { "customer": "client" },
+            "colors": { "customer": "mint", "client": "#A0b1C2", "tag": null, "ghost": "red", "x": "#12345" }
+        }))
+        .unwrap();
+        let tables = BTreeMap::from([("customer".to_owned(), vec![])]);
+        assert_eq!(draft.unknown_names(&tables), ["ghost", "x"]);
+        assert_eq!(draft.bad_colors(), ["red", "#12345"]);
     }
 }
