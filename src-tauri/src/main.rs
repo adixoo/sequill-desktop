@@ -3,6 +3,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod mcp_install;
 mod watch;
 
 use commands::AppState;
@@ -82,6 +83,7 @@ fn run() {
             commands::mcp_activity,
             commands::clear_mcp_activity,
             commands::set_mcp_history_days,
+            commands::install_mcp,
         ])
         .run(tauri::generate_context!())
         .expect("Sequill could not start");

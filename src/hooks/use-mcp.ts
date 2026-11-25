@@ -6,6 +6,7 @@ import type { McpStatus } from "@/types/lib/mcp";
 import { isDesktop } from "@/lib/platform";
 import {
   clearMcpActivity,
+  installMcp,
   mcpActivity,
   mcpStatus,
   setMcpAllowChanges,
@@ -78,4 +79,9 @@ export function useClearMcpActivity() {
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
+}
+
+/** Adds Sequill to one assistant; the dialog shows the outcome next to the button. */
+export function useInstallMcp() {
+  return useMutation({ mutationFn: installMcp });
 }

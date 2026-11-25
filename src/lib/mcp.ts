@@ -1,7 +1,7 @@
 /** Settings that connect an AI assistant to the desktop app's MCP server, and its requests. */
 import type { Filter } from "@/types/lib/sqlite/sql";
 import type { TableViewState } from "@/types/store/workspace";
-import type { ShowRequest, McpCommand, McpActivity, McpClient } from "@/types/lib/mcp";
+import type { ShowRequest, McpCommand, McpActivity, McpClient, McpOs } from "@/types/lib/mcp";
 
 /** Server name in the client's config; matches the server's own name. */
 export const MCP_SERVER_NAME = "sequill";
@@ -144,24 +144,51 @@ export function zedConfig(command: McpCommand): string {
   return JSON.stringify({ context_servers: { [MCP_SERVER_NAME]: entry } }, null, 2);
 }
 
+/** "Ctrl+K" or, on a Mac, "Cmd+K". */
+const keys = (os: McpOs, key: string): string => `${os === "macos" ? "Cmd" : "Ctrl"}+${key}`;
+
+/** How to open a terminal on this system. */
+function openTerminal(os: McpOs): string {
+  if (os === "windows") {
+    return "Open **PowerShell**: press the **Windows** key, type `PowerShell` and press **Enter**.";
+  }
+  if (os === "macos") {
+    return "Open **Terminal**: press **Cmd+Space**, type `Terminal` and press **Enter**.";
+  }
+  return "Open a terminal.";
+}
+
+/** The plain text editor that comes with this system. */
+const textEditor = (os: McpOs): string =>
+  os === "windows" ? "**Notepad**" : os === "macos" ? "**TextEdit**" : "a text editor";
+
 /** Steps for clients set up with one terminal command. */
-const commandSteps = (app: string, check: string): string[] => [
-  "Open a terminal (on Windows: **PowerShell** or **Command Prompt**).",
-  "Paste this command and press **Enter**.",
-  `Start a new ${app} session. ${check}`,
-];
+const commandSteps =
+  (app: string, check: string) =>
+  (os: McpOs): string[] => [
+    openTerminal(os),
+    "Paste this command and press **Enter**.",
+    `Start a new ${app} session. ${check}`,
+  ];
 
 /** Every client the guide lists, in the order shown. */
 export const MCP_CLIENTS: McpClient[] = [
   {
     id: "claude-desktop",
     name: "Claude Desktop",
+    kind: "Desktop app",
     install: "file",
-    steps: [
-      "In Claude Desktop, open **Settings → Developer** and click **Edit Config**. A folder opens with `claude_desktop_config.json` in it.",
-      "Open that file in Notepad. If it's empty, paste this in. If it already has `mcpServers`, add only the `sequill` part inside it.",
-      "Save the file, then quit Claude Desktop completely (also from the system tray) and open it again.",
+    steps: (os) => [
+      `In Claude Desktop, open **Settings** (${keys(os, ",")}), go to **Developer** and click **Edit Config**. A folder opens with \`claude_desktop_config.json\` in it.`,
+      `Open that file in ${textEditor(os)}. If it's empty, paste this in. If it already has \`mcpServers\`, add only the \`sequill\` part inside it.`,
+      os === "macos"
+        ? "Save the file, press **Cmd+Q** in Claude Desktop to quit it, then open it again."
+        : os === "windows"
+          ? "Save the file. Quit Claude Desktop completely: right-click its icon next to the clock and choose **Quit**. Then open it again."
+          : "Save the file, then quit Claude Desktop completely and open it again.",
     ],
+    oneClick:
+      "Now quit Claude Desktop completely (closing the window isn't enough) and open it again.",
     fileName: "claude_desktop_config.json",
     language: "json",
     config: mcpConfig,
@@ -169,8 +196,11 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: "claude-code",
     name: "Claude Code",
+    kind: "Terminal",
     install: "command",
     steps: commandSteps("Claude Code", "Type `/mcp` to see that **sequill** is connected."),
+    oneClick:
+      "Start a new Claude Code session and type `/mcp` to see that **sequill** is connected.",
     fileName: "terminal",
     language: "bash",
     config: claudeCodeCommand,
@@ -178,12 +208,15 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: "cursor",
     name: "Cursor",
+    kind: "Code editor",
     install: "file",
-    steps: [
-      "Open **Cursor Settings → Tools & MCP** and click **New MCP Server**. Cursor opens `mcp.json`.",
+    steps: (os) => [
+      `Open **Cursor Settings** (${keys(os, "Shift+J")}) → **Tools & MCP** and click **New MCP Server**. Cursor opens \`mcp.json\`.`,
       "Paste this in. If the file already has `mcpServers`, add only the `sequill` part inside it.",
       "Save the file. Sequill's tools work in the Agent chat.",
     ],
+    oneClick:
+      "Open **Cursor Settings → Tools & MCP** and check that **sequill** is on, then ask in the Agent chat.",
     fileName: "mcp.json",
     language: "json",
     config: mcpConfig,
@@ -191,12 +224,15 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: "vscode",
     name: "VS Code",
+    kind: "Code editor",
     install: "file",
-    steps: [
-      "Press **Ctrl+Shift+P** (Cmd+Shift+P on a Mac) and run **MCP: Open User Configuration**.",
+    steps: (os) => [
+      `Press **${keys(os, "Shift+P")}** and run **MCP: Open User Configuration**.`,
       "Paste this into `mcp.json`. If it already has `servers`, add only the `sequill` part inside it.",
       "Save the file, then use Copilot Chat in **Agent** mode.",
     ],
+    oneClick:
+      "Open Copilot Chat in **Agent** mode. If VS Code asks whether to start **sequill**, click **Start**.",
     fileName: "mcp.json",
     language: "json",
     config: vsCodeConfig,
@@ -204,8 +240,10 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: "codex",
     name: "Codex",
+    kind: "Terminal",
     install: "command",
     steps: commandSteps("Codex", "Type `/mcp` to see that **sequill** is listed."),
+    oneClick: "Start a new Codex session and type `/mcp` to see that **sequill** is listed.",
     fileName: "terminal",
     language: "bash",
     config: codexCommand,
@@ -213,8 +251,11 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: "gemini",
     name: "Gemini CLI",
+    kind: "Terminal",
     install: "command",
     steps: commandSteps("Gemini CLI", "Type `/mcp` to see that **sequill** is connected."),
+    oneClick:
+      "Start a new Gemini CLI session and type `/mcp` to see that **sequill** is connected.",
     fileName: "terminal",
     language: "bash",
     config: geminiCommand,
@@ -222,12 +263,14 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: "windsurf",
     name: "Windsurf",
+    kind: "Code editor",
     install: "file",
-    steps: [
-      "Open `~/.codeium/windsurf/mcp_config.json` (Cascade's MCP settings can open it).",
+    steps: (os) => [
+      `Open \`${os === "windows" ? "%USERPROFILE%\\.codeium\\windsurf\\mcp_config.json" : "~/.codeium/windsurf/mcp_config.json"}\` (Cascade's MCP settings can open it).`,
       "Paste this in. If the file already has `mcpServers`, add only the `sequill` part inside it.",
       "Save the file and refresh the MCP servers in Cascade.",
     ],
+    oneClick: "Refresh the MCP servers in Cascade, or restart Windsurf.",
     fileName: "mcp_config.json",
     language: "json",
     config: mcpConfig,
@@ -235,9 +278,10 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: "zed",
     name: "Zed",
+    kind: "Code editor",
     install: "file",
-    steps: [
-      "Run **zed: open settings file** from the Command Palette.",
+    steps: (os) => [
+      `Press **${keys(os, "Shift+P")}** and run **zed: open settings file**.`,
       "Add this to `settings.json`. If it already has `context_servers`, add only the `sequill` part inside it.",
       "Save the file. Sequill shows up in the Agent Panel's settings.",
     ],
@@ -248,9 +292,10 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: "jetbrains",
     name: "JetBrains IDEs",
+    kind: "Code editor",
     install: "file",
-    steps: [
-      "Open **Settings → Tools → AI Assistant → Model Context Protocol (MCP)**.",
+    steps: (os) => [
+      `Open **${os === "macos" ? "Settings" : "File → Settings"}** (${keys(os, os === "macos" ? "," : "Alt+S")}) → **Tools → AI Assistant → Model Context Protocol (MCP)**.`,
       "Click **Add**, choose **As JSON** and paste this.",
       "Click **Apply**, then use AI Assistant's chat.",
     ],
@@ -261,8 +306,9 @@ export const MCP_CLIENTS: McpClient[] = [
   {
     id: "other",
     name: "Another assistant",
+    kind: "Anything else",
     install: "file",
-    steps: [
+    steps: () => [
       "Find your assistant's MCP settings and add a **stdio** server.",
       "Most assistants accept this `mcpServers` format. Others ask for the command and arguments separately: they're the two values below.",
       "Save, and restart the assistant.",

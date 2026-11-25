@@ -67,10 +67,12 @@ describe("other clients' configs", () => {
     });
   });
 
-  test("every client has a unique id, steps, and a command or parsable JSON", () => {
+  test("every client has a unique id, steps on every system, and a command or parsable JSON", () => {
     expect(new Set(MCP_CLIENTS.map((c) => c.id)).size).toBe(MCP_CLIENTS.length);
     for (const client of MCP_CLIENTS) {
-      expect(client.steps.length).toBeGreaterThan(0);
+      for (const os of ["windows", "macos", "linux"] as const) {
+        expect(client.steps(os).length).toBeGreaterThan(0);
+      }
       const code = client.config(command);
       if (client.install === "command") {
         expect(code).toContain('"C:\\Program Files\\Sequill\\sequill.exe" mcp');
@@ -79,6 +81,34 @@ describe("other clients' configs", () => {
         expect(() => JSON.parse(code)).not.toThrow();
       }
     }
+  });
+});
+
+describe("steps fit the system", () => {
+  const steps = (id: string, os: "windows" | "macos" | "linux") =>
+    MCP_CLIENTS.find((c) => c.id === id)!
+      .steps(os)
+      .join(" ");
+
+  test("Mac steps use Cmd and Terminal; Windows steps use Ctrl and PowerShell", () => {
+    expect(steps("vscode", "macos")).toContain("Cmd+Shift+P");
+    expect(steps("vscode", "windows")).toContain("Ctrl+Shift+P");
+    expect(steps("claude-code", "macos")).toContain("**Terminal**");
+    expect(steps("claude-code", "windows")).toContain("**PowerShell**");
+  });
+
+  test("one-click clients say what to do after adding", () => {
+    const oneClick = MCP_CLIENTS.filter((c) => c.oneClick).map((c) => c.id);
+    // Must match the clients `install` in src-tauri/src/mcp_install.rs knows.
+    expect(oneClick).toEqual([
+      "claude-desktop",
+      "claude-code",
+      "cursor",
+      "vscode",
+      "codex",
+      "gemini",
+      "windsurf",
+    ]);
   });
 });
 

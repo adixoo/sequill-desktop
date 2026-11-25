@@ -15,6 +15,7 @@ import {
   BracesIcon,
   BracketsIcon,
   Calendar03Icon,
+  ChatGptIcon,
   Clock01Icon,
   BulbIcon,
   Cancel01Icon,
@@ -88,6 +89,7 @@ import {
   UnfoldMoreIcon,
   Upload04Icon,
   ViewIcon,
+  VisualStudioCodeIcon,
   ViewOffSlashIcon,
   ZapIcon,
 } from "@hugeicons/core-free-icons";
@@ -120,6 +122,7 @@ export const Binary = icon(BinaryCodeIcon, "Binary");
 export const Braces = icon(BracesIcon, "Braces");
 export const Brackets = icon(BracketsIcon, "Brackets");
 export const Calendar = icon(Calendar03Icon, "Calendar");
+export const ChatGpt = icon(ChatGptIcon, "ChatGpt");
 export const Clock = icon(Clock01Icon, "Clock");
 export const Fingerprint = icon(FingerPrintIcon, "Fingerprint");
 export const GripVertical = icon(DragDropVerticalIcon, "GripVertical");
@@ -197,5 +200,6 @@ export const Trash = icon(Delete02Icon, "Trash");
 export const TriangleAlert = icon(Alert02Icon, "TriangleAlert");
 export const Undo = icon(Undo03Icon, "Undo");
 export const Upload = icon(Upload04Icon, "Upload");
+export const VsCode = icon(VisualStudioCodeIcon, "VsCode");
 export const X = icon(Cancel01Icon, "X");
 export const Zap = icon(ZapIcon, "Zap");

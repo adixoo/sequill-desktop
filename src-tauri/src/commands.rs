@@ -332,6 +332,8 @@ pub struct McpStatus {
     dev_build: bool,
     /// Days the record of what assistants did is kept; None keeps it forever.
     history_days: Option<u32>,
+    /// "windows", "macos" or "linux", so the guide's steps fit this computer.
+    os: &'static str,
 }
 
 fn mcp_status_of(store: &Store) -> sequill_core::Result<McpStatus> {
@@ -343,12 +345,25 @@ fn mcp_status_of(store: &Store) -> sequill_core::Result<McpStatus> {
         args: vec!["mcp".into()],
         dev_build: cfg!(debug_assertions),
         history_days: store.mcp_history_days()?,
+        os: std::env::consts::OS,
     })
 }
 
 #[tauri::command]
 pub async fn mcp_status(state: State<'_, AppState>) -> CmdResult<McpStatus> {
     with_store(&state, |s| mcp_status_of(s)).await
+}
+
+/// Adds Sequill's MCP server to an assistant's settings (the dialog's "Add to …" button);
+/// returns what was done.
+#[tauri::command]
+pub async fn install_mcp(client: String) -> CmdResult<String> {
+    let exe = std::env::current_exe().map_err(|e| e.to_string())?;
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::mcp_install::install(&client, &exe.to_string_lossy(), &["mcp".to_owned()])
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// Turns MCP access on or off; the MCP server checks it on every call.
