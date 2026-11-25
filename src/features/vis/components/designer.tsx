@@ -81,7 +81,6 @@ import type { Draft } from "@/types/features/vis/lib/model";
 import { dialectOf } from "@/features/vis/lib/dialects";
 import { DATA_TYPES } from "@/constants/data-types";
 import type { TypeChoices } from "@/types/components/organisms/dialogs/type-picker";
-import { isDesktop } from "@/lib/platform";
 import { SaveMenu } from "./save-menu";
 import { ExportSchemaMenu } from "./export-schema-menu";
 import { readDraft, useStoredDraft, writeDraft } from "@/features/vis/lib/drafts";
@@ -462,12 +461,10 @@ function DesignerCanvas({
                 }}
               />
             )}
-            {isDesktop() && (
-              <ExportSchemaMenu
-                statements={() => newDatabaseStatements(schema, draft)}
-                name={dbName}
-              />
-            )}
+            <ExportSchemaMenu
+              statements={() => newDatabaseStatements(schema, draft)}
+              name={dbName}
+            />
           </span>,
           badgeSlot,
         )}

@@ -1,3 +1,4 @@
+import { Hint } from "@/components/atoms/tooltip";
 import { useState } from "react";
 import { CodeBlock } from "@/components/molecules/pastel/code-block";
 import { useNow } from "@/hooks/use-now";
@@ -20,6 +21,7 @@ import { navigate, ROUTES } from "@/lib/router";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { useWorkspace } from "@/store/workspace";
 import { cn } from "@/utils";
+import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
 import { History, SquareTerminal, Table, Trash } from "@/components/atoms/icons";
 import {
@@ -92,32 +94,34 @@ function ActivityRow({
         <ActivityDot ok={activity.ok} />
         <span className="shrink-0 text-sm font-medium text-ink">{activityLabel(activity)}</span>
         {changes && (
-          <span className="shrink-0 rounded-xs bg-peach-wash px-1 text-[0.625rem] font-medium text-peach-ink">
+          <Badge variant="peach" className="h-auto px-1.5 py-0">
             edit
-          </span>
+          </Badge>
         )}
         <span className="min-w-0 flex-1 truncate text-xs text-ink-muted">{where}</span>
         {canOpen && activity.sql && (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label="Open in the Assistant tab"
-            title="Open in the Assistant tab"
-            onClick={onOpenQuery}
-          >
-            <SquareTerminal />
-          </Button>
+          <Hint label="Open in the Assistant tab">
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label="Open in the Assistant tab"
+              onClick={onOpenQuery}
+            >
+              <SquareTerminal />
+            </Button>
+          </Hint>
         )}
         {canOpen && table && (
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            aria-label={`Show ${table}`}
-            title={`Show ${table}`}
-            onClick={() => onOpenTable(table)}
-          >
-            <Table />
-          </Button>
+          <Hint label={`Show ${table}`}>
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              aria-label={`Show ${table}`}
+              onClick={() => onOpenTable(table)}
+            >
+              <Table />
+            </Button>
+          </Hint>
         )}
         <time
           dateTime={new Date(activity.at).toISOString()}

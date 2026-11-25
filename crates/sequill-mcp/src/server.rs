@@ -12,8 +12,6 @@ use rmcp::{ErrorData, RoleServer, ServerHandler, tool, tool_handler, tool_router
 use schemars::JsonSchema;
 use sequill_core::CellValue;
 use sequill_core::design::Draft;
-use sequill_core::filter::{Filter, FilterMatch};
-use sequill_core::rows::Sort;
 use serde::Deserialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -87,27 +85,6 @@ pub struct SetDesignArgs {
     /// The whole design: get_schema's design.draft, with your changes. It replaces the
     /// stored one. Name existing tables and columns as they are in the database now.
     pub draft: Draft,
-}
-
-#[derive(Debug, Deserialize, JsonSchema)]
-pub struct ShowArgs {
-    /// The database's id, or its exact name, from app_info.
-    pub database: String,
-    pub view: app::ShowView,
-    /// The table or view, for view "table".
-    pub table: Option<String>,
-    /// For view "table": the editor's filters.
-    #[serde(default)]
-    pub filters: Vec<Filter>,
-    #[serde(default, rename = "match")]
-    pub matching: FilterMatch,
-    /// For view "table": text to look for in every column.
-    pub search: Option<String>,
-    /// For view "table".
-    #[serde(default)]
-    pub sort: Vec<Sort>,
-    /// For view "query": the SQL to put in a new query tab (it isn't run).
-    pub sql: Option<String>,
 }
 
 #[derive(Clone)]
@@ -197,22 +174,12 @@ impl SequillServer {
         read_only_hint = false,
         destructive_hint = false
     ))]
-    async fn show_in_app(&self, Parameters(a): Parameters<ShowArgs>) -> Result<String, String> {
-        self.run(move |dir| {
-            app::show_in_app(
-                dir,
-                &a.database,
-                a.view,
-                a.table.as_deref(),
-                &a.filters,
-                a.matching,
-                a.search.as_deref(),
-                &a.sort,
-                a.sql.as_deref(),
-                app::SHOW_WAIT,
-            )
-        })
-        .await
+    async fn show_in_app(
+        &self,
+        Parameters(a): Parameters<app::ShowArgs>,
+    ) -> Result<String, String> {
+        self.run(move |dir| app::show_in_app(dir, &a, app::SHOW_WAIT))
+            .await
     }
 
     // ---- Changing --------------------------------------------------------------------------

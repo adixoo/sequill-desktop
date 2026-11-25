@@ -14,13 +14,9 @@ the databases, and whether they may also change them, is set with the MCP button
   --data-dir <path>   The data folder of the app to reach (default: the app's own).";
 
 #[derive(Debug, PartialEq)]
-pub struct Options {
-    pub data_dir: PathBuf,
-}
-
-#[derive(Debug, PartialEq)]
 pub enum Command {
-    Serve(Options),
+    /// Relay an assistant's calls for the app whose data folder this is.
+    Serve(PathBuf),
     Help,
 }
 
@@ -44,13 +40,13 @@ pub fn parse(args: &[String]) -> Result<Command, String> {
         None => sequill_core::default_data_dir()
             .ok_or("Could not find the app's data folder; pass --data-dir")?,
     };
-    Ok(Command::Serve(Options { data_dir }))
+    Ok(Command::Serve(data_dir))
 }
 
 /// Relays the assistant's calls until it disconnects. Logs go to stderr; stdout is the protocol.
 pub fn main(args: &[String]) -> i32 {
-    let options = match parse(args) {
-        Ok(Command::Serve(options)) => options,
+    let data_dir = match parse(args) {
+        Ok(Command::Serve(data_dir)) => data_dir,
         Ok(Command::Help) => {
             eprintln!("{USAGE}");
             return 0;
@@ -70,7 +66,7 @@ pub fn main(args: &[String]) -> i32 {
             return 1;
         }
     };
-    match runtime.block_on(serve(options)) {
+    match runtime.block_on(serve(data_dir)) {
         Ok(()) => 0,
         Err(error) => {
             eprintln!("sequill mcp: {error}");
@@ -79,10 +75,8 @@ pub fn main(args: &[String]) -> i32 {
     }
 }
 
-pub async fn serve(options: Options) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    let service = Relay::new(options.data_dir)
-        .serve(rmcp::transport::stdio())
-        .await?;
+pub async fn serve(data_dir: PathBuf) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let service = Relay::new(data_dir).serve(rmcp::transport::stdio()).await?;
     service.waiting().await?;
     Ok(())
 }
@@ -99,9 +93,7 @@ mod tests {
     fn parses_options() {
         assert_eq!(
             parse(&args(&["--data-dir", "x"])).unwrap(),
-            Command::Serve(Options {
-                data_dir: PathBuf::from("x"),
-            })
+            Command::Serve(PathBuf::from("x"))
         );
         assert_eq!(parse(&args(&["--help"])).unwrap(), Command::Help);
         assert!(parse(&args(&["--data-dir"])).is_err());

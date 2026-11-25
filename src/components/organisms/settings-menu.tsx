@@ -1,7 +1,8 @@
+import { Hint } from "@/components/atoms/tooltip";
 import { Moon, Rows2, Rows3, Settings, Sun } from "@/components/atoms/icons";
 import { Button } from "@/components/atoms/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/atoms/popover";
-import { Tabs, TabsList, TabsTrigger } from "@/components/atoms/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/atoms/toggle-group";
 import { useTheme } from "@/lib/theme";
 import { useWorkspace } from "@/store/workspace";
 import type { ThemeName } from "@/types/lib/theme";
@@ -14,34 +15,50 @@ export function SettingsMenu() {
   const setDensity = useWorkspace((s) => s.setDensity);
   return (
     <Popover>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Settings" title="Settings">
-          <Settings />
-        </Button>
-      </PopoverTrigger>
+      <Hint label="Settings">
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Settings">
+            <Settings />
+          </Button>
+        </PopoverTrigger>
+      </Hint>
       <PopoverContent align="end" className="flex w-64 flex-col gap-3 p-3">
         <p className="q-label text-ink-muted">Theme</p>
-        <Tabs value={theme} onValueChange={(v) => setTheme(v as ThemeName)}>
-          <TabsList className="w-full" aria-label="Theme">
-            <TabsTrigger value="dark">
-              <Moon /> Dark
-            </TabsTrigger>
-            <TabsTrigger value="light">
-              <Sun /> Light
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* Segmented controls, not tabs: they set a value and show no panel. Radix clears the
+            value when the pressed item is clicked again, so empty values are ignored. */}
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={theme}
+          onValueChange={(v) => v && setTheme(v as ThemeName)}
+          aria-label="Theme"
+          className="grid w-full grid-cols-2"
+        >
+          <ToggleGroupItem value="dark">
+            <Moon /> Dark
+          </ToggleGroupItem>
+          <ToggleGroupItem value="light">
+            <Sun /> Light
+          </ToggleGroupItem>
+        </ToggleGroup>
         <p className="q-label text-ink-muted">Rows</p>
-        <Tabs value={density} onValueChange={(v) => setDensity(v as Density)}>
-          <TabsList className="w-full" aria-label="Row density">
-            <TabsTrigger value="comfortable">
-              <Rows2 /> Comfortable
-            </TabsTrigger>
-            <TabsTrigger value="compact">
-              <Rows3 /> Compact
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          size="sm"
+          value={density}
+          onValueChange={(v) => v && setDensity(v as Density)}
+          aria-label="Row density"
+          className="grid w-full grid-cols-2"
+        >
+          <ToggleGroupItem value="comfortable">
+            <Rows2 /> Comfortable
+          </ToggleGroupItem>
+          <ToggleGroupItem value="compact">
+            <Rows3 /> Compact
+          </ToggleGroupItem>
+        </ToggleGroup>
       </PopoverContent>
     </Popover>
   );

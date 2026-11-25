@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Must equal `identifier` in `src-tauri/tauri.conf.json`.
-pub const APP_IDENTIFIER: &str = "com.adibitz.sequill";
+const APP_IDENTIFIER: &str = "com.adibitz.sequill";
 const CATALOG_FILE: &str = "catalog.sqlite3";
 const DATABASES_DIR: &str = "databases";
 const DB_FILE_PREFIX: &str = "db-";
@@ -30,7 +30,7 @@ const UI_STATE_KEY: &str = "ui_state";
 const UI_REQUEST_MAX_AGE_MS: i64 = 10_000;
 /// How many days the record of what assistants did over MCP is kept; "0" keeps it forever.
 const MCP_HISTORY_DAYS_KEY: &str = "mcp_history_days";
-pub const DEFAULT_MCP_HISTORY_DAYS: u32 = 7;
+const DEFAULT_MCP_HISTORY_DAYS: u32 = 7;
 /// Longest SQL or details text kept for one call, so a huge insert can't bloat the catalog.
 const MCP_ACTIVITY_TEXT_LIMIT: usize = 20_000;
 const DAY_MS: i64 = 24 * 60 * 60 * 1000;
@@ -38,7 +38,7 @@ const SQLITE_HEADER: &[u8] = b"SQLite format 3\0";
 const STRUCTURE_CHANGED: &str = "The database's structure changed since your design was checked (another app or an assistant changed it). Nothing was saved; review the changes and save again.";
 
 /// Points the app and `sequill mcp` at another data folder (end-to-end tests use a fresh one).
-pub const DATA_DIR_ENV: &str = "SEQUILL_DATA_DIR";
+const DATA_DIR_ENV: &str = "SEQUILL_DATA_DIR";
 
 /// Where the app and the MCP server keep databases unless told otherwise.
 pub fn default_data_dir() -> Option<PathBuf> {
@@ -94,6 +94,17 @@ pub struct StoredDesign {
     pub version: i64,
 }
 
+/// A row of the `designs` table, with its draft read from JSON.
+fn parse_design(key: String, draft: &str, version: i64) -> Result<StoredDesign> {
+    let draft = serde_json::from_str(draft)
+        .map_err(|e| Error::msg(format!("The design for {key} is unreadable ({e})")))?;
+    Ok(StoredDesign {
+        key,
+        draft,
+        version,
+    })
+}
+
 /// What `import_schema` made, and what it left out (such as "CREATE FUNCTION (2)").
 #[derive(Debug, Clone, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -103,7 +114,7 @@ pub struct ImportedSchema {
 }
 
 /// Databases other than SQLite the schema designer can design for (see `create_design`).
-pub const DESIGN_DIALECTS: &[&str] = &["postgresql", "mysql", "mssql", "duckdb"];
+const DESIGN_DIALECTS: &[&str] = &["postgresql", "mysql", "mssql", "duckdb"];
 
 /// The key of the design that isn't tied to a database (it becomes a new one).
 pub const BLANK_DESIGN: &str = "blank";
@@ -316,10 +327,6 @@ impl Store {
         })
     }
 
-    pub fn dir(&self) -> &Path {
-        &self.dir
-    }
-
     /// The file of a database in the catalog: the user's own file for one opened in place.
     pub fn path(&self, id: &str) -> Result<PathBuf> {
         check_id(id)?;
@@ -437,6 +444,7 @@ impl Store {
     }
 
     pub fn create(&mut self, name: &str, seed_sql: Option<&str>) -> Result<DbInfo> {
+        let name = required_name(name)?;
         let id = uuid::Uuid::new_v4().to_string();
         let path = self.managed_file(&id);
         let created = (|| {
@@ -621,25 +629,21 @@ impl Store {
         {
             self.design = None;
         }
-        if self.info(id).is_ok_and(|info| info.path.is_some()) {
-            self.catalog
-                .execute("DELETE FROM databases WHERE id = ?", [id])?;
-            self.catalog
-                .execute("DELETE FROM designs WHERE key = ?", [id])?;
-            return Ok(());
-        }
-        // Only forget it once the file is gone: another process may still have it open.
-        let path = self.managed_file(id);
-        match fs::remove_file(&path) {
-            Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-            Err(e) => {
-                return Err(Error::msg(format!(
-                    "The database file could not be deleted ({e}). If it is open in Sequill, switch to another database there first."
-                )));
+        let opened_in_place = self.info(id).is_ok_and(|info| info.path.is_some());
+        if !opened_in_place {
+            // Only forget it once the file is gone: another process may still have it open.
+            let path = self.managed_file(id);
+            match fs::remove_file(&path) {
+                Ok(()) => {}
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                Err(e) => {
+                    return Err(Error::msg(format!(
+                        "The database file could not be deleted ({e}). If it is open in Sequill, switch to another database there first."
+                    )));
+                }
             }
+            drop_side_files(&path);
         }
-        drop_side_files(&path);
         self.catalog
             .execute("DELETE FROM databases WHERE id = ?", [id])?;
         self.catalog
@@ -776,28 +780,29 @@ impl Store {
             })?
             .map(|row| {
                 let (key, draft, version) = row?;
-                let draft = serde_json::from_str(&draft)
-                    .map_err(|e| Error::msg(format!("The design for {key} is unreadable ({e})")))?;
-                Ok(StoredDesign {
-                    key,
-                    draft,
-                    version,
-                })
+                parse_design(key, &draft, version)
             })
             .collect()
     }
 
     /// The stored design for `key`; an empty one at version 0 if there is none.
     pub fn design(&self, key: &str) -> Result<StoredDesign> {
-        Ok(self
-            .designs()?
-            .into_iter()
-            .find(|d| d.key == key)
-            .unwrap_or_else(|| StoredDesign {
+        let stored = self
+            .catalog
+            .query_row(
+                "SELECT draft, version FROM designs WHERE key = ?",
+                [key],
+                |r| Ok((r.get::<_, String>(0)?, r.get(1)?)),
+            )
+            .optional()?;
+        match stored {
+            Some((draft, version)) => parse_design(key.to_owned(), &draft, version),
+            None => Ok(StoredDesign {
                 key: key.to_owned(),
                 draft: serde_json::json!({}),
                 version: 0,
-            }))
+            }),
+        }
     }
 
     /// Saves the design for `key` (a database id or [`BLANK_DESIGN`]) if it is still at
@@ -1645,7 +1650,14 @@ mod tests {
         let v1 = serde_json::json!({ "droppedTables": ["a"] });
         let v2 = serde_json::json!({ "droppedTables": ["b"] });
 
-        assert_eq!(store.design(&db.id).unwrap().version, 0);
+        assert_eq!(
+            store.design(&db.id).unwrap(),
+            StoredDesign {
+                key: db.id.clone(),
+                draft: serde_json::json!({}),
+                version: 0,
+            }
+        );
         assert_eq!(store.save_design(&db.id, &v1, 0).unwrap(), Some(1));
         // Another process read version 0 too: its save is refused, not merged.
         assert_eq!(other.save_design(&db.id, &v2, 0).unwrap(), None);

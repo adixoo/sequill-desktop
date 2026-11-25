@@ -13,6 +13,7 @@ import { ScrollStrip } from "@/components/atoms/scroll-strip";
 import type { Schema } from "@/types/lib/sqlite/types";
 import { useSavedQueries } from "@/store/saved-queries";
 import { useWorkspace } from "@/store/workspace";
+import { FOCUS_OUTLINE, ROW_ACTION_REVEAL } from "@/constants/classes";
 import { cn } from "@/utils";
 import { McpButton, McpHistoryButton } from "@/components/organisms/mcp-button";
 import { AppHeader } from "@/components/organisms/app-header";
@@ -61,7 +62,7 @@ export function EditorHeader({
       }
     >
       <div className="flex min-w-0 items-center">
-        <DatabaseSwitcher variant="inline" dbId={dbId} hasDraft={hasUnsavedDesign} />
+        <DatabaseSwitcher dbId={dbId} hasDraft={hasUnsavedDesign} />
       </div>
     </AppHeader>
   );
@@ -79,7 +80,7 @@ export function TabBar({ schema }: { schema: Schema | undefined }) {
   // The strip has no scrollbar, so bring the active tab into view whenever it changes.
   useEffect(() => {
     listRef.current
-      ?.querySelector('[role="tab"][aria-selected="true"]')
+      ?.querySelector('[aria-current="page"]')
       ?.scrollIntoView({ block: "nearest", inline: "nearest" });
   }, [activeTabId, tabs.length]);
 
@@ -90,7 +91,7 @@ export function TabBar({ schema }: { schema: Schema | undefined }) {
         fade="canvas"
         scrollLabel="tabs"
         scrollRef={listRef}
-        role="tablist"
+        role="group"
         aria-label="Open tabs"
         className="items-stretch"
       >
@@ -103,17 +104,20 @@ export function TabBar({ schema }: { schema: Schema | undefined }) {
               <ContextMenuTrigger asChild>
                 <div
                   className={cn(
-                    "group/tab relative flex max-w-56 shrink-0 items-center border-r border-hairline",
+                    "group/row relative flex max-w-56 shrink-0 items-center border-r border-hairline",
                     active ? "bg-raised" : "hover:bg-raised",
                   )}
                 >
+                  {/* Plain buttons, not ARIA tabs: the content isn't a tabpanel these could control. */}
                   <button
                     type="button"
-                    role="tab"
-                    aria-selected={active}
+                    aria-current={active ? "page" : undefined}
                     onClick={() => setActiveTab(tab.id)}
                     onAuxClick={(e) => e.button === 1 && closeTab(tab.id)}
-                    className="flex h-full min-w-0 items-center gap-2 pr-8 pl-3 text-sm outline-none focus-visible:bg-active"
+                    className={cn(
+                      "flex h-full min-w-0 items-center gap-2 pr-8 pl-3 text-sm focus-visible:bg-active",
+                      FOCUS_OUTLINE,
+                    )}
                   >
                     <Icon
                       className={cn(
@@ -142,17 +146,18 @@ export function TabBar({ schema }: { schema: Schema | undefined }) {
                         </>
                       )}
                   </button>
-                  <button
-                    type="button"
+                  <Button
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={() => closeTab(tab.id)}
                     aria-label={`Close ${title}`}
                     className={cn(
-                      "absolute right-1.5 flex size-5 items-center justify-center rounded-xs text-ink-muted outline-none hover:bg-raised focus-visible:opacity-100",
-                      active ? "opacity-100" : "opacity-0 group-hover/tab:opacity-100",
+                      "absolute right-1.5 size-5 rounded-xs text-ink-muted focus-visible:outline-hidden",
+                      !active && ROW_ACTION_REVEAL,
                     )}
                   >
                     <X className="size-3.5" />
-                  </button>
+                  </Button>
                   {active && (
                     <span aria-hidden className="absolute inset-x-0 bottom-0 h-0.5 bg-sky-ink" />
                   )}

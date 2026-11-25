@@ -7,9 +7,11 @@
 use std::io;
 use std::path::Path;
 
-/// One end of a connection, in the app (`Listener::accept`) or in `sequill mcp` (`connect`).
-pub trait Stream: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + 'static {}
-impl<T: tokio::io::AsyncRead + tokio::io::AsyncWrite + Send + Unpin + 'static> Stream for T {}
+/// The app's end of one connection, as `Listener::accept` returns it.
+#[cfg(windows)]
+pub type Stream = tokio::net::windows::named_pipe::NamedPipeServer;
+#[cfg(unix)]
+pub type Stream = tokio::net::UnixStream;
 
 #[cfg(windows)]
 pub use windows::{Listener, address, connect};

@@ -113,6 +113,11 @@ export function setMcpHistoryDays(days: number | null): Promise<McpStatus> {
   return invoke("set_mcp_history_days", { days });
 }
 
+/** Adds Sequill to an assistant's own settings (`MCP_CLIENTS` id); returns what was done. */
+export function installMcp(client: string): Promise<string> {
+  return invoke("install_mcp", { client });
+}
+
 /** Saved queries, kept in the catalog on desktop. */
 export const desktopSavedQueries = {
   list: () => invoke<SavedQuery[]>("list_saved_queries"),

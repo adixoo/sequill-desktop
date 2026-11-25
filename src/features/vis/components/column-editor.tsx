@@ -1,3 +1,4 @@
+import { Hint } from "@/components/atoms/tooltip";
 import { Pencil, RotateCcw, Trash, Undo } from "@/components/atoms/icons";
 import { useEffect, useRef, type ReactNode } from "react";
 import { ColumnFields } from "@/components/organisms/dialogs/column-fields";
@@ -141,21 +142,22 @@ function ColumnEditor({
         <p className="q-label min-w-0 truncate text-ink-muted">
           {existing ? "Edit column" : "New column"} · {table.name}
         </p>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="-my-1 shrink-0 text-ink-muted hover:text-rose-ink"
-          aria-label={`Delete column ${column.name || "unnamed"}`}
-          title="Delete column"
-          onClick={() => {
-            editor.onChange(dropColumn(draft, table, column.key));
-            // New columns disappear; existing ones stay listed as deleted.
-            if (!existing) onClose();
-          }}
-        >
-          <Trash />
-        </Button>
+        <Hint label="Delete column">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            className="-my-1 shrink-0 text-ink-muted hover:text-rose-ink"
+            aria-label={`Delete column ${column.name || "unnamed"}`}
+            onClick={() => {
+              editor.onChange(dropColumn(draft, table, column.key));
+              // New columns disappear; existing ones stay listed as deleted.
+              if (!existing) onClose();
+            }}
+          >
+            <Trash />
+          </Button>
+        </Hint>
       </div>
       <ColumnFields
         layout="form"

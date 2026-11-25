@@ -1,4 +1,5 @@
 import { SQLite, sql as sqlLanguage } from "@codemirror/lang-sql";
+import { relations } from "@/lib/sqlite/introspect";
 import type { EditorView } from "@codemirror/view";
 import CodeMirror from "@uiw/react-codemirror";
 import {
@@ -16,6 +17,7 @@ import { toast } from "@/components/atoms/toast";
 import { Loader } from "@/components/molecules/pastel/loader";
 import { Button } from "@/components/atoms/button";
 import { Kbd } from "@/components/atoms/kbd";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/atoms/tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +38,6 @@ import { readJson, writeJson } from "@/lib/storage";
 import { useSavedQueries } from "@/store/saved-queries";
 import type { ColumnLayout } from "@/types/store/workspace";
 import { useWorkspace } from "@/store/workspace";
-import { cn } from "@/utils";
 import { ExportMenu } from "@/features/editor/components/export-menu";
 import { DataGrid } from "@/features/editor/components/grid/data-grid";
 import { pastelEditorTheme } from "./editor-theme";
@@ -152,7 +153,7 @@ export default function QueryConsole({
 
   const extensions = useMemo(() => {
     const completion: Record<string, string[]> = {};
-    for (const rel of [...(schema?.tables ?? []), ...(schema?.views ?? [])]) {
+    for (const rel of relations(schema)) {
       completion[rel.name] = rel.columns.map((c) => c.name);
     }
     return [
@@ -271,35 +272,38 @@ export default function QueryConsole({
           </p>
         ) : (
           <>
-            {results.length > 1 && (
-              <div
-                role="tablist"
-                aria-label="Statement results"
-                className="flex gap-1 overflow-x-auto border-b border-hairline bg-surface px-2 py-1"
+            {results.length > 1 ? (
+              <Tabs
+                value={String(activeResult)}
+                onValueChange={(v) => setActiveResult(Number(v))}
+                className="min-h-0 flex-1 flex-col gap-0"
               >
-                {results.map((r, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    role="tab"
-                    aria-selected={i === activeResult}
-                    onClick={() => setActiveResult(i)}
-                    className={cn(
-                      "flex shrink-0 items-center gap-1.5 rounded-xs px-2 py-1 font-mono text-xs",
-                      i === activeResult ? "bg-raised text-ink" : "text-ink-muted hover:bg-active",
-                    )}
-                  >
-                    {r.error ? (
-                      <AlertCircle className="size-3 text-rose-ink" aria-label="failed" />
-                    ) : (
-                      <CheckCircle className="size-3 text-mint-ink" aria-label="ok" />
-                    )}
-                    <span className="max-w-48 truncate">{r.sql.replace(/\s+/g, " ")}</span>
-                  </button>
-                ))}
-              </div>
+                <TabsList
+                  aria-label="Statement results"
+                  className="h-auto w-full justify-start gap-1 overflow-x-auto rounded-none border-0 border-b border-hairline bg-surface px-2 py-1"
+                >
+                  {results.map((r, i) => (
+                    <TabsTrigger
+                      key={i}
+                      value={String(i)}
+                      className="flex-none py-1 font-mono text-xs font-normal data-[state=active]:text-ink"
+                    >
+                      {r.error ? (
+                        <AlertCircle className="size-3 text-rose-ink" aria-label="failed" />
+                      ) : (
+                        <CheckCircle className="size-3 text-mint-ink" aria-label="ok" />
+                      )}
+                      <span className="max-w-48 truncate">{r.sql.replace(/\s+/g, " ")}</span>
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+                <TabsContent value={String(activeResult)} className="flex min-h-0 flex-col">
+                  {result && <ResultView key={`${activeResult}-${result.sql}`} result={result} />}
+                </TabsContent>
+              </Tabs>
+            ) : (
+              result && <ResultView key={`${activeResult}-${result.sql}`} result={result} />
             )}
-            {result && <ResultView key={`${activeResult}-${result.sql}`} result={result} />}
             {result && (
               <p
                 className="q-num border-t-2 border-hairline bg-surface px-3 py-1.5 text-xs text-ink-muted"

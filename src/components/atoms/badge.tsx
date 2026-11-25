@@ -15,6 +15,14 @@ const badgeVariants = cva(
         outline: "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
         ghost: "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
         link: "text-primary underline-offset-4 hover:underline",
+        // Tones (DESIGN `q-tone-*`): Butter pending, Sky selected, Mint done, Rose failing,
+        // Peach changes, Lilac kinds of object.
+        butter: "bg-butter-wash text-butter-ink",
+        sky: "bg-sky-wash text-sky-ink",
+        mint: "bg-mint-wash text-mint-ink",
+        rose: "bg-rose-wash text-rose-ink",
+        peach: "bg-peach-wash text-peach-ink",
+        lilac: "bg-lilac-wash text-lilac-ink",
       },
     },
     defaultVariants: {

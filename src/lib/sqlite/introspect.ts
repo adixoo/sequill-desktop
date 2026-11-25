@@ -1,5 +1,10 @@
 /** Helpers over the schema the desktop engine reads (`crates/sequill-core/src/schema.rs`). */
-import type { RelationInfo, ColumnInfo } from "@/types/lib/sqlite/types";
+import type { RelationInfo, ColumnInfo, Schema } from "@/types/lib/sqlite/types";
+
+/** The schema's tables, then its views; none while it is loading. */
+export function relations(schema: Schema | null | undefined): RelationInfo[] {
+  return schema ? [...schema.tables, ...schema.views] : [];
+}
 
 /** Columns that a SELECT * would return (virtual-table hidden columns excluded). */
 export function visibleColumns(relation: RelationInfo): ColumnInfo[] {

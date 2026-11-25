@@ -19,7 +19,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/atoms/dropdown-menu";
+import { Button } from "@/components/atoms/button";
 import { ROW_NUMBER_WIDTH } from "@/constants";
+import { FOCUS_OUTLINE, ROW_ACTION_REVEAL } from "@/constants/classes";
 import { clampWidth } from "@/utils/data/grid";
 import type { LaidOutColumn } from "@/types/utils/data/grid";
 import type { SortSpec } from "@/types/lib/sqlite/sql";
@@ -108,7 +110,7 @@ export function GridHeaderCell({
         if (from && from !== col.name) onReorder(from, col.name);
       }}
       className={cn(
-        "group/head relative flex h-full shrink-0 items-center border-r border-b-2 border-hairline bg-raised",
+        "group/row relative flex h-full shrink-0 items-center border-r border-b-2 border-hairline bg-raised",
         col.pinned && "sticky z-20",
         dropTarget && "shadow-[inset_3px_0_0_var(--sky-ink)]",
       )}
@@ -119,7 +121,10 @@ export function GridHeaderCell({
         onClick={(e) => cycleSort(e.shiftKey)}
         disabled={!onSort}
         title={onSort ? "Sort (Shift+click to add)" : undefined}
-        className="flex h-full min-w-0 flex-1 items-center gap-1.5 pl-3 text-left outline-none focus-visible:bg-active disabled:cursor-default"
+        className={cn(
+          "flex h-full min-w-0 flex-1 items-center gap-1.5 pl-3 text-left focus-visible:bg-active disabled:cursor-default",
+          FOCUS_OUTLINE,
+        )}
       >
         {info.pk && (
           <KeyRound className="size-3 shrink-0 text-butter-ink" aria-label="Primary key" />
@@ -150,11 +155,18 @@ export function GridHeaderCell({
         )}
       </button>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          className="mr-1 flex size-6 shrink-0 items-center justify-center rounded-xs text-ink-muted opacity-0 outline-none group-hover/head:opacity-100 hover:bg-active focus-visible:opacity-100 data-[state=open]:opacity-100"
-          aria-label={`Column options for ${col.name}`}
-        >
-          <ChevronDown className="size-3.5" />
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Column options for ${col.name}`}
+            className={cn(
+              "mr-1 size-6 rounded-xs text-ink-muted hover:bg-active",
+              ROW_ACTION_REVEAL,
+            )}
+          >
+            <ChevronDown className="size-3.5" />
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
           {onSort && (

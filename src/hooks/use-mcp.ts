@@ -3,9 +3,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "@/components/atoms/toast";
 import { queryKeys } from "@/hooks/use-db";
 import type { McpStatus } from "@/types/lib/mcp";
-import { isDesktop } from "@/lib/platform";
 import {
   clearMcpActivity,
+  installMcp,
   mcpActivity,
   mcpStatus,
   setMcpAllowChanges,
@@ -17,9 +17,9 @@ import { errorMessage } from "@/lib/sqlite/errors";
 /** How many calls the history shows at most. */
 const MCP_ACTIVITY_LIMIT = 500;
 
-/** Whether MCP access is on, and how clients start the server. Never loads in browsers. */
+/** Whether MCP access is on, and how clients start the server. */
 export function useMcpStatus() {
-  return useQuery({ queryKey: queryKeys.mcp, queryFn: mcpStatus, enabled: isDesktop() });
+  return useQuery({ queryKey: queryKeys.mcp, queryFn: mcpStatus });
 }
 
 /** Changes one MCP setting, then shows the new status and says what it means. */
@@ -64,7 +64,6 @@ export function useMcpActivity() {
   return useQuery({
     queryKey: queryKeys.mcpActivity,
     queryFn: () => mcpActivity(MCP_ACTIVITY_LIMIT),
-    enabled: isDesktop(),
   });
 }
 
@@ -78,4 +77,9 @@ export function useClearMcpActivity() {
     },
     onError: (error) => toast.error(errorMessage(error)),
   });
+}
+
+/** Adds Sequill to one assistant; the dialog shows the outcome next to the button. */
+export function useInstallMcp() {
+  return useMutation({ mutationFn: installMcp });
 }

@@ -17,7 +17,12 @@ export interface McpStatus extends McpCommand {
   devBuild: boolean;
   /** Days the record of what assistants did is kept; null keeps it forever. */
   historyDays: number | null;
+  /** The computer's system, so the guide's steps fit it. */
+  os: McpOs;
 }
+
+/** `std::env::consts::OS` of the desktop app; other systems get Linux's steps. */
+export type McpOs = "windows" | "macos" | "linux";
 
 /** One call an assistant made over MCP, as the server recorded it. */
 export interface McpActivity {
@@ -41,12 +46,22 @@ export interface McpActivity {
 export interface McpClient {
   id: string;
   name: string;
+  /** What it is, under its name in the picker: "Desktop app", "Code editor" or "Terminal". */
+  kind: string;
   /**
    * "command": one line to paste into a terminal. "file": text to add to a settings file.
    */
   install: "command" | "file";
-  /** What to do, in order. `code` and **bold** are rendered as such. */
-  steps: string[];
+  /**
+   * What to do by hand on this system, in order. `code`, **bold**, [[Ctrl+K]] (key caps) and {{icon}}
+   * are rendered as such.
+   */
+  steps(os: McpOs): string[];
+  /**
+   * Set when the app can add itself to this client (`install_mcp` in `src-tauri`): what to do
+   * after that on this system, in the same format as `steps`.
+   */
+  oneClick?(os: McpOs): string[];
   /** Title of the code window: the file to edit, or "terminal". */
   fileName: string;
   language: CodeLanguage;

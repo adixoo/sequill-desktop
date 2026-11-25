@@ -30,6 +30,7 @@ import type { Schema, SchemaObject, RelationInfo } from "@/types/lib/sqlite/type
 import { useDialogs } from "@/store/dialogs";
 import { useSavedQueries } from "@/store/saved-queries";
 import { useWorkspace } from "@/store/workspace";
+import { FOCUS_OUTLINE, ROW_ACTION_REVEAL } from "@/constants/classes";
 import { cn } from "@/utils";
 
 function Group({
@@ -53,7 +54,10 @@ function Group({
           type="button"
           onClick={() => setOpen(!open)}
           aria-expanded={open}
-          className="flex h-8 flex-1 items-center gap-1.5 rounded-xs px-2 text-left outline-none focus-visible:bg-active"
+          className={cn(
+            "flex h-8 flex-1 items-center gap-1.5 rounded-xs px-2 text-left focus-visible:bg-active",
+            FOCUS_OUTLINE,
+          )}
         >
           <ChevronDown
             className={cn(
@@ -90,7 +94,7 @@ function RelationItem({
   const count = useTableCount(dbId, relation.name, relation.kind !== "virtual");
   const Icon = relation.kind === "view" ? Eye : Table;
   return (
-    <li className="group/item relative">
+    <li className="group/row relative">
       <button
         type="button"
         onClick={() => {
@@ -98,7 +102,8 @@ function RelationItem({
           onNavigate?.();
         }}
         className={cn(
-          "flex h-8 w-full items-center gap-2 rounded-xs pr-9 pl-7 text-left text-sm outline-none hover:bg-active focus-visible:bg-active",
+          "flex h-8 w-full items-center gap-2 rounded-xs pr-9 pl-7 text-left text-sm hover:bg-active focus-visible:bg-active",
+          FOCUS_OUTLINE,
           active ? "bg-sky-wash font-medium text-ink" : "text-ink-soft",
         )}
         aria-current={active ? "page" : undefined}
@@ -112,11 +117,18 @@ function RelationItem({
         )}
       </button>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-xs text-ink-muted opacity-0 outline-none group-hover/item:opacity-100 hover:bg-raised focus-visible:opacity-100 data-[state=open]:opacity-100 max-md:opacity-100"
-          aria-label={`Actions for ${relation.name}`}
-        >
-          <MoreHorizontal className="size-4" />
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Actions for ${relation.name}`}
+            className={cn(
+              "absolute top-1 right-1 size-6 rounded-xs text-ink-muted",
+              ROW_ACTION_REVEAL,
+            )}
+          >
+            <MoreHorizontal className="size-4" />
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
           <DropdownMenuItem
@@ -185,13 +197,14 @@ function SavedQueryItem({ query, onNavigate }: { query: SavedQuery; onNavigate?(
     onNavigate?.();
   };
   return (
-    <li className="group/item relative">
+    <li className="group/row relative">
       <button
         type="button"
         onClick={open}
         title={query.sql}
         className={cn(
-          "flex h-8 w-full items-center gap-2 rounded-xs pr-9 pl-7 text-left text-sm outline-none hover:bg-active focus-visible:bg-active",
+          "flex h-8 w-full items-center gap-2 rounded-xs pr-9 pl-7 text-left text-sm hover:bg-active focus-visible:bg-active",
+          FOCUS_OUTLINE,
           active ? "bg-lilac-wash font-medium text-ink" : "text-ink-soft",
         )}
         aria-current={active ? "page" : undefined}
@@ -202,11 +215,18 @@ function SavedQueryItem({ query, onNavigate }: { query: SavedQuery; onNavigate?(
         <span className="truncate">{query.name}</span>
       </button>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          className="absolute top-1 right-1 flex size-6 items-center justify-center rounded-xs text-ink-muted opacity-0 outline-none group-hover/item:opacity-100 hover:bg-raised focus-visible:opacity-100 data-[state=open]:opacity-100 max-md:opacity-100"
-          aria-label={`Actions for ${query.name}`}
-        >
-          <MoreHorizontal className="size-4" />
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-xs"
+            aria-label={`Actions for ${query.name}`}
+            className={cn(
+              "absolute top-1 right-1 size-6 rounded-xs text-ink-muted",
+              ROW_ACTION_REVEAL,
+            )}
+          >
+            <MoreHorizontal className="size-4" />
+          </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-48">
           <DropdownMenuItem onSelect={open}>
@@ -238,7 +258,10 @@ function ObjectItem({ object, icon }: { object: SchemaObject; icon: ReactNode })
         onClick={() =>
           object.sql && openDialog({ kind: "ddl", title: object.name, sql: object.sql })
         }
-        className="flex h-8 w-full items-center gap-2 rounded-xs pr-2 pl-7 text-left text-sm text-ink-soft outline-none hover:bg-active focus-visible:bg-active"
+        className={cn(
+          "flex h-8 w-full items-center gap-2 rounded-xs pr-2 pl-7 text-left text-sm text-ink-soft hover:bg-active focus-visible:bg-active",
+          FOCUS_OUTLINE,
+        )}
       >
         <span className="text-ink-muted">{icon}</span>
         <span className="truncate">{object.name}</span>
@@ -311,13 +334,14 @@ export function Sidebar({ dbId, schema, onNavigate, className }: SidebarProps) {
               {schema.tables.length === 0 && (
                 <li className="px-7 py-1 text-sm text-ink-muted">
                   No tables yet.{" "}
-                  <button
-                    type="button"
-                    className="text-sky-ink underline-offset-2 hover:underline"
+                  <Button
+                    variant="link"
+                    size="xs"
+                    className="h-auto p-0 text-sm text-sky-ink"
                     onClick={() => openDialog({ kind: "createTable" })}
                   >
                     Create one
-                  </button>
+                  </Button>
                 </li>
               )}
             </Group>

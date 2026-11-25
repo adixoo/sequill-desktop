@@ -1,5 +1,6 @@
 /** React Query bindings for the SQLite worker. */
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { relations } from "@/lib/sqlite/introspect";
 import { useCallback, useEffect } from "react";
 import { toast } from "@/components/atoms/toast";
 import { getSqlite } from "@/lib/sqlite/client";
@@ -21,10 +22,8 @@ export const queryKeys = {
     ["data", dbId, "count", q] as const,
   tableCount: (dbId: string, table: string) => ["data", dbId, "table-count", table] as const,
   /** Under the database's data, so any change to it (here or outside) checks again. */
-  designCheck: (dbId: string | null, statements: string[]) =>
-    dbId
-      ? (["data", dbId, "design-check", statements] as const)
-      : (["design-check", statements] as const),
+  designCheck: (dbId: string, statements: string[]) =>
+    ["data", dbId, "design-check", statements] as const,
   mcp: ["mcp"] as const,
   mcpActivity: ["mcp", "activity"] as const,
 };
@@ -124,7 +123,7 @@ export function useInvalidate() {
             const schema = client.getQueryData<Schema>(queryKeys.schema(dbId));
             if (schema) {
               useWorkspace.getState().syncTables(
-                [...schema.tables, ...schema.views].map((t) => t.name),
+                relations(schema).map((t) => t.name),
                 opts.renamed,
               );
             }

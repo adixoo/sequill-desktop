@@ -1,3 +1,4 @@
+import { Hint } from "@/components/atoms/tooltip";
 import { toast } from "@/components/atoms/toast";
 import { Button } from "@/components/atoms/button";
 import {
@@ -35,11 +36,13 @@ export function ExportSchemaMenu({ statements, name }: ExportSchemaMenuProps) {
   };
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" title="Export the schema for another database">
-          <FileDown /> <span className="max-sm:sr-only">Export</span>
-        </Button>
-      </DropdownMenuTrigger>
+      <Hint label="Export the schema for another database">
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost">
+            <FileDown /> <span className="max-sm:sr-only">Export</span>
+          </Button>
+        </DropdownMenuTrigger>
+      </Hint>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="text-xs font-normal text-ink-muted">
           Schema as SQL for

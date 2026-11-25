@@ -51,15 +51,8 @@ function flatten(stream: Prism.TokenStream, inherited: CodeTokenType, out: CodeT
   flatten(stream.content, prismType(stream) ?? inherited, out);
 }
 
-const SQL_TYPES: Record<string, CodeTokenType> = { ident: "plain", space: "plain" };
-
 function tokenize(code: string, language: CodeLanguage): CodeToken[] {
-  if (language === "sql") {
-    return tokenizeSql(code).map((t) => ({
-      type: SQL_TYPES[t.type] ?? (t.type as CodeTokenType),
-      text: t.text,
-    }));
-  }
+  if (language === "sql") return tokenizeSql(code);
   const out: CodeToken[] = [];
   flatten(Prism.tokenize(code, Prism.languages[language]), "plain", out);
   return out;

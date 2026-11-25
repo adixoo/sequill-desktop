@@ -1,5 +1,14 @@
 # sqlite-browser-editor
 
+## 1.2.1
+
+### Patch Changes
+
+- Connecting an AI assistant is easier: the MCP guide is wider, picks the assistant from tiles with its logo, and shows steps for your computer (Windows, macOS or Linux). "Add to …" puts Sequill in Claude Desktop, Claude Code, Cursor, VS Code, Codex, Gemini CLI or Windsurf in one click, keeping the rest of their settings, then says what to do next, including how to fully quit Claude Desktop from the system tray or Task Manager.
+- 1d555d8: The MCP button shows its state as a colored badge: on, read only or off.
+- 9c56dce: The header is the same on the editor and schema pages: "Sequill / page" switches pages, and a new Settings popover holds the theme and the row density (moved out of the table toolbar). Tabs show the selected option with a sliding pill.
+- Keyboard and screen reader fixes: focus stays visible in Windows high-contrast mode, the colour picker and query results move with the arrow keys, hints show on keyboard focus as well as hover, the open database is marked with a check, and search boxes and the filter count are announced. Row action buttons are always visible on touch screens.
+
 ## 1.2.0
 
 ### Minor Changes

@@ -48,7 +48,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(conn: Connection) -> Result<Self> {
+    fn new(conn: Connection) -> Result<Self> {
         conn.busy_timeout(BUSY_TIMEOUT)?;
         conn.execute_batch("PRAGMA foreign_keys = ON")?;
         Ok(Self { conn })
@@ -185,7 +185,7 @@ impl Session {
     }
 
     /// Runs a design exactly like `apply_design`, then undoes it: Ok when saving would work.
-    pub fn check_design(&self, statements: &[String]) -> Result<()> {
+    fn check_design(&self, statements: &[String]) -> Result<()> {
         self.run_design(statements, false)
     }
 

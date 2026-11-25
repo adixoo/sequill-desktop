@@ -1,3 +1,4 @@
+import { Badge } from "@/components/atoms/badge";
 import { Handle, Position, useUpdateNodeInternals, type NodeProps } from "@xyflow/react";
 import { Eye, Table } from "@/components/atoms/icons";
 import { memo, useEffect, useState } from "react";
@@ -95,9 +96,9 @@ export const TableNode = memo(function TableNode({ id, data, selected }: NodePro
         {tableChangeLabel(table) && <span className="sr-only">, {tableChangeLabel(table)}</span>}
         <span className="ml-auto flex shrink-0 items-center gap-2">
           {(table.kind === "view" || table.kind === "virtual") && (
-            <span className="q-table-head rounded-xs bg-lilac-wash px-1.5 py-0.5 text-lilac-ink">
+            <Badge variant="lilac" className="q-table-head h-auto">
               {table.kind}
-            </span>
+            </Badge>
           )}
           <span
             className="q-num font-mono text-[0.6875rem] text-ink-muted"

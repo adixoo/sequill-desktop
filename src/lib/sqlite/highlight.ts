@@ -1,5 +1,5 @@
 /** Tiny SQL tokenizer for static code previews (the console uses CodeMirror). */
-import type { Token } from "@/types/lib/sqlite/highlight";
+import type { CodeToken } from "@/types/utils/highlight-code";
 
 const KEYWORDS = new Set(
   (
@@ -15,19 +15,19 @@ const KEYWORDS = new Set(
 const PATTERN =
   /(--[^\n]*|\/\*[\s\S]*?\*\/)|('(?:[^']|'')*'?)|("(?:[^"]|"")*"?|`[^`]*`?|\[[^\]]*\]?)|(\b\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b|\bx'[0-9a-fA-F]*')|([A-Za-z_][\w$]*)|(\s+)|(.)/g;
 
-export function tokenizeSql(sql: string): Token[] {
-  const tokens: Token[] = [];
+export function tokenizeSql(sql: string): CodeToken[] {
+  const tokens: CodeToken[] = [];
   for (const m of sql.matchAll(PATTERN)) {
     const [text, comment, str, quoted, num, word, space] = m;
     if (comment) tokens.push({ type: "comment", text });
     else if (str) tokens.push({ type: "string", text });
-    else if (quoted) tokens.push({ type: "ident", text });
+    else if (quoted) tokens.push({ type: "plain", text });
     else if (num) tokens.push({ type: "number", text });
     else if (word) {
       const next = sql.slice((m.index ?? 0) + text.length).trimStart()[0];
-      const type = KEYWORDS.has(word.toLowerCase()) ? "keyword" : next === "(" ? "fn" : "ident";
+      const type = KEYWORDS.has(word.toLowerCase()) ? "keyword" : next === "(" ? "fn" : "plain";
       tokens.push({ type, text });
-    } else if (space) tokens.push({ type: "space", text });
+    } else if (space) tokens.push({ type: "plain", text });
     else tokens.push({ type: "punct", text });
   }
   return tokens;

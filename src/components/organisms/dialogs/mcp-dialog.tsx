@@ -1,10 +1,16 @@
 import { useState, type ReactNode } from "react";
 import { CodeBlock } from "@/components/molecules/pastel/code-block";
-import { useMcpStatus, useSetMcpAllowChanges, useSetMcpEnabled } from "@/hooks/use-mcp";
+import {
+  useInstallMcp,
+  useMcpStatus,
+  useSetMcpAllowChanges,
+  useSetMcpEnabled,
+} from "@/hooks/use-mcp";
 import { MCP_CLIENTS } from "@/lib/mcp";
-import type { McpClient, McpStatus } from "@/types/lib/mcp";
+import type { McpClient, McpOs, McpStatus } from "@/types/lib/mcp";
 import { errorMessage } from "@/lib/sqlite/errors";
 import { useDialogs } from "@/store/dialogs";
+import { AssistantIcon } from "@/components/molecules/assistant-icon";
 import { StepNumber } from "@/components/molecules/step-number";
 import { Button } from "@/components/atoms/button";
 import {
@@ -13,21 +19,49 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/atoms/dialog";
-import { History, TriangleAlert } from "@/components/atoms/icons";
+import { Check, ChevronRight, ChevronUp, History, TriangleAlert } from "@/components/atoms/icons";
+import { Kbd, KbdGroup } from "@/components/atoms/kbd";
 import { Label } from "@/components/atoms/label";
 import { ResponsiveDialog, ResponsiveDialogContent } from "@/components/atoms/responsive-dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/atoms/select";
+import { Spinner } from "@/components/atoms/spinner";
 import { Switch } from "@/components/atoms/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/atoms/toggle-group";
 
-/** A step's text with `code` and **bold** spans. */
+/**
+ * A step's text with `code`, **bold**, [[Ctrl+K]] (key caps) and {{icon}} spans: {{tray}} is the
+ * taskbar's show-hidden-icons arrow, any other name an `AssistantIcon`.
+ */
 function StepText({ text }: { text: string }) {
-  return text.split(/(`[^`]+`|\*\*[^*]+\*\*)/).map((part, i) => {
+  return text.split(/(`[^`]+`|\*\*[^*]+\*\*|\[\[[^\]]+\]\]|\{\{[^}]+\}\})/).map((part, i) => {
+    if (part.startsWith("{{") && part.endsWith("}}")) {
+      const name = part.slice(2, -2);
+      return (
+        <span
+          key={i}
+          className="inline-flex size-5 items-center justify-center rounded-sm bg-raised align-text-bottom text-ink ring-1 ring-hairline"
+        >
+          {name === "tray" ? (
+            <ChevronUp className="size-3.5" />
+          ) : (
+            <AssistantIcon client={name} className="size-3.5" />
+          )}
+        </span>
+      );
+    }
+    if (part.startsWith("[[") && part.endsWith("]]")) {
+      return (
+        <KbdGroup key={i} className="align-baseline">
+          {part
+            .slice(2, -2)
+            .split("+")
+            .map((key) => (
+              <Kbd key={key} className="bg-raised text-ink ring-1 ring-hairline">
+                {key}
+              </Kbd>
+            ))}
+        </KbdGroup>
+      );
+    }
     if (part.startsWith("`") && part.endsWith("`")) {
       return (
         <code
@@ -47,6 +81,22 @@ function StepText({ text }: { text: string }) {
     }
     return part;
   });
+}
+
+/** Numbered steps in the StepText format. */
+function StepList({ steps }: { steps: string[] }) {
+  return (
+    <ol className="flex flex-col gap-2.5">
+      {steps.map((step, i) => (
+        <li key={step} className="flex gap-3 text-sm leading-relaxed text-ink-soft">
+          <StepNumber n={i + 1} />
+          <span className="min-w-0">
+            <StepText text={step} />
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 /** One of the guide's three steps. */
@@ -148,20 +198,11 @@ function Permissions({ status }: { status: McpStatus }) {
   );
 }
 
-/** Numbered instructions for one assistant, then the command or settings to copy. */
-function Setup({ client, code }: { client: McpClient; code: string }) {
+/** Numbered instructions for one assistant on this system, then the command or settings to copy. */
+function ManualSteps({ client, code, os }: { client: McpClient; code: string; os: McpOs }) {
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <ol className="flex flex-col gap-2.5">
-        {client.steps.map((step, i) => (
-          <li key={step} className="flex gap-3 text-sm leading-relaxed text-ink-soft">
-            <StepNumber n={i + 1} />
-            <span className="min-w-0">
-              <StepText text={step} />
-            </span>
-          </li>
-        ))}
-      </ol>
+      <StepList steps={client.steps(os)} />
       <CodeBlock
         fileName={client.fileName}
         code={code}
@@ -174,31 +215,111 @@ function Setup({ client, code }: { client: McpClient; code: string }) {
   );
 }
 
-/** Step 2: pick an assistant, then copy its one command or its settings. */
+/** The "Add to …" button, then what happened and what to do next. */
+function OneClick({ client, next }: { client: McpClient; next: string[] }) {
+  const install = useInstallMcp();
+  return (
+    <div className="flex flex-col gap-3 rounded-md bg-raised p-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Button size="lg" onClick={() => install.mutate(client.id)} disabled={install.isPending}>
+          {install.isPending ? (
+            <Spinner />
+          ) : (
+            <AssistantIcon client={client.id} className="size-4" />
+          )}
+          Add to {client.name}
+        </Button>
+        <p className="min-w-0 flex-1 text-xs leading-relaxed text-ink-muted">
+          Sequill adds itself to {client.name}&apos;s settings in one click. Your other settings
+          stay as they are.
+        </p>
+      </div>
+      {install.isSuccess && (
+        <div
+          role="status"
+          className="flex flex-col gap-3 rounded-md bg-surface p-4 ring-2 ring-hairline ring-inset"
+        >
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-ink">
+            <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-mint-wash text-mint-ink">
+              <Check className="size-3.5" />
+            </span>
+            Sequill was added to
+            <span className="inline-flex items-center gap-1.5">
+              <AssistantIcon client={client.id} className="size-4" />
+              {client.name}
+            </span>
+          </p>
+          <div className="flex flex-col gap-2 sm:pl-8">
+            <p className="text-xs font-semibold text-ink-muted">What to do now</p>
+            <StepList steps={next} />
+            <p className="text-xs leading-relaxed break-all text-ink-muted">{install.data}</p>
+          </div>
+        </div>
+      )}
+      {install.isError && (
+        <p
+          role="alert"
+          className="flex items-start gap-2 rounded-md bg-rose-wash px-3 py-2.5 text-sm leading-relaxed text-rose-ink"
+        >
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          <span className="min-w-0">{errorMessage(install.error)}</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** One assistant: the button when the app can add itself, otherwise (or folded away) the steps. */
+function ClientSetup({ client, status }: { client: McpClient; status: McpStatus }) {
+  const steps = <ManualSteps client={client} code={client.config(status)} os={status.os} />;
+  if (!client.oneClick) return steps;
+  return (
+    <>
+      <OneClick client={client} next={client.oneClick(status.os)} />
+      <details className="group rounded-md ring-2 ring-hairline ring-inset">
+        <summary className="flex cursor-pointer items-center gap-2 rounded-md px-3 py-2.5 text-sm font-medium text-ink-soft outline-none select-none focus-visible:ring-3 focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden">
+          <ChevronRight className="size-4 transition-transform duration-150 group-open:rotate-90 motion-reduce:transition-none" />
+          Or set it up by hand
+        </summary>
+        <div className="px-3 pt-1 pb-3">{steps}</div>
+      </details>
+    </>
+  );
+}
+
+/** Step 2: pick an assistant, then add Sequill in one click or by hand. */
 function Installation({ status }: { status: McpStatus }) {
   const [clientId, setClientId] = useState(MCP_CLIENTS[0].id);
   const client = MCP_CLIENTS.find((c) => c.id === clientId) ?? MCP_CLIENTS[0];
   return (
     <>
-      <div className="flex flex-col gap-1.5">
-        <Label htmlFor="mcp-client" className="text-sm text-ink-soft">
+      <div className="flex flex-col gap-2">
+        <p id="mcp-client-label" className="text-sm text-ink-soft">
           Which assistant do you use?
-        </Label>
-        <Select value={client.id} onValueChange={setClientId}>
-          <SelectTrigger id="mcp-client" className="w-full sm:w-72">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {MCP_CLIENTS.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                {c.name}
-                {c.install === "command" && <span className="text-ink-muted"> · one command</span>}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        </p>
+        <ToggleGroup
+          type="single"
+          variant="outline"
+          value={client.id}
+          // Radix clears the value when the chosen tile is clicked again; keep it chosen.
+          onValueChange={(id) => id && setClientId(id)}
+          aria-labelledby="mcp-client-label"
+          className="grid w-full grid-cols-2 sm:grid-cols-5"
+        >
+          {MCP_CLIENTS.map((c) => (
+            <ToggleGroupItem
+              key={c.id}
+              value={c.id}
+              className="h-auto min-w-0 flex-col gap-1.5 px-2 py-3 whitespace-normal data-[state=on]:border-sky-ink/50 data-[state=on]:bg-sky-wash data-[state=on]:text-sky-ink"
+            >
+              <AssistantIcon client={c.id} className="size-6" />
+              <span className="text-center text-sm leading-tight font-medium">{c.name}</span>
+              <span className="text-xs font-normal text-ink-muted">{c.kind}</span>
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
       </div>
-      <Setup client={client} code={client.config(status)} />
+      <ClientSetup key={client.id} client={client} status={status} />
     </>
   );
 }
@@ -222,7 +343,7 @@ export function McpDialog({ onClose }: { onClose(): void }) {
   const status = useMcpStatus();
   return (
     <ResponsiveDialog open onOpenChange={(open) => !open && onClose()}>
-      <ResponsiveDialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-2xl">
+      <ResponsiveDialogContent className="max-h-[92dvh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Connect an AI assistant</DialogTitle>
           <DialogDescription>

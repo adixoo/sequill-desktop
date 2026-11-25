@@ -1,3 +1,4 @@
+import { Button } from "@/components/atoms/button";
 import { useCopy } from "@/hooks/use-copy";
 import { highlightLines } from "@/utils/highlight-code";
 import type { CodeTokenType, CodeLanguage } from "@/types/utils/highlight-code";
@@ -20,8 +21,6 @@ interface CodeBlockProps {
   code: string;
   /** How to colour the code; SQL unless said otherwise. */
   language?: CodeLanguage;
-  /** 1-based line that gets the lilac wash. */
-  highlightLine?: number;
   /** Shows a Copy button in the title bar. */
   copyable?: boolean;
   /** Wraps long lines instead of scrolling sideways, so a one-line command reads whole. */
@@ -36,7 +35,6 @@ export function CodeBlock({
   fileName,
   code,
   language = "sql",
-  highlightLine,
   copyable,
   wrap,
   bare,
@@ -72,10 +70,7 @@ export function CodeBlock({
       >
         <code className={cn("block min-w-full", bare ? "px-3" : "px-2", !wrap && "w-max")}>
           {lines.map((line, i) => (
-            <span
-              key={i}
-              className={cn("flex rounded-xs pr-4", highlightLine === i + 1 && "bg-lilac-wash")}
-            >
+            <span key={i} className="flex rounded-xs pr-4">
               {!bare && (
                 <span aria-hidden className="w-10 shrink-0 pr-4 text-right text-decor select-none">
                   {i + 1}
@@ -109,18 +104,13 @@ function CopyCodeButton({
 }) {
   const { copied, copy } = useCopy();
   return (
-    <button
-      type="button"
+    <Button
+      variant="ghost"
+      size={compact ? "icon-sm" : "sm"}
       onClick={() => void copy(code)}
       title={`Copy ${fileName}`}
       aria-label={compact ? `Copy ${fileName}` : undefined}
-      className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 rounded-sm text-xs font-medium",
-        compact ? "size-7 justify-center" : "h-8 px-2.5",
-        "transition-[background-color,color] duration-150 outline-none",
-        "focus-visible:ring-2 focus-visible:ring-ring",
-        copied ? "bg-mint-wash text-mint-ink" : "text-ink-soft hover:bg-surface hover:text-ink",
-      )}
+      className={cn("text-xs", copied && "bg-mint-wash text-mint-ink hover:bg-mint-wash")}
     >
       <span className="relative size-3.5">
         <Copy
@@ -140,6 +130,6 @@ function CopyCodeButton({
       <span aria-live="polite" className={cn(compact && "sr-only")}>
         {copied ? "Copied" : "Copy"}
       </span>
-    </button>
+    </Button>
   );
 }

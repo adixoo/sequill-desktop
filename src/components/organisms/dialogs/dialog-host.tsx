@@ -3,7 +3,6 @@ import { Loader } from "@/components/molecules/pastel/loader";
 import { useDbActions } from "@/hooks/use-db-actions";
 import { useRunStatements } from "@/hooks/use-db";
 import { useSavedQueryActions } from "@/hooks/use-saved-queries";
-import { storagePlace } from "@/lib/platform";
 import { buildRenameColumn, buildRenameTable } from "@/lib/sqlite/ddl";
 import { useDialogs } from "@/store/dialogs";
 import { McpActivitySheet } from "@/components/organisms/mcp-activity";
@@ -69,7 +68,7 @@ export function DialogHost() {
       return (
         <NameDialog
           title="New database"
-          description={`An empty database, stored ${storagePlace()}.`}
+          description="An empty database, stored on this computer."
           label="Name"
           initial=""
           submitLabel="Create"
@@ -119,7 +118,7 @@ export function DialogHost() {
       return (
         <NameDialog
           title="Save query"
-          description={`Saved queries are kept ${storagePlace()} and work with any database.`}
+          description="Saved queries are kept on this computer and work with any database."
           label="Name"
           initial={dialog.suggested}
           allowUnchanged

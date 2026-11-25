@@ -169,16 +169,27 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;`,
   await expect(page.locator(".react-flow__edge")).toHaveCount(1);
   await expect(page.getByRole("button", { name: /^Unsaved/ })).toHaveCount(0);
 
+  // Each kind of object is a group that starts collapsed; open it to see what it holds.
   const objects = page.getByRole("listitem", { name: "Other objects" });
-  await expect(objects.getByRole("region", { name: "Enums" })).toContainText("mood");
-  await expect(objects.getByRole("region", { name: "Functions" })).toContainText("stamp");
-  await expect(objects.getByRole("region", { name: "Triggers" })).toContainText("on ticket");
-  await expect(objects.getByRole("region", { name: "Views" })).toContainText("sad_tickets");
+  for (const [group, holds] of [
+    ["Enums", "mood"],
+    ["Functions", "stamp"],
+    ["Triggers", "on ticket"],
+    ["Views", "sad_tickets"],
+  ]) {
+    const region = objects.getByRole("region", { name: group });
+    await region.getByRole("button", { expanded: false }).click();
+    await expect(region).toContainText(holds);
+  }
 
-  // An enum is designed like a table: change its values, review, save.
+  // An enum is designed like a table: change its values (one field each), review, save.
+  const values = ["sad", "ok", "happy"];
   await objects.getByRole("button", { name: "Edit enum mood" }).click();
   const editor = page.getByRole("dialog", { name: "Enum mood" });
-  await editor.getByRole("textbox", { name: "Values" }).fill("sad\nok\nhappy");
+  await editor.getByRole("button", { name: "Add value" }).click();
+  for (const [i, value] of values.entries()) {
+    await editor.getByRole("textbox", { name: `Value ${i + 1}` }).fill(value);
+  }
   await editor.getByRole("button", { name: "Keep changes" }).click();
   await page.getByRole("button", { name: /^Unsaved/ }).click();
   const review = page.getByRole("alertdialog");
@@ -188,9 +199,10 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;`,
   await review.getByRole("button", { name: "Save to database" }).click();
   await expect(page.getByRole("button", { name: /^Unsaved/ })).toHaveCount(0);
   await objects.getByRole("button", { name: "Edit enum mood" }).click();
-  await expect(
-    page.getByRole("dialog", { name: "Enum mood" }).getByRole("textbox", { name: "Values" }),
-  ).toHaveValue("sad\nok\nhappy");
+  const saved = page.getByRole("dialog", { name: "Enum mood" });
+  for (const [i, value] of values.entries()) {
+    await expect(saved.getByRole("textbox", { name: `Value ${i + 1}` })).toHaveValue(value);
+  }
 });
 
 test("stress: 4 assistant sessions write 200 rows at once while a person runs 200,000-row SQL", async ({
